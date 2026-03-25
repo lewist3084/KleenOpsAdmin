@@ -14,10 +14,12 @@ import '../features/ai_usage/screens/ai_usage_home.dart';
 import '../features/storage_usage/screens/storage_home.dart';
 import '../features/users/screens/users_home.dart';
 import '../features/onboarding_review/screens/onboarding_home.dart';
+import '../features/legal/screens/legal_home.dart';
 import '../features/support/screens/support_home.dart';
 import '../features/catalog/screens/catalog_home.dart';
 import '../features/catalog/screens/scrape_jobs_wrapper.dart';
 import '../features/catalog/screens/staging_review_wrapper.dart';
+import '../features/device_registry/screens/device_registry_home.dart';
 import 'routes.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey =
@@ -90,6 +92,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const OnboardingHome(),
       ),
       GoRoute(
+        path: AppRoutePaths.legal,
+        name: AppRouteIds.legalHome,
+        builder: (context, state) => const LegalHome(),
+      ),
+      GoRoute(
         path: AppRoutePaths.support,
         name: AppRouteIds.supportHome,
         builder: (context, state) => const SupportHome(),
@@ -108,6 +115,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutePaths.catalogStagingReview,
         name: AppRouteIds.catalogStagingReview,
         builder: (context, state) => const StagingReviewWrapper(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.deviceRegistry,
+        name: AppRouteIds.deviceRegistryHome,
+        builder: (context, state) => const DeviceRegistryHome(),
       ),
     ],
   );

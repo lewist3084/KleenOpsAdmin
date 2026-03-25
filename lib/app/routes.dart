@@ -26,6 +26,9 @@ class AppRouteIds {
   // Onboarding Review
   static const onboardingHome = 'onboardingHome';
 
+  // Legal
+  static const legalHome = 'legalHome';
+
   // Support
   static const supportHome = 'supportHome';
 
@@ -33,6 +36,9 @@ class AppRouteIds {
   static const catalogHome = 'catalogHome';
   static const catalogScrapeJobs = 'catalogScrapeJobs';
   static const catalogStagingReview = 'catalogStagingReview';
+
+  // Device Registry
+  static const deviceRegistryHome = 'deviceRegistryHome';
 }
 
 class AppRoutePaths {
@@ -45,10 +51,14 @@ class AppRoutePaths {
   static const storage = '/storage';
   static const users = '/users';
   static const onboarding = '/onboarding';
+  static const legal = '/legal';
   static const support = '/support';
 
   // Catalog
   static const catalog = '/catalog';
   static const catalogScrapeJobs = '/catalog/scrape-jobs';
   static const catalogStagingReview = '/catalog/staging-review';
+
+  // Device Registry
+  static const deviceRegistry = '/device-registry';
 }

@@ -68,11 +68,25 @@ class DashboardHome extends ConsumerWidget {
         onPressed: (ctx) => ctx.go(AppRoutePaths.onboarding),
       ),
       MenuButtonConfig(
+        id: 'legal',
+        label: 'Legal',
+        icon: Icons.gavel,
+        accessFlagKey: 'legal',
+        onPressed: (ctx) => ctx.go(AppRoutePaths.legal),
+      ),
+      MenuButtonConfig(
         id: 'support',
         label: 'Support',
         icon: Icons.support_agent,
         accessFlagKey: 'support',
         onPressed: (ctx) => ctx.go(AppRoutePaths.support),
+      ),
+      MenuButtonConfig(
+        id: 'deviceRegistry',
+        label: 'Devices',
+        icon: Icons.cell_tower,
+        accessFlagKey: 'deviceRegistry',
+        onPressed: (ctx) => ctx.go(AppRoutePaths.deviceRegistry),
       ),
     ];
 
