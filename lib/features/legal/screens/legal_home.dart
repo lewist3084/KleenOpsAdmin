@@ -6,14 +6,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_widgets/containers/canvas_top_bookend.dart';
+import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/dialogs/legal_document_form.dart';
+import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/lists/standardView.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
 import 'package:shared_widgets/viewers/pdf_viewer.dart';
 
 import '../../../app/routes.dart';
-import '../../../theme/palette.dart';
+import '../../../app/shared_widgets/drawers/user_drawer.dart';
+import '../../../app/shared_widgets/navigation/details_appbar_adapter.dart';
+import '../../../app/shared_widgets/navigation/home_navbar_adapter.dart';
 
 class LegalHome extends StatefulWidget {
   const LegalHome({super.key});
@@ -79,48 +84,97 @@ class _LegalHomeState extends State<LegalHome>
     ));
   }
 
+  Widget _wrapCanvas(Widget child) {
+    return StandardCanvas(
+      child: SafeArea(
+        top: true,
+        bottom: false,
+        child: Stack(
+          children: [
+            Positioned.fill(child: child),
+            const Positioned(
+              left: 0, right: 0, top: 0,
+              child: CanvasTopBookend(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const palette = adminPalette;
+    final menuSections = MenuDrawerSections(
+      actions: [
+        ContentMenuItem(
+          icon: Icons.description_outlined,
+          label: 'Documents',
+          onTap: () => context.go(AppRoutePaths.legalDocuments),
+        ),
+        ContentMenuItem(
+          icon: Icons.verified_outlined,
+          label: 'Compliance',
+          onTap: () => context.go(AppRoutePaths.legalCompliance),
+        ),
+        ContentMenuItem(
+          icon: Icons.handshake_outlined,
+          label: 'Contracts',
+          onTap: () => context.go(AppRoutePaths.legalContracts),
+        ),
+        ContentMenuItem(
+          icon: Icons.bar_chart_outlined,
+          label: 'Stats',
+          onTap: () => context.go(AppRoutePaths.legalStats),
+        ),
+      ],
+    );
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Legal'),
-        backgroundColor: palette.primary1,
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go(AppRoutePaths.dashboard),
-        ),
-        bottom: TabBar(
-          controller: _tabCtrl,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white60,
-          indicatorColor: palette.primary2,
-          tabs: _tabs.map((t) => Tab(text: t)).toList(),
-        ),
-      ),
-      body: Column(
-        children: [
-          SearchFieldAction(
-            controller: _searchCtl,
-            labelText: 'Search legal documents',
-            onChanged: (t) => setState(() => _search = t.toLowerCase().trim()),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabCtrl,
-              children: _categoryKeys
-                  .map((cat) => _buildList(cat))
-                  .toList(),
+      backgroundColor: Colors.grey[100],
+      appBar: null,
+      drawer: const UserDrawer(),
+      body: _wrapCanvas(
+        Column(
+          children: [
+            Material(
+              color: Colors.white,
+              child: TabBar(
+                controller: _tabCtrl,
+                labelColor: Theme.of(context).colorScheme.primary,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Theme.of(context).colorScheme.primary,
+                tabs: _tabs.map((t) => Tab(text: t)).toList(),
+              ),
             ),
-          ),
-        ],
+            SearchFieldAction(
+              controller: _searchCtl,
+              labelText: 'Search legal documents',
+              onChanged: (t) =>
+                  setState(() => _search = t.toLowerCase().trim()),
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabCtrl,
+                children:
+                    _categoryKeys.map((cat) => _buildList(cat)).toList(),
+              ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: palette.primary2,
         onPressed: () => _openForm(),
         child: const Icon(Icons.add),
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DetailsAppBar(
+            title: 'Legal',
+            menuSections: menuSections,
+          ),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

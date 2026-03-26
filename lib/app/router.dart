@@ -15,6 +15,10 @@ import '../features/storage_usage/screens/storage_home.dart';
 import '../features/users/screens/users_home.dart';
 import '../features/onboarding_review/screens/onboarding_home.dart';
 import '../features/legal/screens/legal_home.dart';
+import '../features/legal/screens/legal_documents.dart';
+import '../features/legal/screens/legal_compliance.dart';
+import '../features/legal/screens/legal_contracts.dart';
+import '../features/legal/screens/legal_stats.dart';
 import '../features/support/screens/support_home.dart';
 import '../features/catalog/screens/catalog_home.dart';
 import '../features/catalog/screens/scrape_jobs_wrapper.dart';
@@ -91,10 +95,31 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         name: AppRouteIds.onboardingHome,
         builder: (context, state) => const OnboardingHome(),
       ),
+      // Legal sub-routes
       GoRoute(
-        path: AppRoutePaths.legal,
+        path: AppRoutePaths.legalHome,
         name: AppRouteIds.legalHome,
         builder: (context, state) => const LegalHome(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.legalDocuments,
+        name: AppRouteIds.legalDocuments,
+        builder: (context, state) => const LegalDocumentsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.legalCompliance,
+        name: AppRouteIds.legalCompliance,
+        builder: (context, state) => const LegalComplianceScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.legalContracts,
+        name: AppRouteIds.legalContracts,
+        builder: (context, state) => const LegalContractsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.legalStats,
+        name: AppRouteIds.legalStats,
+        builder: (context, state) => const LegalStatsScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.support,

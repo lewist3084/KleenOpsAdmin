@@ -28,6 +28,10 @@ class AppRouteIds {
 
   // Legal
   static const legalHome = 'legalHome';
+  static const legalDocuments = 'legalDocuments';
+  static const legalCompliance = 'legalCompliance';
+  static const legalContracts = 'legalContracts';
+  static const legalStats = 'legalStats';
 
   // Support
   static const supportHome = 'supportHome';
@@ -51,8 +55,14 @@ class AppRoutePaths {
   static const storage = '/storage';
   static const users = '/users';
   static const onboarding = '/onboarding';
-  static const legal = '/legal';
   static const support = '/support';
+
+  // Legal
+  static const legalHome = '/legal/home';
+  static const legalDocuments = '/legal/documents';
+  static const legalCompliance = '/legal/compliance';
+  static const legalContracts = '/legal/contracts';
+  static const legalStats = '/legal/stats';
 
   // Catalog
   static const catalog = '/catalog';

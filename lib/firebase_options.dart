@@ -28,7 +28,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBUXyYoeCPLMc6JhpptzQ0qmv5R1fIcKZA',
-    appId: '1:129855314963:android:61d446c9a695c031fcf3e6',
+    appId: '1:129855314963:android:9db82cda8c12341afcf3e6',
     messagingSenderId: '129855314963',
     projectId: 'kleenops',
     storageBucket: 'kleenops.firebasestorage.app',

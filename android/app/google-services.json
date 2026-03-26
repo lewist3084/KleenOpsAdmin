@@ -1,0 +1,136 @@
+{
+  "project_info": {
+    "project_number": "129855314963",
+    "project_id": "kleenops",
+    "storage_bucket": "kleenops.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:129855314963:android:61d446c9a695c031fcf3e6",
+        "android_client_info": {
+          "package_name": "com.kleenops.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "129855314963-9cbcnemmgc5o859grej96o74vin9aprt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kleenops.app",
+            "certificate_hash": "f238de137890b002671f007bebc26de7e1d3e515"
+          }
+        },
+        {
+          "client_id": "129855314963-jl25l4ach6ii1kfbp9vmt44rh2va3gn7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kleenops.app",
+            "certificate_hash": "c0b10d9832174d1a8f32e8d4f4a35e250942a10b"
+          }
+        },
+        {
+          "client_id": "129855314963-pmrtfkh7g53aej23cdtbc9mgq4qhqni2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kleenops.app",
+            "certificate_hash": "564690544b0f473f4e5872aafd4ee5b9611753fa"
+          }
+        },
+        {
+          "client_id": "129855314963-pnf6j1l9gp90fdf0ttov0t5bo85if9t1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kleenops.app",
+            "certificate_hash": "d658dc95ec0f0f35873b929df0923e7aa5d39270"
+          }
+        },
+        {
+          "client_id": "129855314963-vdi1op0uts4s9l13nuf0vf5gn1o6kq01.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kleenops.app",
+            "certificate_hash": "49dc5ce93b4eea3eb20a4fe5e3f00b98bb8a919c"
+          }
+        },
+        {
+          "client_id": "129855314963-9khr1ejoif9m7kovrj1mn352pvi9imr6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUXyYoeCPLMc6JhpptzQ0qmv5R1fIcKZA"
+        },
+        {
+          "current_key": "AIzaSyBiLGGPaR1M8_RV30TYdJMaV9DAJbwt4V4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "129855314963-9khr1ejoif9m7kovrj1mn352pvi9imr6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "129855314963-9not07jfs1r0u5806s5ecvrafnqq0u8s.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.kleenops.app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:129855314963:android:9db82cda8c12341afcf3e6",
+        "android_client_info": {
+          "package_name": "com.kleenops.kleenops_admin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "129855314963-g05mo49n5fejr901e0kgepgertr0kna7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kleenops.kleenops_admin",
+            "certificate_hash": "49dc5ce93b4eea3eb20a4fe5e3f00b98bb8a919c"
+          }
+        },
+        {
+          "client_id": "129855314963-9khr1ejoif9m7kovrj1mn352pvi9imr6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUXyYoeCPLMc6JhpptzQ0qmv5R1fIcKZA"
+        },
+        {
+          "current_key": "AIzaSyBiLGGPaR1M8_RV30TYdJMaV9DAJbwt4V4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "129855314963-9khr1ejoif9m7kovrj1mn352pvi9imr6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "129855314963-9not07jfs1r0u5806s5ecvrafnqq0u8s.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.kleenops.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

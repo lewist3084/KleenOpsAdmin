@@ -3,20 +3,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_widgets/buttons/menu_button_block.dart';
+import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
+import 'package:shared_widgets/drawers/menu_drawer.dart';
 
 import '../../../app/routes.dart';
+import '../../../app/shared_widgets/drawers/user_drawer.dart';
+import '../../../app/shared_widgets/navigation/details_appbar_adapter.dart';
+import '../../../app/shared_widgets/navigation/home_navbar_adapter.dart';
 import '../../../services/admin_firebase_service.dart';
-import '../../../theme/palette.dart';
 
 class DashboardHome extends ConsumerWidget {
   const DashboardHome({super.key});
 
+  Widget _wrapCanvas(Widget child) {
+    return StandardCanvas(
+      child: SafeArea(
+        top: true,
+        bottom: false,
+        child: Stack(
+          children: [
+            Positioned.fill(child: child),
+            const Positioned(
+              left: 0, right: 0, top: 0,
+              child: CanvasTopBookend(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    const palette = adminPalette;
     final menuConfigs = <MenuButtonConfig>[
       MenuButtonConfig(
         id: 'catalog',
@@ -72,7 +92,7 @@ class DashboardHome extends ConsumerWidget {
         label: 'Legal',
         icon: Icons.gavel,
         accessFlagKey: 'legal',
-        onPressed: (ctx) => ctx.go(AppRoutePaths.legal),
+        onPressed: (ctx) => ctx.go(AppRoutePaths.legalHome),
       ),
       MenuButtonConfig(
         id: 'support',
@@ -95,20 +115,41 @@ class DashboardHome extends ConsumerWidget {
       for (final c in menuConfigs) c.accessFlagKey: true,
     });
 
+    final menuSections = MenuDrawerSections(
+      actions: [
+        ContentMenuItem(
+          icon: Icons.inventory_2_outlined,
+          label: 'Catalog',
+          onTap: () => context.go(AppRoutePaths.catalog),
+        ),
+        ContentMenuItem(
+          icon: Icons.business_outlined,
+          label: 'Companies',
+          onTap: () => context.go(AppRoutePaths.companies),
+        ),
+        ContentMenuItem(
+          icon: Icons.gavel_outlined,
+          label: 'Legal',
+          onTap: () => context.go(AppRoutePaths.legalHome),
+        ),
+        ContentMenuItem(
+          icon: Icons.support_agent_outlined,
+          label: 'Support',
+          onTap: () => context.go(AppRoutePaths.support),
+        ),
+      ],
+    );
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kleenops Admin'),
-        backgroundColor: palette.primary1,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => FirebaseAuth.instance.signOut(),
+      backgroundColor: Colors.grey[100],
+      appBar: null,
+      drawer: const UserDrawer(),
+      body: _wrapCanvas(
+        SingleChildScrollView(
+          padding: EdgeInsets.only(
+            bottom: kBottomNavigationBarHeight + 16.0 +
+                MediaQuery.of(context).padding.bottom,
           ),
-        ],
-      ),
-      body: StandardCanvas(
-        child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -126,7 +167,7 @@ class DashboardHome extends ConsumerWidget {
                           label: 'Companies',
                           value: '$count',
                           icon: Icons.business,
-                          color: palette.primary1,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ],
                     ),
@@ -142,6 +183,16 @@ class DashboardHome extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DetailsAppBar(
+            title: 'Kleenops Admin',
+            menuSections: menuSections,
+          ),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }
