@@ -13,6 +13,10 @@ class AppLocalizations {
 
   static AppLocalizations? of(BuildContext context) => _instance;
 
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+  ];
+
   // ── Common ──
   String get commonAdd => 'Add';
   String get commonCancel => 'Cancel';
@@ -276,6 +280,100 @@ class AppLocalizations {
   String get marketplaceUploadFailed => 'Upload failed';
   String get marketplaceCatalogUploadedProcessingStarted =>
       'Catalog uploaded, processing started';
+
+  // ── Common (extended) ──
+  String get commonCharts => 'Charts';
+  String get commonRecords => 'Records';
+  String get commonSelect => 'Select';
+  String get commonOk => 'OK';
+  String commonPlaceholder(String label) => 'Enter $label';
+
+  // ── Navigation ──
+  String get nav_processes => 'Processes';
+
+  // ── Search ──
+  String get searchFieldActionTapToChoose => 'Tap to choose';
+
+  // ── Object Element Details ──
+  String get objectElementDetailsTitle => 'Element Details';
+  String get objectElementDetailsElementLabel => 'Element';
+  String get objectElementDetailsUnnamedElement => 'Unnamed Element';
+  String get objectElementDetailsUnknownMaterial => 'Unknown Material';
+  String get objectElementDetailsUnnamedMaterial => 'Unnamed Material';
+  String get objectElementDetailsPercentOfObject => '% of Object';
+  String get objectElementDetailsDefaultStandardUnit => 'unit';
+  String objectElementDetailsMeasurementWithUnit(String unit) =>
+      'Measurement ($unit)';
+  String get objectElementDetailsMaterialHeader => 'Material';
+  String get objectElementDetailsDimensionsHeader => 'Dimensions';
+  String get objectElementDetailsNameHeader => 'Name';
+
+  // ── Object Element Form ──
+  String get objectElementFormTitleEdit => 'Edit Element';
+  String get objectElementFormTitleNew => 'New Element';
+  String get objectElementFormImagesTitle => 'Images';
+  String get objectElementFormElementHeader => 'Element';
+  String get objectElementFormElementNameLabel => 'Element Name';
+  String get objectElementFormRequired => 'Required';
+  String get objectElementFormElementPercentageHeader => 'Percentage';
+  String get objectElementFormPercentRange => '0-100';
+  String get objectElementFormMeasuredByLabel => 'Measured By';
+  String objectElementFormMeasurementLabel(String unit) => 'Measurement ($unit)';
+  String get objectElementFormInvalid => 'Invalid';
+  String get objectElementFormDimensionsTitle => 'Dimensions';
+  String get objectElementFormLengthMetricLabel => 'Length (m)';
+  String get objectElementFormLengthLabel => 'Length (ft)';
+  String get objectElementFormWidthMetricLabel => 'Width (m)';
+  String get objectElementFormWidthLabel => 'Width (ft)';
+  String get objectElementFormHeightMetricLabel => 'Height (m)';
+  String get objectElementFormHeightLabel => 'Height (ft)';
+  String get objectElementFormElementMaterialLabel => 'Material';
+  String get objectElementFormNoImageToMarkup => 'No image to mark up';
+
+  // ── Object Process Details ──
+  String get objectProcessDetailsTitle => 'Process Details';
+  String get objectProcessDetailsNoDetailsAvailable => 'No details available';
+  String get objectProcessDetailsNoMaterialsFound => 'No materials found';
+  String get objectProcessDetailsNoToolsFound => 'No tools found';
+  String get objectProcessDetailsStatementHeader => 'Statement';
+  String get objectProcessDetailsInstructionsHeader => 'Instructions';
+  String get objectsDetailsSectionElements => 'Elements';
+  String get processesDetailsHeaderMaterials => 'Materials';
+  String get processesDetailsHeaderTools => 'Tools';
+  String get objectProcessDetailsNoMaterialsFoundLabel =>
+      'No materials found';
+  String get objectProcessDetailsNoToolsFoundLabel => 'No tools found';
+
+  // ── Object Process Form ──
+  String objectsProcessFailedToSave(String e) => 'Failed to save: $e';
+  String get objectsProcessSelectProcessTitle => 'Select Process';
+  String get objectsProcessNoProcessesFound => 'No processes found';
+  String get objectsProcessLabel => 'Process';
+  String get objectsProcessNoMatchingResources => 'No matching resources';
+  String get objectsProcessNoMatchingElements => 'No matching elements';
+  String get objectsProcessStatementLabel => 'Statement';
+  String get objectsProcessEnterStatement => 'Enter statement';
+  String get objectsProcessInstructionsLabel => 'Instructions';
+  String get objectsProcessEnterInstructions => 'Enter instructions';
+  String get objectsProcessAddFileTitle => 'Files';
+  String get objectsProcessSelectObjectElementsTitle => 'Select Elements';
+
+  // ── Objects Inventory Form ──
+  String get objectsInventoryFillAllRequiredFields =>
+      'Please fill all required fields';
+  String get objectsInventoryAdded => 'Inventory added';
+  String objectsInventoryFailedToSave(String e) => 'Failed to save: $e';
+  String get objectsInventoryAddTitle => 'Add Inventory';
+  String get objectsFormSerialNumberLabel => 'Serial Number';
+  String get objectsFormAssetTagLabel => 'Asset Tag';
+  String get objectsInventoryPercentCoverageLabel => 'Coverage (%)';
+  String get objectsInventoryEnterNumber => 'Enter number';
+  String get objectsInventoryRangeZeroToHundred => '0-100';
+  String get objectsInventoryQuantityPerLocationLabel => 'Qty per Location';
+  String get objectsInventoryWholeNumber => 'Whole number';
+  String get objectsInventoryRealtimeTrackingLabel => 'Realtime Tracking';
+  String get objectsInventoryRealtimeTrackingDescription =>
+      'Enable sensor-based equipment monitoring';
 
   // Product variants
   String marketplaceVariantsTitle([dynamic name]) =>

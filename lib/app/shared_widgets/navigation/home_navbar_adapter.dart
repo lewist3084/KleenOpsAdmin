@@ -78,6 +78,126 @@ const HomeNavConfig _navConfig = {
       route: AppRoutePaths.billing,
     ),
   ],
+  'hr': [
+    HomeNavItem(
+      label: 'Home',
+      icon: Icons.home,
+      route: AppRoutePaths.hrHome,
+    ),
+    HomeNavItem(
+      label: 'Employees',
+      icon: Icons.people,
+      route: AppRoutePaths.hrEmployees,
+    ),
+    HomeNavItem(
+      label: 'Benefits',
+      icon: Icons.health_and_safety,
+      route: AppRoutePaths.hrBenefits,
+    ),
+    HomeNavItem(
+      label: 'Time Off',
+      icon: Icons.event_busy,
+      route: AppRoutePaths.hrTimeOff,
+    ),
+    HomeNavItem(
+      label: 'Stats',
+      icon: Icons.bar_chart,
+      route: AppRoutePaths.hrStats,
+    ),
+  ],
+  'sales': [
+    HomeNavItem(
+      label: 'Home',
+      icon: Icons.home,
+      route: AppRoutePaths.salesHome,
+    ),
+    HomeNavItem(
+      label: 'Sales',
+      icon: Icons.sell,
+      route: AppRoutePaths.salesSales,
+    ),
+    HomeNavItem(
+      label: 'Marketing',
+      icon: Icons.campaign,
+      route: AppRoutePaths.salesMarketing,
+    ),
+    HomeNavItem(
+      label: 'Stats',
+      icon: Icons.bar_chart,
+      route: AppRoutePaths.salesStats,
+    ),
+  ],
+  'purchasing': [
+    HomeNavItem(
+      label: 'Home',
+      icon: Icons.home,
+      route: AppRoutePaths.purchasingHome,
+    ),
+    HomeNavItem(
+      label: 'Orders',
+      icon: Icons.receipt_long,
+      route: AppRoutePaths.purchasingOrders,
+    ),
+    HomeNavItem(
+      label: 'Products',
+      icon: Icons.inventory_2,
+      route: AppRoutePaths.purchasingObjects,
+    ),
+    HomeNavItem(
+      label: 'Vendors',
+      icon: Icons.store,
+      route: AppRoutePaths.purchasingVendors,
+    ),
+    HomeNavItem(
+      label: 'Stats',
+      icon: Icons.bar_chart,
+      route: AppRoutePaths.purchasingStats,
+    ),
+  ],
+  'admin': [
+    HomeNavItem(
+      label: 'Home',
+      icon: Icons.home,
+      route: AppRoutePaths.adminHome,
+    ),
+    HomeNavItem(
+      label: 'Company',
+      icon: Icons.business,
+      route: AppRoutePaths.adminCompany,
+    ),
+    HomeNavItem(
+      label: 'Policies',
+      icon: Icons.policy,
+      route: AppRoutePaths.adminPolicies,
+    ),
+  ],
+  'finance': [
+    HomeNavItem(
+      label: 'Home',
+      icon: Icons.home,
+      route: AppRoutePaths.financeHome,
+    ),
+    HomeNavItem(
+      label: 'Invoices',
+      icon: Icons.receipt_long,
+      route: AppRoutePaths.financeInvoices,
+    ),
+    HomeNavItem(
+      label: 'Ledger',
+      icon: Icons.list_alt,
+      route: AppRoutePaths.financeLedger,
+    ),
+    HomeNavItem(
+      label: 'Payroll',
+      icon: Icons.account_balance_wallet,
+      route: AppRoutePaths.financePayroll,
+    ),
+    HomeNavItem(
+      label: 'Stats',
+      icon: Icons.bar_chart,
+      route: AppRoutePaths.financeStats,
+    ),
+  ],
   'aiUsage': [
     HomeNavItem(
       label: 'AI Usage',

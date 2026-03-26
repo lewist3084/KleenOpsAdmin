@@ -43,6 +43,23 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
+  # Finance feature dependencies
+  plaid_flutter: ^5.1.1
+  syncfusion_flutter_pdf: ^31.1.20
+  path_provider: ^2.1.5
+  open_filex: ^4.7.0
+  share_plus: ^10.1.4
+  image_picker: ^1.1.2
+  file_picker: ^10.3.10
+
+  # QR code
+  qr_plugin:
+    path: ../qr_plugin
+
+  # HR feature dependencies
+  mobile_scanner: ^7.0.0
+  flutter_image_compress: ^2.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -53,3 +70,4 @@ flutter:
 
   assets:
     - assets/logo.png
+    - assets/sax.png

@@ -4,6 +4,11 @@ String resolveAppSection(String path) {
   if (path.startsWith('/legal')) return 'legal';
   if (path.startsWith('/companies')) return 'companies';
   if (path.startsWith('/billing')) return 'billing';
+  if (path.startsWith('/finance')) return 'finance';
+  if (path.startsWith('/hr')) return 'hr';
+  if (path.startsWith('/admin')) return 'admin';
+  if (path.startsWith('/sales')) return 'sales';
+  if (path.startsWith('/purchasing')) return 'purchasing';
   if (path.startsWith('/ai-usage')) return 'aiUsage';
   if (path.startsWith('/storage')) return 'storage';
   if (path.startsWith('/users')) return 'users';
