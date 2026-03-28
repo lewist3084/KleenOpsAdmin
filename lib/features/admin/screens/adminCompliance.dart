@@ -253,16 +253,16 @@ class _ComplianceContentState extends State<_ComplianceContent> {
             ),
           ),
 
-          // ── Compliance Dashboard link ──
+          // ── Tax Monitor link ──
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () =>
-                    context.push(AppRoutePaths.adminCompliance),
-                icon: const Icon(Icons.checklist_outlined, size: 18),
-                label: const Text('Open Compliance Dashboard'),
+                    context.push(AppRoutePaths.adminTaxMonitor),
+                icon: const Icon(Icons.radar_outlined, size: 18),
+                label: const Text('Tax Monitor (AI Agent)'),
               ),
             ),
           ),

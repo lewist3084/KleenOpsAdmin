@@ -34,6 +34,7 @@ import '../features/finances/tabs/ledgerTabs.dart';
 import '../features/finances/screens/financeAccounts.dart';
 import '../features/finances/screens/financeStats.dart';
 import '../features/finances/screens/financeBanking.dart';
+import '../features/finances/screens/financeSetupWizard.dart';
 import '../features/finances/screens/financePayroll.dart';
 import '../features/finances/details/financePayrollRunDetails.dart';
 import '../features/finances/details/financePayStubDetails.dart';
@@ -60,8 +61,10 @@ import '../features/admin/screens/adminHome.dart';
 import '../features/admin/tabs/adminCompanyTabs.dart';
 import '../features/admin/screens/adminPolicies.dart';
 import '../features/admin/screens/adminCompliance.dart';
+import '../features/admin/screens/adminTaxMonitor.dart';
 import '../features/admin/forms/adminStateRuleForm.dart';
 import '../features/admin/forms/adminFederalRuleForm.dart';
+import '../features/admin/screens/adminSetupWizard.dart';
 import '../features/sales/screens/salesHome.dart';
 import '../features/sales/screens/customer_portal_requests.dart';
 import '../features/sales/screens/customer_invite_screen.dart';
@@ -241,6 +244,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutePaths.financeBanking,
         name: AppRouteIds.financeBanking,
         builder: (_, __) => const FinanceBankingScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.financeSetupWizard,
+        name: AppRouteIds.financeSetupWizard,
+        builder: (_, __) => const FinanceSetupWizardScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.financePayroll,
@@ -447,6 +455,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const AdminComplianceScreen(),
       ),
       GoRoute(
+        path: AppRoutePaths.adminTaxMonitor,
+        name: AppRouteIds.adminTaxMonitor,
+        builder: (_, __) => const AdminTaxMonitorScreen(),
+      ),
+      GoRoute(
         path: AppRoutePaths.adminStateRuleForm,
         name: AppRouteIds.adminStateRuleForm,
         pageBuilder: (_, state) {
@@ -473,6 +486,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 AdminFederalRuleForm(companyRef: companyRef),
           ),
         ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.adminSetupWizard,
+        name: AppRouteIds.adminSetupWizard,
+        builder: (_, __) => const AdminSetupWizardScreen(),
       ),
       // Sales routes
       GoRoute(

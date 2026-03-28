@@ -97,13 +97,23 @@ class FinancesHomeScreen extends StatelessWidget {
               ),
               ContentMenuItem(
                 icon: Icons.account_balance_outlined,
-                label: 'Banking',
+                label: 'Link Bank Account',
                 onTap: () => context.push(AppRoutePaths.financeBanking),
+              ),
+              ContentMenuItem(
+                icon: Icons.receipt_long_outlined,
+                label: 'Billing',
+                onTap: () => context.push(AppRoutePaths.billing),
               ),
               ContentMenuItem(
                 icon: Icons.bar_chart_outlined,
                 label: 'Stats',
                 onTap: () => context.push(AppRoutePaths.financeStats),
+              ),
+              ContentMenuItem(
+                icon: Icons.rocket_launch_outlined,
+                label: 'Finance Setup Wizard',
+                onTap: () => context.push(AppRoutePaths.financeSetupWizard),
               ),
             ],
           );

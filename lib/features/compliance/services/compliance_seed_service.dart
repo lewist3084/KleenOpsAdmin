@@ -17,6 +17,8 @@ import 'package:kleenops_admin/features/compliance/seed/jurisdictions/ohio_city_
 import 'package:kleenops_admin/features/compliance/seed/jurisdictions/pennsylvania_eit_rates.dart';
 import 'package:kleenops_admin/features/compliance/seed/jurisdictions/other_local_rates.dart';
 import 'package:kleenops_admin/features/compliance/seed/jurisdictions/fips_to_jurisdiction_map.dart';
+import 'package:kleenops_admin/features/compliance/seed/tax_source_catalog_data.dart';
+import 'package:kleenops_admin/features/compliance/seed/payment_portal_directory_data.dart';
 
 /// Seeds top-level Firestore collections with compliance reference data.
 ///
@@ -57,6 +59,12 @@ class ComplianceSeedService {
 
     onProgress?.call('Seeding FIPS-to-jurisdiction mappings...');
     counts['fipsToJurisdiction'] = await seedFipsMappings(onProgress: onProgress);
+
+    onProgress?.call('Seeding tax source catalog...');
+    counts['taxSource'] = await seedTaxSourceCatalog(onProgress: onProgress);
+
+    onProgress?.call('Seeding payment portal directory...');
+    counts['paymentPortal'] = await seedPaymentPortals(onProgress: onProgress);
 
     onProgress?.call('Done! Seeded ${counts.values.fold(0, (a, b) => a + b)} documents.');
     return counts;
@@ -305,6 +313,80 @@ class ComplianceSeedService {
     return count;
   }
 
+  /// Seeds tax source catalog documents (authoritative URLs for AI agent monitoring).
+  Future<int> seedTaxSourceCatalog({
+    void Function(String message)? onProgress,
+  }) async {
+    int count = 0;
+    WriteBatch batch = _db.batch();
+    int batchCount = 0;
+
+    for (final entry in kTaxSourceCatalog.entries) {
+      final data = {
+        ...entry.value,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': 'seed',
+      };
+      batch.set(
+        _db.collection('taxSource').doc(entry.key),
+        data,
+      );
+      count++;
+      batchCount++;
+
+      if (batchCount >= 450) {
+        await batch.commit();
+        onProgress?.call('  Written $count tax sources...');
+        batch = _db.batch();
+        batchCount = 0;
+      }
+    }
+
+    if (batchCount > 0) {
+      await batch.commit();
+    }
+
+    onProgress?.call('  Seeded $count tax source catalog entries');
+    return count;
+  }
+
+  /// Seeds payment portal directory documents (where employers pay taxes).
+  Future<int> seedPaymentPortals({
+    void Function(String message)? onProgress,
+  }) async {
+    int count = 0;
+    WriteBatch batch = _db.batch();
+    int batchCount = 0;
+
+    for (final entry in kPaymentPortalDirectory.entries) {
+      final data = {
+        ...entry.value,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': 'seed',
+      };
+      batch.set(
+        _db.collection('paymentPortal').doc(entry.key),
+        data,
+      );
+      count++;
+      batchCount++;
+
+      if (batchCount >= 450) {
+        await batch.commit();
+        onProgress?.call('  Written $count payment portals...');
+        batch = _db.batch();
+        batchCount = 0;
+      }
+    }
+
+    if (batchCount > 0) {
+      await batch.commit();
+    }
+
+    onProgress?.call('  Seeded $count payment portal entries');
+    return count;
+  }
+
   /// Checks whether the seed data already exists.
   Future<bool> isFederalRuleSeeded() async {
     final snap = await _db.collection('federalRule').doc('2026').get();
@@ -321,6 +403,8 @@ class ComplianceSeedService {
       _db.collection('taxJurisdiction').count().get(),
       _db.collection('fipsToJurisdiction').count().get(),
       _db.collection('zipTaxMap').count().get(),
+      _db.collection('taxSource').count().get(),
+      _db.collection('paymentPortal').count().get(),
     ]);
     return {
       'federalRule': results[0].count ?? 0,
@@ -330,6 +414,8 @@ class ComplianceSeedService {
       'taxJurisdiction': results[4].count ?? 0,
       'fipsToJurisdiction': results[5].count ?? 0,
       'zipTaxMap': results[6].count ?? 0,
+      'taxSource': results[7].count ?? 0,
+      'paymentPortal': results[8].count ?? 0,
     };
   }
 }

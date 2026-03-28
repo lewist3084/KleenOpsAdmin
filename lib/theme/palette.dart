@@ -9,4 +9,5 @@ const AppPalette adminPalette = AppPalette(
   primary2: kPalettePrimary2, // gold
   primary3: kPalettePrimary3, // grey 300
   primary4: kPalettePrimary4, // mint
+  primary5: kPalettePrimary5, // red
 );

@@ -85,6 +85,11 @@ class AdminCompanyTabsScreen extends StatelessWidget {
                 label: 'Policies',
                 onTap: () => context.push(AppRoutePaths.adminPolicies),
               ),
+              ContentMenuItem(
+                icon: Icons.rocket_launch_outlined,
+                label: 'Business Setup Wizard',
+                onTap: () => context.push(AppRoutePaths.adminSetupWizard),
+              ),
             ],
           );
           return buildBottomBar(

@@ -54,6 +54,7 @@ class AppRouteIds {
   static const financeAccounts = 'financeAccounts';
   static const financeStats = 'financeStats';
   static const financeBanking = 'financeBanking';
+  static const financeSetupWizard = 'financeSetupWizard';
   static const financePayroll = 'financePayroll';
   static const financePayrollRunDetails = 'financePayrollRunDetails';
   static const financePayrollRunForm = 'financePayrollRunForm';
@@ -88,6 +89,8 @@ class AppRouteIds {
   static const adminCompliance = 'adminCompliance';
   static const adminStateRuleForm = 'adminStateRuleForm';
   static const adminFederalRuleForm = 'adminFederalRuleForm';
+  static const adminTaxMonitor = 'adminTaxMonitor';
+  static const adminSetupWizard = 'adminSetupWizard';
 
   // Sales
   static const salesHome = 'salesHome';
@@ -145,6 +148,7 @@ class AppRoutePaths {
   static const financeAccounts = '/finance/accounts';
   static const financeStats = '/finance/stats';
   static const financeBanking = '/finance/banking';
+  static const financeSetupWizard = '/finance/setup-wizard';
   static const financePayroll = '/finance/payroll';
   static const financePayrollRunDetails = '/finance/payroll/details';
   static const financePayrollRunForm = '/finance/payroll/form';
@@ -179,6 +183,8 @@ class AppRoutePaths {
   static const adminCompliance = '/admin/compliance';
   static const adminStateRuleForm = '/admin/compliance/state/form';
   static const adminFederalRuleForm = '/admin/compliance/federal/form';
+  static const adminTaxMonitor = '/admin/compliance/tax-monitor';
+  static const adminSetupWizard = '/admin/setup-wizard';
 
   // Sales
   static const salesHome = '/sales/home';
