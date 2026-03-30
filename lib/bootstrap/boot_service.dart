@@ -39,7 +39,7 @@ class BootService {
       FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
     }
 
-    // 4. Catalog Firebase project (kleenopscatalog)
+    // 4. Catalog (uses default kleenops project — no separate init needed)
     await CatalogFirebaseService.instance.init();
   }
 

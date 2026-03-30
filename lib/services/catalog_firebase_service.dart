@@ -1,90 +1,32 @@
 // lib/services/catalog_firebase_service.dart
+//
+// Catalog data now lives in the default kleenops Firebase project.
+// This service delegates to the default Firebase instances so that
+// existing code using CatalogFirebaseService.instance.firestore
+// continues to work without changes.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
-import 'package:flutter/foundation.dart' show debugPrint, kReleaseMode;
-
-import '../firebase_catalog_options.dart';
 
 class CatalogFirebaseService {
   CatalogFirebaseService._();
   static final CatalogFirebaseService instance = CatalogFirebaseService._();
 
-  static const String _appName = 'catalog';
-  FirebaseApp? _app;
+  /// No-op init — catalog uses the default Firebase app (kleenops).
+  Future<FirebaseApp> init() async => Firebase.app();
 
-  FirebaseApp get app {
-    final app = _app;
-    if (app == null) {
-      throw StateError('Catalog Firebase not initialized. Call init() first.');
-    }
-    return app;
-  }
+  FirebaseApp get app => Firebase.app();
 
-  Future<FirebaseApp> init() async {
-    if (_app != null) return _app!;
-    try {
-      _app = await Firebase.initializeApp(
-        name: _appName,
-        options: CatalogFirebaseOptions.currentPlatform,
-      );
-    } on FirebaseException catch (e) {
-      if (e.code == 'duplicate-app') {
-        _app = Firebase.app(_appName);
-      } else {
-        rethrow;
-      }
-    }
+  FirebaseFirestore get firestore => FirebaseFirestore.instance;
 
-    await _ensureAnonymousAuth();
-    return _app!;
-  }
+  FirebaseAuth get auth => FirebaseAuth.instance;
 
-  FirebaseFirestore get firestore {
-    final app = _app;
-    if (app == null) {
-      throw StateError('Catalog Firebase not initialized. Call init() first.');
-    }
-    return FirebaseFirestore.instanceFor(app: app);
-  }
+  firebase_storage.FirebaseStorage get storage =>
+      firebase_storage.FirebaseStorage.instance;
 
-  FirebaseAuth get auth {
-    final app = _app;
-    if (app == null) {
-      throw StateError('Catalog Firebase not initialized. Call init() first.');
-    }
-    return FirebaseAuth.instanceFor(app: app);
-  }
-
-  firebase_storage.FirebaseStorage get storage {
-    final app = _app;
-    if (app == null) {
-      throw StateError('Catalog Firebase not initialized. Call init() first.');
-    }
-    return firebase_storage.FirebaseStorage.instanceFor(app: app);
-  }
-
-  FirebaseFunctions functions({String region = 'us-central1'}) {
-    final app = _app;
-    if (app == null) {
-      throw StateError('Catalog Firebase not initialized. Call init() first.');
-    }
-    return FirebaseFunctions.instanceFor(app: app, region: region);
-  }
-
-  Future<void> _ensureAnonymousAuth() async {
-    final auth = FirebaseAuth.instanceFor(app: _app!);
-    if (auth.currentUser != null) return;
-    await auth.signInAnonymously();
-    _debugLog('[CatalogFirebase] Anonymous auth signed in.');
-  }
-
-  void _debugLog(String message) {
-    if (!kReleaseMode) {
-      debugPrint(message);
-    }
-  }
+  FirebaseFunctions functions({String region = 'us-central1'}) =>
+      FirebaseFunctions.instanceFor(region: region);
 }

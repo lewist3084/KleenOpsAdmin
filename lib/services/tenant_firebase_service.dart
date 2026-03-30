@@ -20,7 +20,7 @@ enum Tenant {
   /// External companies - uses the external Firebase project.
   external,
 
-  /// Marketplace catalog - uses the catalog Firebase project (read-only).
+  /// Marketplace catalog - uses the default kleenops project.
   catalog,
 }
 
@@ -29,7 +29,7 @@ enum Tenant {
 /// This enables a single codebase to serve multiple Firebase projects:
 /// - BYU companies → kleenops (default Firebase app)
 /// - External companies → cleanops-external
-/// - Catalog/marketplace → kleenopscatalog
+/// - Catalog/marketplace → kleenops (same as default)
 ///
 /// ## Usage
 ///
