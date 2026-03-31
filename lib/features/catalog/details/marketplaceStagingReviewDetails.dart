@@ -5,6 +5,7 @@ import 'package:kleenops_admin/l10n/app_localizations.dart';
 import 'package:kleenops_admin/services/catalog_firebase_service.dart';
 import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/containers/container_header.dart';
+import 'package:shared_widgets/viewers/file_carousel_viewer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class MarketplaceStagingReviewDetailsScreen extends StatefulWidget {
@@ -28,6 +29,12 @@ class _MarketplaceStagingReviewDetailsScreenState
   bool _loading = true;
   bool _processing = false;
 
+  // Resolved reference names (loaded async)
+  String _categoryName = '';
+  String _scalarName = '';
+  String _scalarUnitName = '';
+  String _brandName = '';
+
   @override
   void initState() {
     super.initState();
@@ -41,20 +48,70 @@ class _MarketplaceStagingReviewDetailsScreenState
           .collection('stagedProduct')
           .doc(widget.docId)
           .get();
-
       if (!mounted) return;
       if (snap.exists) {
-        setState(() {
-          _data = snap.data() ?? _data;
-          _loading = false;
-        });
-      } else {
-        setState(() => _loading = false);
+        _data = snap.data() ?? _data;
       }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loading = false);
+    } catch (_) {}
+
+    await _resolveReferences();
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _resolveReferences() async {
+    final detailData = _asMap(_data['detailData']);
+    final normalized = _asMap(_data['normalizedData']);
+    final solenisData = _asMap(detailData['solenisData']);
+    final allSpecs = _asMap(detailData['allSpecs']);
+
+    // Resolve brand
+    final brandId = normalized['brandId'];
+    if (brandId is DocumentReference) {
+      try {
+        final snap = await brandId.get();
+        if (snap.exists) {
+          final d = snap.data() as Map<String, dynamic>?;
+          _brandName = (d?['name'] ?? d?['brand'] ?? '').toString();
+        }
+      } catch (_) {}
     }
+    if (_brandName.isEmpty) {
+      _brandName = _str(normalized['brandName']) ?? _str(solenisData['brand']) ?? '';
+    }
+
+    // Try to determine what category/scalar would be assigned
+    // by looking at the skuConfig and product characteristics
+    final skuConfig = _str(allSpecs['skuConfig']) ?? _str(solenisData['skuConfig']) ?? '';
+    final scalarType = _inferScalarType(skuConfig, allSpecs);
+    _scalarName = scalarType ?? '';
+    _scalarUnitName = _inferUnitName(skuConfig);
+    _categoryName = _inferCategoryName(scalarType, solenisData, allSpecs, normalized);
+  }
+
+  String? _inferScalarType(String skuConfig, Map<String, dynamic> specs) {
+    final lower = skuConfig.toLowerCase();
+    if (lower.contains('oz') || lower.contains('gal') || lower.contains('qt') || lower.contains('l')) return 'Volume';
+    if (lower.contains('lb') || lower.contains('kg') || lower.contains('g')) return 'Weight';
+    if (lower.contains('ct') || lower.contains('pk') || lower.contains('ea')) return 'Count';
+    if (lower.contains('ft') || lower.contains('in') || lower.contains('m')) return 'Length';
+    return null;
+  }
+
+  String _inferUnitName(String skuConfig) {
+    final match = RegExp(r'\d+\s*[x×/]\s*\d+(?:\.\d+)?\s*(.+)', caseSensitive: false).firstMatch(skuConfig);
+    if (match != null) return match.group(1)?.trim() ?? '';
+    final single = RegExp(r'\d+(?:\.\d+)?\s*(.+)', caseSensitive: false).firstMatch(skuConfig);
+    if (single != null) return single.group(1)?.trim() ?? '';
+    return '';
+  }
+
+  String _inferCategoryName(String? scalarType, Map<String, dynamic> solenis, Map<String, dynamic> specs, Map<String, dynamic> norm) {
+    if (scalarType == 'Volume') return 'Consumables - Liquid';
+    if (scalarType == 'Count') return 'Consumables - Non Liquid';
+    if (scalarType == 'Weight') return 'Consumables - Liquid';
+    final prodLine = (_str(solenis['productLine']) ?? '').toLowerCase();
+    if (prodLine.contains('odor') || prodLine.contains('clean') || prodLine.contains('disinfect')) return 'Consumables - Liquid';
+    return '';
   }
 
   Future<void> _approve() async {
@@ -100,34 +157,25 @@ class _MarketplaceStagingReviewDetailsScreenState
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(loc.commonCancel),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.commonCancel)),
           FilledButton(
             onPressed: () {
               final text = reasonController.text.trim();
-              Navigator.pop(
-                ctx,
-                text.isEmpty ? loc.marketplaceRejectedByReviewer : text,
-              );
+              Navigator.pop(ctx, text.isEmpty ? loc.marketplaceRejectedByReviewer : text);
             },
             child: Text(loc.marketplaceReject),
           ),
         ],
       ),
     );
-
     reasonController.dispose();
     if (reason == null) return;
 
     setState(() => _processing = true);
-
     try {
       final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
           .httpsCallable('rejectStagedProduct');
       await callable.call({'stagedId': widget.docId, 'reason': reason});
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(loc.marketplaceProductRejected)),
@@ -142,177 +190,190 @@ class _MarketplaceStagingReviewDetailsScreenState
     }
   }
 
-  Future<void> _openExternalUrl(String url) async {
-    final uri = Uri.tryParse(url.trim());
-    if (uri == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid link')),
-      );
-      return;
-    }
-
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to open link')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    final normalized = _asMap(_data['normalizedData']);
     final rawData = _asMap(_data['rawData']);
     final detailData = _asMap(_data['detailData']);
+    final objectData = _asMap(_data['objectData']);
+    final packagingData = _asMap(_data['packagingData']);
+    final normalized = _asMap(_data['normalizedData']);
+    final allSpecs = _asMap(detailData['allSpecs']);
+    final solenisData = _asMap(detailData['solenisData']);
 
-    final name = _firstNonEmptyString(<dynamic>[
-          normalized['name'],
-          rawData['name'],
-        ]) ??
-        loc.marketplaceUnnamedProduct;
-    final description = _firstNonEmptyString(<dynamic>[
-      normalized['description'],
-      normalized['Description'],
-      rawData['description'],
-      rawData['Description'],
-      detailData['description'],
-      detailData['Description'],
-      _data['description'],
-      _data['Description'],
-    ]);
-    final productNumber = _firstNonEmptyString(<dynamic>[
-          normalized['productNumber'],
-          rawData['productNumber'],
-        ]) ??
-        '';
-    final brandName = _firstNonEmptyString(<dynamic>[
-          normalized['brandName'],
-          rawData['brandName'],
-        ]) ??
-        '';
-    final vendorName = _firstNonEmptyString(<dynamic>[
-          normalized['vendorName'],
-          rawData['vendorName'],
-        ]) ??
-        '';
+    // Use pre-resolved objectData if available, fallback to normalized
+    final parentName = _str(objectData['name']) ?? _str(normalized['name']) ?? _str(rawData['name']) ?? 'Unnamed';
+    final description = _str(objectData['description']) ?? _str(normalized['description']) ?? '';
+    final productNumber = _str(objectData['productNumber']) ?? _str(normalized['productNumber']) ?? '';
+    final upc = _str(objectData['upc']) ?? _str(normalized['upc']) ?? '';
+    final packageUpc = _str(packagingData['upc']) ?? _str(allSpecs['packageUpc']) ?? '';
+    final skuConfig = _str(objectData['skuConfig']) ?? _str(allSpecs['skuConfig']) ?? '';
+    final materialNumber = _str(objectData['materialNumber']) ?? '';
+    final unitValue = (objectData['scalarUnitQuantity'] ?? '').toString();
+    final isMultiPack = packagingData.isNotEmpty;
+    final packQuantity = (packagingData['packQuantity'] ?? 0) as num;
 
-    final imageUrls = _collectImageUrls(_data);
-    final headerImage = imageUrls.isNotEmpty ? imageUrls.first : '';
-    final documentLinks = _collectDocumentLinks(_data, imageUrls.toSet());
-
-    final documentUrlSet = <String>{};
-    for (final link in documentLinks) {
-      documentUrlSet.add(_normalizeUrl(link.url));
+    // --- Images from Storage ---
+    final storageImages = _asList(detailData['storageImages']);
+    final mediaItems = <FileCarouselItem>[];
+    for (final img in storageImages) {
+      final imgMap = _asMap(img);
+      final url = _str(imgMap['downloadUrl']) ?? '';
+      if (url.isNotEmpty) {
+        mediaItems.add(FileCarouselItem.image(imageUrl: url));
+      }
     }
-    final imageUrlSet = <String>{};
-    for (final url in imageUrls) {
-      imageUrlSet.add(_normalizeUrl(url));
+    // Fallback to vendor image URLs if no storage images
+    if (mediaItems.isEmpty) {
+      final imageLinks = _asList(detailData['imageLinks']);
+      for (final link in imageLinks) {
+        final linkMap = _asMap(link);
+        final url = _str(linkMap['href']) ?? _str(linkMap['url']) ?? '';
+        if (url.isNotEmpty) {
+          mediaItems.add(FileCarouselItem.image(imageUrl: url));
+        }
+      }
     }
 
-    final additionalEntries = _buildAdditionalDataEntries(
-      data: _data,
-      imageUrls: imageUrlSet,
-      documentUrls: documentUrlSet,
-    );
+    // --- Documents ---
+    final storageDocs = _asList(detailData['storageDocuments']);
+    final sdsLinks = _asList(detailData['sdsLinks']);
+    final productSheetLinks = _asList(detailData['productSheetLinks']);
+
+    // --- Additional product attributes ---
+    final color = _str(allSpecs['color']) ?? '';
+    final scent = _str(allSpecs['scent']) ?? _str(allSpecs['fragrance']) ?? '';
+    final containerType = _str(allSpecs['containerType']) ?? '';
+    final productLine = _str(solenisData['productLine']) ?? '';
 
     return Scaffold(
-      appBar: AppBar(title: Text(loc.marketplaceStagedProductDetailsTitle)),
+      appBar: AppBar(title: const Text('Staged Product Review')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               children: [
+                // --- Header with images ---
                 ContainerHeader(
-                  image: headerImage,
-                  images: imageUrls.isEmpty ? null : imageUrls,
-                  showImage: headerImage.isNotEmpty,
-                  titleHeader: loc.commonName,
-                  title: name,
+                  mediaItems: mediaItems.isNotEmpty ? mediaItems : null,
+                  image: mediaItems.isNotEmpty ? mediaItems.first.url : null,
+                  showImage: mediaItems.isNotEmpty,
+                  titleHeader: 'Product Name (Individual Unit)',
+                  title: parentName,
                   descriptionHeader: loc.commonDescription,
-                  description: description ?? loc.commonNotAvailable,
+                  description: description.isNotEmpty ? description : 'No description',
+                  textIcon: Icons.category_outlined,
+                  descriptionIcon: Icons.info_outlined,
                 ),
+
+                // --- Core identifiers (matches object collection fields) ---
                 ContainerActionWidget(
-                  title: loc.commonDetails,
+                  title: 'Product Identifiers',
                   actionText: '',
                   content: Column(
                     children: [
-                      _detailTile(
-                        icon: Icons.confirmation_number_outlined,
-                        label: loc.marketplaceProductNumber,
-                        value: productNumber,
-                        fallback: loc.commonNotAvailable,
-                      ),
-                      _detailTile(
-                        icon: Icons.branding_watermark_outlined,
-                        label: loc.marketplaceBrand,
-                        value: brandName,
-                        fallback: loc.commonNotAvailable,
-                      ),
-                      _detailTile(
-                        icon: Icons.storefront_outlined,
-                        label: loc.marketplaceVendor,
-                        value: vendorName,
-                        fallback: loc.commonNotAvailable,
-                      ),
+                      _fieldRow(Icons.qr_code, 'UPC (Individual)', upc),
+                      if (packageUpc.isNotEmpty) _fieldRow(Icons.qr_code_2, 'UPC (Package)', packageUpc),
+                      _fieldRow(Icons.confirmation_number_outlined, 'Product Code', productNumber),
+                      if (materialNumber.isNotEmpty) _fieldRow(Icons.tag, 'Material Number', materialNumber),
+                      _fieldRow(Icons.branding_watermark_outlined, 'Brand', _brandName.isNotEmpty ? _brandName : 'Not set'),
+                      _fieldRow(Icons.category_outlined, 'Category', _categoryName.isNotEmpty ? _categoryName : 'Not set'),
+                      if (productLine.isNotEmpty) _fieldRow(Icons.linear_scale, 'Product Line', productLine),
                     ],
                   ),
                 ),
+
+                // --- Scalar / Measurement (critical for process cost) ---
                 ContainerActionWidget(
-                  title: 'Associated Documents',
+                  title: 'Measurement & Scalar',
                   actionText: '',
-                  content: documentLinks.isEmpty
-                      ? const Center(
-                          child: Text('No associated documents found'))
+                  content: Column(
+                    children: [
+                      _fieldRow(Icons.straighten, 'Scalar Type', _scalarName.isNotEmpty ? _scalarName : 'Not set'),
+                      _fieldRow(Icons.science_outlined, 'Unit', _scalarUnitName.isNotEmpty ? _scalarUnitName : 'Not set'),
+                      _fieldRow(Icons.format_list_numbered, 'Unit Quantity', unitValue.isNotEmpty ? unitValue : 'Not set'),
+                      _fieldRow(Icons.inventory_2_outlined, 'SKU Config', skuConfig.isNotEmpty ? skuConfig : 'N/A'),
+                    ],
+                  ),
+                ),
+
+                // --- Packaging (if multi-pack) ---
+                if (isMultiPack)
+                  ContainerActionWidget(
+                    title: 'Packaging',
+                    actionText: '',
+                    content: Column(
+                      children: [
+                        _fieldRow(Icons.inventory, 'Packaging Type', 'Case'),
+                        _fieldRow(Icons.looks_one, 'Pack Quantity', '$packQuantity'),
+                        _fieldRow(Icons.straighten, 'Per Unit', '$unitValue ${_scalarUnitName.isNotEmpty ? _scalarUnitName : ''}'),
+                        _fieldRow(Icons.calculate_outlined, 'Case Quantity', '$packQuantity (for process cost calculation)'),
+                        if (packageUpc.isNotEmpty) _fieldRow(Icons.qr_code_2, 'Package UPC', packageUpc),
+                      ],
+                    ),
+                  ),
+
+                // --- Product attributes ---
+                if (color.isNotEmpty || scent.isNotEmpty || containerType.isNotEmpty)
+                  ContainerActionWidget(
+                    title: 'Product Attributes',
+                    actionText: '',
+                    content: Column(
+                      children: [
+                        if (color.isNotEmpty) _fieldRow(Icons.palette_outlined, 'Color', color),
+                        if (scent.isNotEmpty) _fieldRow(Icons.air, 'Scent / Fragrance', scent),
+                        if (containerType.isNotEmpty) _fieldRow(Icons.takeout_dining_outlined, 'Container Type', containerType),
+                      ],
+                    ),
+                  ),
+
+                // --- Documents (SDS, TDS from Storage) ---
+                ContainerActionWidget(
+                  title: 'Documents',
+                  actionText: '',
+                  content: _buildDocumentsList(storageDocs, sdsLinks, productSheetLinks),
+                ),
+
+                // --- Images list ---
+                ContainerActionWidget(
+                  title: 'Images (${mediaItems.length})',
+                  actionText: '',
+                  content: mediaItems.isEmpty
+                      ? const Text('No images')
                       : Column(
                           children: [
-                            for (final link in documentLinks)
+                            for (int i = 0; i < mediaItems.length; i++)
                               ListTile(
                                 dense: true,
                                 contentPadding: EdgeInsets.zero,
-                                leading: const Icon(
-                                    Icons.insert_drive_file_outlined),
-                                title: Text(link.label),
+                                leading: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Image.network(
+                                    mediaItems[i].url,
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 48),
+                                  ),
+                                ),
+                                title: Text(
+                                  i == 0 ? 'Primary Image' : 'Image ${i + 1}',
+                                  style: TextStyle(fontWeight: i == 0 ? FontWeight.bold : FontWeight.normal),
+                                ),
                                 subtitle: Text(
-                                  link.url,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                trailing:
-                                    const Icon(Icons.open_in_new, size: 18),
-                                onTap: () => _openExternalUrl(link.url),
-                              ),
-                          ],
-                        ),
-                ),
-                ContainerActionWidget(
-                  title: 'Additional Data',
-                  actionText: '',
-                  content: additionalEntries.isEmpty
-                      ? const Center(child: Text('No additional data found'))
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            for (final entry in additionalEntries)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _formatPathLabel(entry.key),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    SelectableText(entry.value),
-                                  ],
+                                  storageImages.length > i
+                                      ? (_str(_asMap(storageImages[i])['fileName']) ?? 'From Storage')
+                                      : 'From vendor',
+                                  style: TextStyle(
+                                    color: storageImages.length > i ? Colors.green : Colors.orange,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
                           ],
                         ),
                 ),
+
+                const SizedBox(height: 80),
               ],
             ),
       bottomNavigationBar: SafeArea(
@@ -333,11 +394,7 @@ class _MarketplaceStagingReviewDetailsScreenState
                 child: FilledButton.icon(
                   onPressed: _processing ? null : _approve,
                   icon: const Icon(Icons.check_circle_outline),
-                  label: Text(
-                    _processing
-                        ? loc.marketplaceWorking
-                        : loc.marketplaceApprove,
-                  ),
+                  label: Text(_processing ? loc.marketplaceWorking : loc.marketplaceApprove),
                 ),
               ),
             ],
@@ -347,428 +404,104 @@ class _MarketplaceStagingReviewDetailsScreenState
     );
   }
 
-  Widget _detailTile({
-    required IconData icon,
-    required String label,
-    required String value,
-    required String fallback,
-  }) {
-    final display = value.trim().isEmpty ? fallback : value.trim();
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      minLeadingWidth: 24,
-      leading: Icon(icon, size: 20),
-      title: Text(label),
-      subtitle: Text(display),
+  Widget _fieldRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: Colors.grey[600]),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 140,
+            child: Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+          ),
+          Expanded(
+            child: Text(
+              value.isEmpty ? 'Not set' : value,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: value.isEmpty || value == 'Not set' ? Colors.red[300] : null,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
+  Widget _buildDocumentsList(List<dynamic> storageDocs, List<dynamic> sdsLinks, List<dynamic> productSheetLinks) {
+    // Prefer storage docs, fallback to vendor URLs
+    final docs = storageDocs.isNotEmpty ? storageDocs : [...sdsLinks, ...productSheetLinks];
+    if (docs.isEmpty) return const Text('No documents');
+
+    return Column(
+      children: [
+        for (final doc in docs) Builder(builder: (context) {
+          final docMap = _asMap(doc);
+          final url = _str(docMap['downloadUrl']) ?? _str(docMap['href']) ?? _str(docMap['url']) ?? '';
+          final name = _str(docMap['name']) ?? _str(docMap['text']) ?? _str(docMap['fileName']) ?? 'Document';
+          final type = _str(docMap['type']) ?? _str(docMap['docType']) ?? '';
+          final isFromStorage = _str(docMap['storagePath'])?.isNotEmpty == true;
+
+          return ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              type.toUpperCase() == 'SDS' ? Icons.warning_amber_outlined : Icons.description_outlined,
+              color: type.toUpperCase() == 'SDS' ? Colors.orange : Colors.blue,
+            ),
+            title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Row(
+              children: [
+                if (type.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: type.toUpperCase() == 'SDS' ? Colors.orange.withValues(alpha: 0.15) : Colors.blue.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Text(type.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                Icon(
+                  isFromStorage ? Icons.cloud_done : Icons.cloud_off,
+                  size: 14,
+                  color: isFromStorage ? Colors.green : Colors.orange,
+                ),
+                const SizedBox(width: 4),
+                Text(isFromStorage ? 'In Storage' : 'Vendor URL', style: TextStyle(fontSize: 11, color: isFromStorage ? Colors.green : Colors.orange)),
+              ],
+            ),
+            trailing: url.isNotEmpty ? IconButton(
+              icon: const Icon(Icons.open_in_new, size: 18),
+              onPressed: () async {
+                final uri = Uri.tryParse(url);
+                if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+              },
+            ) : null,
+          );
+        }),
+      ],
+    );
+  }
+
+  // --- Helpers ---
   Map<String, dynamic> _asMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
-    if (value is Map) {
-      return value.map((key, dynamic mapValue) {
-        return MapEntry(key.toString(), mapValue);
-      });
-    }
+    if (value is Map) return value.map((key, dynamic v) => MapEntry(key.toString(), v));
     return <String, dynamic>{};
   }
 
-  String? _firstNonEmptyString(List<dynamic> candidates) {
-    for (final candidate in candidates) {
-      final text = (candidate ?? '').toString().trim();
-      if (text.isNotEmpty) return text;
-    }
-    return null;
+  List<dynamic> _asList(dynamic value) {
+    if (value is List) return value;
+    return const [];
   }
 
-  List<String> _collectImageUrls(Map<String, dynamic> data) {
-    final urls = <String>[];
-    final seen = <String>{};
-
-    void addUrl(String candidate) {
-      final trimmed = candidate.trim();
-      if (trimmed.isEmpty || !_isHttpUrl(trimmed)) return;
-      if (_isLikelyPrivateImageAssetUrl(trimmed)) return;
-      final normalized = _normalizeUrl(trimmed);
-      if (!seen.add(normalized)) return;
-      urls.add(trimmed);
-    }
-
-    void visit(dynamic node, {required bool keySuggestsImage}) {
-      if (node is String) {
-        if (!keySuggestsImage && !_looksLikeImageUrl(node)) return;
-        addUrl(node);
-        return;
-      }
-      if (node is Iterable) {
-        for (final item in node) {
-          visit(item, keySuggestsImage: keySuggestsImage);
-        }
-        return;
-      }
-      if (node is Map) {
-        node.forEach((dynamic key, dynamic value) {
-          final keyText = key.toString().toLowerCase();
-          final suggestsImage = keySuggestsImage ||
-              keyText.contains('image') ||
-              keyText.contains('img') ||
-              keyText.contains('photo') ||
-              keyText.contains('thumbnail');
-          visit(value, keySuggestsImage: suggestsImage);
-        });
-      }
-    }
-
-    final normalized = _asMap(data['normalizedData']);
-    final rawData = _asMap(data['rawData']);
-    final candidates = <dynamic>[
-      data['imageUrl'],
-      data['imageUrls'],
-      data['images'],
-      normalized['imageUrl'],
-      normalized['imageUrls'],
-      normalized['images'],
-      rawData['imageUrl'],
-      rawData['imageUrls'],
-      rawData['images'],
-      rawData['imageLinks'],
-    ];
-
-    for (final candidate in candidates) {
-      visit(candidate, keySuggestsImage: true);
-    }
-
-    visit(data, keySuggestsImage: false);
-    return urls;
+  String? _str(dynamic value) {
+    if (value == null) return null;
+    final s = value.toString().trim();
+    return s.isEmpty ? null : s;
   }
-
-  List<_DocumentLink> _collectDocumentLinks(
-    Map<String, dynamic> data,
-    Set<String> imageUrls,
-  ) {
-    final links = <_DocumentLink>[];
-    final seen = <String>{};
-
-    for (final url in imageUrls) {
-      seen.add(_normalizeUrl(url));
-    }
-
-    bool pathSuggestsDocument(String path) {
-      final lower = path.toLowerCase();
-      return lower.contains('sds') ||
-          lower.contains('safety') ||
-          lower.contains('document') ||
-          lower.contains('download') ||
-          lower.contains('sheet') ||
-          lower.contains('manual') ||
-          lower.contains('datasheet') ||
-          lower.contains('productsheet') ||
-          lower.contains('productsheetlinks');
-    }
-
-    bool looksLikeDocumentUrl(String value) {
-      final lower = value.toLowerCase();
-      if (RegExp(r'\.(pdf|docx?|xlsx?|pptx?|txt)(\?|#|$)').hasMatch(lower)) {
-        return true;
-      }
-      return lower.contains('safety-data') ||
-          lower.contains('document.aspx') ||
-          lower.contains('taskispares') ||
-          lower.contains('/download') ||
-          lower.contains('/resource') ||
-          lower.contains('/servlet.shepherd') ||
-          lower.contains('/sfc/dist/version/download');
-    }
-
-    bool looksLikeDocumentLabel(String value) {
-      final lower = value.toLowerCase();
-      return lower.contains('sds') ||
-          lower.contains('safety data') ||
-          lower.contains('product information sheet') ||
-          lower.contains('technical data') ||
-          lower.contains('datasheet') ||
-          lower.contains('.pdf');
-    }
-
-    bool isGenericSdsLibraryUrl(String value) {
-      final uri = Uri.tryParse(value.trim());
-      if (uri == null) return false;
-      final host = uri.host.toLowerCase();
-      final path = uri.path.toLowerCase();
-      return host.contains('solenis.com') &&
-          (path == '/en/resources/safety-data-sheets' ||
-              path == '/en/resources/safety-data-sheets/');
-    }
-
-    void addLink(String candidate, String label) {
-      final trimmed = candidate.trim();
-      if (trimmed.isEmpty || !_isHttpUrl(trimmed)) return;
-      if (isGenericSdsLibraryUrl(trimmed)) return;
-      final normalized = _normalizeUrl(trimmed);
-      if (seen.contains(normalized)) return;
-      if (_looksLikeImageUrl(trimmed)) return;
-      seen.add(normalized);
-      links.add(_DocumentLink(label: label, url: trimmed));
-    }
-
-    void visit(
-      dynamic node,
-      String path, {
-      required bool keySuggestsDocument,
-    }) {
-      if (node is String) {
-        if (!_isHttpUrl(node)) return;
-        if (!keySuggestsDocument) return;
-        final label = _formatPathLabel(path);
-        addLink(node, label.isEmpty ? 'Document Link' : label);
-        return;
-      }
-      if (node is Iterable) {
-        var index = 0;
-        for (final item in node) {
-          index += 1;
-          visit(
-            item,
-            '$path[$index]',
-            keySuggestsDocument: keySuggestsDocument,
-          );
-        }
-        return;
-      }
-      if (node is Map) {
-        final mapNode = _asMap(node);
-        final structuredHref = _firstNonEmptyString(<dynamic>[
-          mapNode['href'],
-          mapNode['url'],
-          mapNode['downloadUrl'],
-          mapNode['downloadURL'],
-          mapNode['link'],
-        ]);
-        final structuredLabel = _firstNonEmptyString(<dynamic>[
-          mapNode['text'],
-          mapNode['label'],
-          mapNode['title'],
-          mapNode['name'],
-          mapNode['fileName'],
-          mapNode['filename'],
-        ]);
-        final hasStructuredLink =
-            structuredHref != null && _isHttpUrl(structuredHref);
-        final shouldUseStructuredLink = hasStructuredLink &&
-            (keySuggestsDocument ||
-                pathSuggestsDocument(path) ||
-                looksLikeDocumentUrl(structuredHref) ||
-                (structuredLabel != null &&
-                    looksLikeDocumentLabel(structuredLabel)));
-
-        if (shouldUseStructuredLink) {
-          final fallback = _formatPathLabel(path);
-          addLink(
-            structuredHref,
-            (structuredLabel != null && structuredLabel.trim().isNotEmpty)
-                ? structuredLabel.trim()
-                : (fallback.isEmpty ? 'Document Link' : fallback),
-          );
-        }
-
-        node.forEach((dynamic key, dynamic value) {
-          final keyText = key.toString().toLowerCase();
-          if (shouldUseStructuredLink &&
-              (keyText == 'href' ||
-                  keyText == 'url' ||
-                  keyText == 'downloadurl' ||
-                  keyText == 'link' ||
-                  keyText == 'text' ||
-                  keyText == 'label' ||
-                  keyText == 'title' ||
-                  keyText == 'name' ||
-                  keyText == 'filename')) {
-            return;
-          }
-          final suggestsDocument = keySuggestsDocument ||
-              keyText.contains('source') ||
-              keyText.contains('url') ||
-              keyText.contains('link') ||
-              keyText.contains('doc') ||
-              keyText.contains('pdf') ||
-              keyText.contains('sheet') ||
-              keyText.contains('file') ||
-              keyText.contains('manual') ||
-              keyText.contains('sds');
-          final childPath =
-              path.isEmpty ? key.toString() : '$path.${key.toString()}';
-          visit(value, childPath, keySuggestsDocument: suggestsDocument);
-        });
-      }
-    }
-
-    final sourceUrl = _firstNonEmptyString(<dynamic>[
-      data['sourceUrl'],
-      _asMap(data['rawData'])['sourceUrl'],
-    ]);
-    if (sourceUrl != null) {
-      addLink(sourceUrl, 'Source URL');
-    }
-
-    visit(data, '', keySuggestsDocument: false);
-    return links;
-  }
-
-  List<MapEntry<String, String>> _buildAdditionalDataEntries({
-    required Map<String, dynamic> data,
-    required Set<String> imageUrls,
-    required Set<String> documentUrls,
-  }) {
-    final entries = <MapEntry<String, String>>[];
-
-    bool isConsumedPath(String lowerPath) {
-      const consumedExact = <String>{
-        'normalizeddata.name',
-        'normalizeddata.description',
-        'normalizeddata.productnumber',
-        'normalizeddata.brandname',
-        'normalizeddata.vendorname',
-        'rawdata.name',
-        'rawdata.description',
-        'rawdata.productnumber',
-        'rawdata.brandname',
-        'rawdata.vendorname',
-        'normalizeddata.imageurl',
-        'rawdata.imageurl',
-        'imageurl',
-      };
-      if (consumedExact.contains(lowerPath)) return true;
-      if (lowerPath.contains('images')) return true;
-      if (lowerPath.contains('imagelinks')) return true;
-      if (lowerPath.contains('imageurls')) return true;
-      if (lowerPath.contains('sourceurl')) return true;
-      if (lowerPath.contains('sdslinks')) return true;
-      if (lowerPath.contains('productsheetlinks')) return true;
-      return false;
-    }
-
-    void visit(dynamic node, String path) {
-      if (node is Map) {
-        node.forEach((dynamic key, dynamic value) {
-          final childPath =
-              path.isEmpty ? key.toString() : '$path.${key.toString()}';
-          visit(value, childPath);
-        });
-        return;
-      }
-
-      if (node is Iterable) {
-        var index = 0;
-        for (final item in node) {
-          index += 1;
-          visit(item, '$path[$index]');
-        }
-        return;
-      }
-
-      final lowerPath = path.toLowerCase();
-      if (isConsumedPath(lowerPath)) return;
-
-      final text = _valueToDisplayText(node);
-      if (text.isEmpty) return;
-
-      if (_isHttpUrl(text)) {
-        final normalized = _normalizeUrl(text);
-        if (imageUrls.contains(normalized) ||
-            documentUrls.contains(normalized)) {
-          return;
-        }
-      }
-
-      entries.add(MapEntry(path, text));
-    }
-
-    visit(data, '');
-    entries.sort((a, b) => a.key.compareTo(b.key));
-    return entries;
-  }
-
-  String _valueToDisplayText(dynamic value) {
-    if (value == null) return '';
-    if (value is String) return value.trim();
-    if (value is Timestamp) return value.toDate().toIso8601String();
-    if (value is DateTime) return value.toIso8601String();
-    if (value is DocumentReference) return value.path;
-    return value.toString().trim();
-  }
-
-  bool _isHttpUrl(String value) {
-    final uri = Uri.tryParse(value.trim());
-    if (uri == null) return false;
-    if (uri.host.isEmpty) return false;
-    return uri.scheme == 'http' || uri.scheme == 'https';
-  }
-
-  bool _isLikelyPrivateImageAssetUrl(String value) {
-    final uri = Uri.tryParse(value.trim());
-    if (uri == null) return false;
-
-    final host = uri.host.toLowerCase();
-    final path = uri.path.toLowerCase();
-
-    // These Salesforce file-distribution links are often auth-gated and
-    // render as broken image placeholders in-app.
-    if (host.contains('.my.salesforce.com')) return true;
-    if (host.endsWith('salesforce.com') &&
-        path.contains('/sfc/dist/version/download')) {
-      return true;
-    }
-
-    return false;
-  }
-
-  bool _looksLikeImageUrl(String value) {
-    final text = value.trim().toLowerCase();
-    if (text.isEmpty) return false;
-    if (RegExp(r'\.(png|jpe?g|gif|webp|bmp|svg)(\?|#|$)').hasMatch(text)) {
-      return true;
-    }
-    return text.contains('image');
-  }
-
-  String _normalizeUrl(String value) {
-    final trimmed = value.trim();
-    if (trimmed.endsWith('/')) {
-      return trimmed.substring(0, trimmed.length - 1);
-    }
-    return trimmed;
-  }
-
-  String _formatPathLabel(String path) {
-    final trimmedPath = path.trim();
-    if (trimmedPath.isEmpty) return '';
-
-    final last = trimmedPath.split('.').last;
-    final withIndex = last.replaceAll('[', ' ').replaceAll(']', '');
-    final withSpaces = withIndex
-        .replaceAll('_', ' ')
-        .replaceAllMapped(
-          RegExp(r'([a-z])([A-Z])'),
-          (match) => '${match.group(1)} ${match.group(2)}',
-        )
-        .trim();
-
-    if (withSpaces.isEmpty) return '';
-    final words = withSpaces.split(RegExp(r'\s+'));
-    return words.map((word) {
-      if (word.isEmpty) return word;
-      return '${word[0].toUpperCase()}${word.substring(1)}';
-    }).join(' ');
-  }
-}
-
-class _DocumentLink {
-  const _DocumentLink({
-    required this.label,
-    required this.url,
-  });
-
-  final String label;
-  final String url;
 }

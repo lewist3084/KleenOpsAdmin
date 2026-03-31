@@ -40,6 +40,7 @@ class AppRouteIds {
   static const catalogHome = 'catalogHome';
   static const catalogScrapeJobs = 'catalogScrapeJobs';
   static const catalogStagingReview = 'catalogStagingReview';
+  static const catalogBrandOwners = 'catalogBrandOwners';
 
   // Device Registry
   static const deviceRegistryHome = 'deviceRegistryHome';
@@ -134,6 +135,7 @@ class AppRoutePaths {
   static const catalog = '/catalog';
   static const catalogScrapeJobs = '/catalog/scrape-jobs';
   static const catalogStagingReview = '/catalog/staging-review';
+  static const catalogBrandOwners = '/catalog/brand-owners';
 
   // Device Registry
   static const deviceRegistry = '/device-registry';

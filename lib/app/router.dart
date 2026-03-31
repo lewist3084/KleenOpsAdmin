@@ -23,6 +23,7 @@ import '../features/legal/screens/legal_stats.dart';
 import '../features/support/screens/support_home.dart';
 import '../features/catalog/screens/catalog_home.dart';
 import '../features/catalog/screens/scrape_jobs_wrapper.dart';
+import '../features/catalog/screens/brand_owners_wrapper.dart';
 import '../features/catalog/screens/staging_review_wrapper.dart';
 import '../features/device_registry/screens/device_registry_home.dart';
 import '../features/finances/screens/financeHome.dart';
@@ -193,6 +194,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutePaths.catalogStagingReview,
         name: AppRouteIds.catalogStagingReview,
         builder: (context, state) => const StagingReviewWrapper(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.catalogBrandOwners,
+        name: AppRouteIds.catalogBrandOwners,
+        builder: (context, state) => const BrandOwnersWrapper(),
       ),
       GoRoute(
         path: AppRoutePaths.deviceRegistry,

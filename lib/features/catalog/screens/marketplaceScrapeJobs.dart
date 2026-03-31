@@ -12,7 +12,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:kleenops_admin/services/catalog_firebase_service.dart';
 // Scrape workflow collections now live in the catalog Firebase project.
 import 'package:shared_widgets/dialogs/dialog_select.dart';
-import 'package:shared_widgets/tabs/standard_tab.dart';
+
 import 'package:kleenops_admin/l10n/app_localizations.dart';
 
 Map<String, dynamic> _asStringDynamicMap(dynamic value) {
@@ -25,7 +25,8 @@ Map<String, dynamic> _asStringDynamicMap(dynamic value) {
   return <String, dynamic>{};
 }
 
-/// Screen for managing web scraping jobs and vendor configurations
+/// Screen for managing web scraping jobs.
+/// Single flat list of jobs with a FAB to create new combined scrape jobs.
 class ScrapeJobsScreen extends ConsumerStatefulWidget {
   const ScrapeJobsScreen({super.key});
 
@@ -33,94 +34,379 @@ class ScrapeJobsScreen extends ConsumerStatefulWidget {
   ConsumerState<ScrapeJobsScreen> createState() => _ScrapeJobsScreenState();
 }
 
-class _ScrapeJobsScreenState extends ConsumerState<ScrapeJobsScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
+class _ScrapeJobsScreenState extends ConsumerState<ScrapeJobsScreen> {
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: null,
-      body: Column(
-        children: [
-          Container(
-            color: Colors.white,
-            child: StandardTabBar(
-              controller: _tabController,
-              isScrollable: true,
-              dividerColor: Colors.grey[300],
-              indicatorColor: Theme.of(context).primaryColor,
-              indicatorWeight: 3.0,
-              labelColor: Colors.black,
-              unselectedLabelColor: Colors.grey[600],
-              tabs: [
-                Tab(text: loc.marketplaceSitesTab),
-                Tab(text: loc.marketplaceSiteJobsTab),
-                Tab(text: loc.commonDetails),
-                Tab(text: loc.marketplaceDetailJobsTab),
-              ],
-            ),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: const [
-                _VendorConfigList(),
-                _ScrapeJobsList(),
-                _SiteDetailTemplateList(),
-                _DetailJobsList(),
-              ],
-            ),
-          ),
-        ],
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('scrapeJob')
+            .orderBy('createdAt', descending: true)
+            .limit(50)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final docs = snapshot.data!.docs;
+          if (docs.isEmpty) {
+            return const Center(child: Text('No scraping jobs yet. Tap + to create one.'));
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.all(8),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final doc = docs[index];
+              final data = doc.data();
+              final status = (data['status'] ?? 'unknown').toString();
+              final vendorName = (data['vendorName'] ?? '').toString();
+              final brandName = (data['brandName'] ?? '').toString();
+              final targetUrl = (data['targetUrl'] ?? '').toString();
+              final results = data['results'] is Map
+                  ? Map<String, dynamic>.from(data['results'] as Map)
+                  : <String, dynamic>{};
+              final progress = data['progress'] is Map
+                  ? Map<String, dynamic>.from(data['progress'] as Map)
+                  : <String, dynamic>{};
+              final stagedCount = results['stagedProducts'] ?? progress['staged'] ?? 0;
+              final totalFound = results['totalFound'] ?? results['totalProducts'] ?? 0;
+              final failedCount = results['failed'] ?? 0;
+
+              final statusColor = switch (status) {
+                'completed' => Colors.green,
+                'running' => Colors.blue,
+                'failed' => Colors.red,
+                'cancelled' => Colors.grey,
+                _ => Colors.orange,
+              };
+
+              final subtitle = [
+                if (brandName.isNotEmpty) brandName,
+                if (targetUrl.isNotEmpty) targetUrl.length > 60
+                    ? '${targetUrl.substring(0, 60)}...'
+                    : targetUrl,
+              ].join(' \u2014 ');
+
+              return Card(
+                child: ListTile(
+                  leading: Icon(Icons.downloading, color: statusColor),
+                  title: Text(
+                    vendorName.isNotEmpty ? vendorName : 'Scrape Job',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (subtitle.isNotEmpty) Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              status.toUpperCase(),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          if (totalFound > 0) Text('Found: $totalFound', style: const TextStyle(fontSize: 12)),
+                          if (stagedCount > 0) ...[
+                            const SizedBox(width: 8),
+                            Text('Staged: $stagedCount', style: const TextStyle(fontSize: 12, color: Colors.green)),
+                          ],
+                          if ((failedCount as num) > 0) ...[
+                            const SizedBox(width: 8),
+                            Text('Failed: $failedCount', style: const TextStyle(fontSize: 12, color: Colors.red)),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                  isThreeLine: true,
+                ),
+              );
+            },
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateDialog(context),
+        onPressed: () => showDialog(
+          context: context,
+          builder: (ctx) => const _CombinedScrapeDialog(),
+        ),
         child: const Icon(Icons.add),
       ),
     );
   }
+}
 
-  void _showCreateDialog(BuildContext context) {
-    switch (_tabController.index) {
-      case 0:
-        showDialog(
-          context: context,
-          builder: (ctx) => const _VendorConfigDialog(),
-        );
-        break;
-      case 1:
-        showDialog(
-          context: context,
-          builder: (ctx) => const _CreateScrapeJobDialog(),
-        );
-        break;
-      case 2:
-        showDialog(
-          context: context,
-          builder: (ctx) => const _SiteDetailTemplateDialog(),
-        );
-        break;
-      case 3:
-        showDialog(
-          context: context,
-          builder: (ctx) => const _CreateDetailJobDialog(),
-        );
-        break;
+/// Simple dialog for creating a combined scrape job.
+class _CombinedScrapeDialog extends StatefulWidget {
+  const _CombinedScrapeDialog();
+
+  @override
+  State<_CombinedScrapeDialog> createState() => _CombinedScrapeDialogState();
+}
+
+class _CombinedScrapeDialogState extends State<_CombinedScrapeDialog> {
+  final _urlController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _startPageController = TextEditingController(text: '1');
+  final _endPageController = TextEditingController(text: '50');
+  bool _creating = false;
+  String? _error;
+
+  // Brand
+  bool _loadingBrands = true;
+  List<_BrandOption> _brands = [];
+  String? _selectedBrandId;
+  String? _selectedBrandName;
+
+  // Brand Owner
+  bool _loadingBrandOwners = true;
+  List<_BrandOption> _brandOwners = [];
+  String? _selectedBrandOwnerId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBrands();
+    _loadBrandOwners();
+  }
+
+  @override
+  void dispose() {
+    _urlController.dispose();
+    _nameController.dispose();
+    _startPageController.dispose();
+    _endPageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadBrands() async {
+    try {
+      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('getCatalogBrands');
+      final result = await callable.call();
+      final payload = Map<String, dynamic>.from(result.data as Map);
+      final rawBrands = payload['brands'] as List<dynamic>? ?? const [];
+      final brands = <_BrandOption>[];
+      for (final raw in rawBrands) {
+        if (raw is! Map) continue;
+        final map = Map<String, dynamic>.from(raw);
+        final id = (map['id'] ?? '').toString().trim();
+        if (id.isEmpty) continue;
+        final name = (map['name'] ?? map['brand'] ?? '').toString().trim();
+        brands.add(_BrandOption(id: id, name: name));
+      }
+      brands.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      if (!mounted) return;
+      setState(() { _brands = brands; _loadingBrands = false; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _brands = []; _loadingBrands = false; });
     }
+  }
+
+  Future<void> _loadBrandOwners() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('brandOwner')
+          .orderBy('name')
+          .get();
+      if (!mounted) return;
+      setState(() {
+        _brandOwners = snap.docs.map((doc) {
+          final data = doc.data();
+          return _BrandOption(id: doc.id, name: (data['name'] ?? '').toString().trim());
+        }).toList();
+        _loadingBrandOwners = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _brandOwners = []; _loadingBrandOwners = false; });
+    }
+  }
+
+  Future<void> _create() async {
+    final url = _urlController.text.trim();
+    final name = _nameController.text.trim();
+    if (url.isEmpty) {
+      setState(() => _error = 'URL is required');
+      return;
+    }
+
+    setState(() { _creating = true; _error = null; });
+
+    try {
+      // First save a vendor config (or reuse if exists)
+      final configCallable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('saveVendorScrapeConfig');
+      final configResult = await configCallable.call({
+        'vendorName': name.isNotEmpty ? name : url,
+        'vendorUrl': url,
+        'scrapeMethod': 'html',
+        'htmlConfig': {'catalogUrl': url, 'usesJavaScript': true},
+      });
+      final configPayload = Map<String, dynamic>.from(configResult.data as Map);
+      final vendorConfigId = configPayload['configId'] as String;
+
+      // Create the combined scrape job
+      final jobCallable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('createScrapeJob');
+      final startPage = int.tryParse(_startPageController.text.trim()) ?? 1;
+      final endPage = int.tryParse(_endPageController.text.trim()) ?? 50;
+      final maxProducts = ((endPage - startPage + 1) * 25).clamp(1, 5000);
+
+      await jobCallable.call({
+        'vendorConfigId': vendorConfigId,
+        'jobType': 'combined',
+        if (_selectedBrandId != null) 'brandId': _selectedBrandId,
+        if ((_selectedBrandName ?? '').isNotEmpty) 'brandName': _selectedBrandName,
+        if (_selectedBrandOwnerId != null) 'brandOwnerId': _selectedBrandOwnerId,
+        'maxProducts': maxProducts,
+        'pageOffset': (startPage - 1).clamp(0, 10000),
+      });
+
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Scraping job started')),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _creating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('New Scrape Job', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _urlController,
+                decoration: const InputDecoration(
+                  labelText: 'Catalog URL',
+                  hintText: 'https://products.solenis.com/category/...',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.link),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  hintText: 'e.g., Solenis - Good Sense',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.label_outline),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _startPageController,
+                      decoration: const InputDecoration(
+                        labelText: 'Start Page',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.first_page),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _endPageController,
+                      decoration: const InputDecoration(
+                        labelText: 'End Page',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.last_page),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Brand dropdown
+              DropdownButtonFormField<String>(
+                value: _selectedBrandId,
+                decoration: const InputDecoration(
+                  labelText: 'Brand',
+                  border: OutlineInputBorder(),
+                ),
+                items: _brands.map((b) => DropdownMenuItem(
+                  value: b.id,
+                  child: Text(b.name.isEmpty ? b.id : b.name),
+                )).toList(),
+                onChanged: _loadingBrands ? null : (v) {
+                  final brand = _brands.firstWhere((b) => b.id == v);
+                  setState(() { _selectedBrandId = v; _selectedBrandName = brand.name; });
+                },
+              ),
+              const SizedBox(height: 12),
+              // Brand Owner dropdown
+              DropdownButtonFormField<String>(
+                value: _selectedBrandOwnerId,
+                decoration: const InputDecoration(
+                  labelText: 'Brand Owner',
+                  border: OutlineInputBorder(),
+                ),
+                items: _brandOwners.map((bo) => DropdownMenuItem(
+                  value: bo.id,
+                  child: Text(bo.name.isEmpty ? bo.id : bo.name),
+                )).toList(),
+                onChanged: _loadingBrandOwners ? null : (v) {
+                  setState(() => _selectedBrandOwnerId = v);
+                },
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+              ],
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _creating ? null : () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: _creating ? null : _create,
+                    child: _creating
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Start Scraping'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -1495,14 +1781,18 @@ class _CreateScrapeJobDialog extends StatefulWidget {
 
 class _CreateScrapeJobDialogState extends State<_CreateScrapeJobDialog> {
   String? _selectedConfigId;
-  String _jobType = 'full_catalog';
+  final String _jobType = 'combined';
   bool _loading = true;
   bool _creating = false;
   bool _loadingBrands = true;
+  bool _loadingBrandOwners = true;
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _configs = [];
   List<_BrandOption> _brands = [];
+  List<_BrandOption> _brandOwners = [];
   String? _selectedBrandId;
   String? _selectedBrandName;
+  String? _selectedBrandOwnerId;
+  String? _selectedBrandOwnerName;
   Future<Map<String, String?>>? _debugInfoFuture;
   final _startPageController = TextEditingController(text: '1');
   final _endPageController = TextEditingController(text: '50');
@@ -1512,6 +1802,7 @@ class _CreateScrapeJobDialogState extends State<_CreateScrapeJobDialog> {
     super.initState();
     _loadConfigs();
     _loadBrands();
+    _loadBrandOwners();
     _debugInfoFuture = _loadDebugInfo();
   }
 
@@ -1624,6 +1915,33 @@ class _CreateScrapeJobDialogState extends State<_CreateScrapeJobDialog> {
     }
   }
 
+  Future<void> _loadBrandOwners() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('brandOwner')
+          .orderBy('name')
+          .get();
+      if (!mounted) return;
+      setState(() {
+        _brandOwners = snap.docs.map((doc) {
+          final data = doc.data();
+          return _BrandOption(
+            id: doc.id,
+            name: (data['name'] ?? '').toString().trim(),
+          );
+        }).toList();
+        _loadingBrandOwners = false;
+      });
+    } catch (e) {
+      debugPrint('Failed to load brand owners: $e');
+      if (!mounted) return;
+      setState(() {
+        _brandOwners = [];
+        _loadingBrandOwners = false;
+      });
+    }
+  }
+
   String _brandName(_BrandOption brand) {
     return brand.name.trim();
   }
@@ -1695,8 +2013,9 @@ class _CreateScrapeJobDialogState extends State<_CreateScrapeJobDialog> {
         if (_selectedBrandId != null) 'brandId': _selectedBrandId,
         if ((_selectedBrandName ?? '').trim().isNotEmpty)
           'brandName': _selectedBrandName,
-        if (pageOffset > 0) 'pageOffset': pageOffset,
-        'maxPages': maxPages,
+        if (_selectedBrandOwnerId != null) 'brandOwnerId': _selectedBrandOwnerId,
+        if (_jobType != 'combined' && pageOffset > 0) 'pageOffset': pageOffset,
+        if (_jobType != 'combined') 'maxPages': maxPages,
       });
 
       if (mounted) {
@@ -1772,60 +2091,9 @@ class _CreateScrapeJobDialogState extends State<_CreateScrapeJobDialog> {
                       onChanged: (v) => setState(() => _selectedConfigId = v),
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: _jobType,
-                      decoration: InputDecoration(
-                        labelText: loc.marketplaceJobTypeLabel,
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'full_catalog',
-                          child: Text(loc.marketplaceFullCatalog),
-                        ),
-                        DropdownMenuItem(
-                          value: 'product_update',
-                          child: Text(loc.marketplaceProductUpdate),
-                        ),
-                        DropdownMenuItem(
-                          value: 'price_update',
-                          child: Text(loc.marketplacePriceUpdate),
-                        ),
-                      ],
-                      onChanged: (v) => setState(() => _jobType = v!),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _startPageController,
-                            decoration: InputDecoration(
-                              labelText: loc.marketplaceStartPageLabel,
-                              helperText: loc.marketplaceFirstPageToScrape,
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.first_page),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _endPageController,
-                            decoration: InputDecoration(
-                              labelText: loc.marketplaceEndPageLabel,
-                              helperText: loc.marketplaceLastPageToScrape,
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.last_page),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
                     _buildBrandSelector(loc),
+                    const SizedBox(height: 16),
+                    _buildBrandOwnerSelector(),
                     const SizedBox(height: 16),
                     _buildDebugPanel(),
                   ],
@@ -1851,6 +2119,62 @@ class _CreateScrapeJobDialogState extends State<_CreateScrapeJobDialog> {
           labelText: loc.marketplaceFormBrandLabel,
           border: const OutlineInputBorder(),
           suffixIcon: _loadingBrands
+              ? const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : const Icon(Icons.arrow_drop_down),
+        ),
+        child: Text(
+          displayValue,
+          style: TextStyle(color: textColor),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBrandOwnerSelector() {
+    final hasSelection = _selectedBrandOwnerId != null;
+    final displayValue = hasSelection
+        ? (_selectedBrandOwnerName ?? 'Selected')
+        : _brandOwners.isEmpty
+            ? 'No brand owners yet'
+            : 'Select brand owner';
+    final textColor = hasSelection ? null : Theme.of(context).hintColor;
+
+    return InkWell(
+      onTap: _loadingBrandOwners
+          ? null
+          : () async {
+              final selected = await showDialog<_BrandOption>(
+                context: context,
+                builder: (ctx) => SimpleDialog(
+                  title: const Text('Select Brand Owner'),
+                  children: _brandOwners.map((bo) {
+                    return SimpleDialogOption(
+                      onPressed: () => Navigator.pop(ctx, bo),
+                      child: Text(bo.name.isEmpty ? bo.id : bo.name),
+                    );
+                  }).toList(),
+                ),
+              );
+              if (selected != null && mounted) {
+                setState(() {
+                  _selectedBrandOwnerId = selected.id;
+                  _selectedBrandOwnerName = selected.name;
+                });
+              }
+            },
+      borderRadius: BorderRadius.circular(4),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Brand Owner',
+          border: const OutlineInputBorder(),
+          suffixIcon: _loadingBrandOwners
               ? const Padding(
                   padding: EdgeInsets.all(12),
                   child: SizedBox(
