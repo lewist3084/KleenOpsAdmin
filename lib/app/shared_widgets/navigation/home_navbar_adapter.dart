@@ -110,10 +110,8 @@ const HomeNavConfig _navConfig = {
   // Objects section (catalog, scraping, staging)
   'catalog': [
     HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
-    HomeNavItem(label: 'Owners', icon: Icons.business, route: AppRoutePaths.catalogBrandOwners),
-    HomeNavItem(label: 'Scraping', icon: Icons.build, route: AppRoutePaths.catalogScrapeJobs),
-    HomeNavItem(label: 'Staging', icon: Icons.checklist, route: AppRoutePaths.catalogStagingReview),
     HomeNavItem(label: 'Catalog', icon: Icons.inventory_2, route: AppRoutePaths.catalog),
+    HomeNavItem(label: 'Scraping', icon: Icons.build, route: AppRoutePaths.catalogScrapeJobs),
   ],
   'deviceRegistry': [
     HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),

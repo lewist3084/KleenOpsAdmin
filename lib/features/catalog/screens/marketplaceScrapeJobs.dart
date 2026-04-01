@@ -10,8 +10,12 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:kleenops_admin/services/catalog_firebase_service.dart';
+import 'package:kleenops_admin/features/catalog/details/marketplaceStagingReviewDetails.dart';
+import 'package:kleenops_admin/features/catalog/details/websiteDetails.dart';
+import 'package:kleenops_admin/features/catalog/details/scrape_job_details.dart';
 // Scrape workflow collections now live in the catalog Firebase project.
 import 'package:shared_widgets/dialogs/dialog_select.dart';
+import 'package:shared_widgets/tabs/standard_tab.dart';
 
 import 'package:kleenops_admin/l10n/app_localizations.dart';
 
@@ -25,8 +29,7 @@ Map<String, dynamic> _asStringDynamicMap(dynamic value) {
   return <String, dynamic>{};
 }
 
-/// Screen for managing web scraping jobs.
-/// Single flat list of jobs with a FAB to create new combined scrape jobs.
+/// Scraping screen with two tabs: Websites (brand owners) and Scraping (jobs).
 class ScrapeJobsScreen extends ConsumerStatefulWidget {
   const ScrapeJobsScreen({super.key});
 
@@ -34,114 +37,597 @@ class ScrapeJobsScreen extends ConsumerStatefulWidget {
   ConsumerState<ScrapeJobsScreen> createState() => _ScrapeJobsScreenState();
 }
 
-class _ScrapeJobsScreenState extends ConsumerState<ScrapeJobsScreen> {
+class _ScrapeJobsScreenState extends ConsumerState<ScrapeJobsScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() { if (mounted) setState(() {}); });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('scrapeJob')
-            .orderBy('createdAt', descending: true)
-            .limit(50)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final docs = snapshot.data!.docs;
-          if (docs.isEmpty) {
-            return const Center(child: Text('No scraping jobs yet. Tap + to create one.'));
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final doc = docs[index];
-              final data = doc.data();
-              final status = (data['status'] ?? 'unknown').toString();
-              final vendorName = (data['vendorName'] ?? '').toString();
-              final brandName = (data['brandName'] ?? '').toString();
-              final targetUrl = (data['targetUrl'] ?? '').toString();
-              final results = data['results'] is Map
-                  ? Map<String, dynamic>.from(data['results'] as Map)
-                  : <String, dynamic>{};
-              final progress = data['progress'] is Map
-                  ? Map<String, dynamic>.from(data['progress'] as Map)
-                  : <String, dynamic>{};
-              final stagedCount = results['stagedProducts'] ?? progress['staged'] ?? 0;
-              final totalFound = results['totalFound'] ?? results['totalProducts'] ?? 0;
-              final failedCount = results['failed'] ?? 0;
-
-              final statusColor = switch (status) {
-                'completed' => Colors.green,
-                'running' => Colors.blue,
-                'failed' => Colors.red,
-                'cancelled' => Colors.grey,
-                _ => Colors.orange,
-              };
-
-              final subtitle = [
-                if (brandName.isNotEmpty) brandName,
-                if (targetUrl.isNotEmpty) targetUrl.length > 60
-                    ? '${targetUrl.substring(0, 60)}...'
-                    : targetUrl,
-              ].join(' \u2014 ');
-
-              return Card(
-                child: ListTile(
-                  leading: Icon(Icons.downloading, color: statusColor),
-                  title: Text(
-                    vendorName.isNotEmpty ? vendorName : 'Scrape Job',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (subtitle.isNotEmpty) Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              status.toUpperCase(),
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          if (totalFound > 0) Text('Found: $totalFound', style: const TextStyle(fontSize: 12)),
-                          if (stagedCount > 0) ...[
-                            const SizedBox(width: 8),
-                            Text('Staged: $stagedCount', style: const TextStyle(fontSize: 12, color: Colors.green)),
-                          ],
-                          if ((failedCount as num) > 0) ...[
-                            const SizedBox(width: 8),
-                            Text('Failed: $failedCount', style: const TextStyle(fontSize: 12, color: Colors.red)),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                  isThreeLine: true,
-                ),
-              );
-            },
-          );
-        },
+      body: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            child: StandardTabBar(
+              controller: _tabController,
+              isScrollable: true,
+              dividerColor: Colors.grey[300],
+              indicatorColor: Theme.of(context).primaryColor,
+              indicatorWeight: 3.0,
+              labelColor: Colors.black,
+              unselectedLabelColor: Colors.grey[600],
+              tabs: const [
+                Tab(text: 'Websites'),
+                Tab(text: 'Jobs'),
+                Tab(text: 'Review'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: const [
+                _WebsitesTab(),
+                _ScrapingTab(),
+                _ReviewTab(),
+              ],
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => showDialog(
-          context: context,
-          builder: (ctx) => const _CombinedScrapeDialog(),
-        ),
+        onPressed: () {
+          if (_tabController.index == 0) {
+            showDialog(context: context, builder: (_) => const _AddWebsiteDialog());
+          } else {
+            showDialog(context: context, builder: (_) => const _CombinedScrapeDialog());
+          }
+        },
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+/// Websites tab — brand owners list.
+class _WebsitesTab extends StatelessWidget {
+  const _WebsitesTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('brandOwner')
+          .orderBy('name')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) return const Center(child: Text('No websites yet. Tap + to add one.'));
+        return ListView.builder(
+          padding: const EdgeInsets.all(8),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final doc = docs[index];
+            final data = doc.data();
+            final name = (data['name'] ?? '').toString();
+            final baseUrl = (data['baseUrl'] ?? '').toString();
+            final websiteType = (data['websiteType'] ?? '').toString();
+            final lastScraped = data['lastScrapedAt'];
+            final apiConfig = data['apiConfig'] is Map ? Map<String, dynamic>.from(data['apiConfig'] as Map) : <String, dynamic>{};
+
+            return Card(
+              child: ListTile(
+                leading: const CircleAvatar(child: Icon(Icons.language)),
+                title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (baseUrl.isNotEmpty) Text(baseUrl, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+                    Row(
+                      children: [
+                        if (websiteType.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(websiteType, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                        if (apiConfig['webstoreId'] != null) ...[
+                          const SizedBox(width: 6),
+                          Icon(Icons.api, size: 14, color: Colors.green[400]),
+                          const SizedBox(width: 2),
+                          Text('API configured', style: TextStyle(fontSize: 10, color: Colors.green[600])),
+                        ],
+                        if (lastScraped != null) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            'Last: ${_fmtTs(lastScraped)}',
+                            style: const TextStyle(fontSize: 10, color: Colors.grey),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+                isThreeLine: true,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => WebsiteDetails(docId: doc.id),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  static String _fmtTs(dynamic ts) {
+    if (ts is Timestamp) {
+      final dt = ts.toDate();
+      return '${dt.month}/${dt.day}/${dt.year}';
+    }
+    return '';
+  }
+}
+
+/// Scraping tab — jobs list.
+class _ScrapingTab extends StatelessWidget {
+  const _ScrapingTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('scrapeJob')
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) return const Center(child: Text('No scraping jobs yet. Tap + to create one.'));
+        return ListView.builder(
+          padding: const EdgeInsets.all(8),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final doc = docs[index];
+            final data = doc.data();
+            final status = (data['status'] ?? 'unknown').toString();
+            final vendorName = (data['vendorName'] ?? '').toString();
+            final brandName = (data['brandName'] ?? '').toString();
+            final targetUrl = (data['targetUrl'] ?? '').toString();
+            final results = data['results'] is Map
+                ? Map<String, dynamic>.from(data['results'] as Map)
+                : <String, dynamic>{};
+            final progress = data['progress'] is Map
+                ? Map<String, dynamic>.from(data['progress'] as Map)
+                : <String, dynamic>{};
+            final stagedCount = results['stagedProducts'] ?? progress['staged'] ?? 0;
+            final totalFound = results['totalFound'] ?? results['totalProducts'] ?? 0;
+            final failedCount = results['failed'] ?? 0;
+
+            final statusColor = switch (status) {
+              'completed' => Colors.green,
+              'running' => Colors.blue,
+              'failed' => Colors.red,
+              'cancelled' => Colors.grey,
+              _ => Colors.orange,
+            };
+
+            final subtitle = [
+              if (brandName.isNotEmpty) brandName,
+              if (targetUrl.isNotEmpty) targetUrl.length > 60
+                  ? '${targetUrl.substring(0, 60)}...'
+                  : targetUrl,
+            ].join(' \u2014 ');
+
+            return Card(
+              child: ListTile(
+                leading: Icon(Icons.downloading, color: statusColor),
+                title: Text(
+                  vendorName.isNotEmpty ? vendorName : 'Scrape Job',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (subtitle.isNotEmpty) Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            status.toUpperCase(),
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        if (totalFound > 0) Text('Found: $totalFound', style: const TextStyle(fontSize: 12)),
+                        if (stagedCount > 0) ...[
+                          const SizedBox(width: 8),
+                          Text('Staged: $stagedCount', style: const TextStyle(fontSize: 12, color: Colors.green)),
+                        ],
+                        if ((failedCount as num) > 0) ...[
+                          const SizedBox(width: 8),
+                          Text('Failed: $failedCount', style: const TextStyle(fontSize: 12, color: Colors.red)),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+                isThreeLine: true,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ScrapeJobDetails(docId: doc.id),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Review tab — staged products needing review.
+class _ReviewTab extends StatelessWidget {
+  const _ReviewTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('stagedProduct')
+          .where('status', isEqualTo: 'needs_review')
+          .orderBy('createdAt', descending: true)
+          .limit(100)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) return const Center(child: Text('No products to review.'));
+        return ListView.builder(
+          padding: const EdgeInsets.all(8),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final doc = docs[index];
+            final data = doc.data();
+            final normalized = data['normalizedData'] is Map
+                ? Map<String, dynamic>.from(data['normalizedData'] as Map)
+                : <String, dynamic>{};
+            final rawData = data['rawData'] is Map
+                ? Map<String, dynamic>.from(data['rawData'] as Map)
+                : <String, dynamic>{};
+            final objectData = data['objectData'] is Map
+                ? Map<String, dynamic>.from(data['objectData'] as Map)
+                : <String, dynamic>{};
+
+            final name = (objectData['name'] ?? normalized['name'] ?? rawData['name'] ?? 'Unnamed').toString();
+            final productNumber = (objectData['productNumber'] ?? normalized['productNumber'] ?? '').toString();
+            final brandName = (normalized['brandName'] ?? rawData['brandName'] ?? '').toString();
+            final upc = (objectData['upc'] ?? normalized['upc'] ?? '').toString();
+
+            return Card(
+              child: ListTile(
+                leading: const CircleAvatar(child: Icon(Icons.inventory_2_outlined)),
+                title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600), maxLines: 2, overflow: TextOverflow.ellipsis),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (productNumber.isNotEmpty) Text('SKU: $productNumber', style: const TextStyle(fontSize: 12)),
+                    Row(
+                      children: [
+                        if (brandName.isNotEmpty) ...[
+                          Text(brandName, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          const SizedBox(width: 8),
+                        ],
+                        if (upc.isNotEmpty) Text('UPC: $upc', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
+                  ],
+                ),
+                isThreeLine: productNumber.isNotEmpty,
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MarketplaceStagingReviewDetailsScreen(
+                      docId: doc.id,
+                      initialData: data,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Simple dialog: just company name + base URL. Auto-detects website type.
+class _AddWebsiteDialog extends StatefulWidget {
+  const _AddWebsiteDialog();
+  @override
+  State<_AddWebsiteDialog> createState() => _AddWebsiteDialogState();
+}
+
+class _AddWebsiteDialogState extends State<_AddWebsiteDialog> {
+  final _nameCtl = TextEditingController();
+  final _urlCtl = TextEditingController();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() { _nameCtl.dispose(); _urlCtl.dispose(); super.dispose(); }
+
+  Future<void> _save() async {
+    final name = _nameCtl.text.trim();
+    final url = _urlCtl.text.trim();
+    if (name.isEmpty || url.isEmpty) {
+      setState(() => _error = 'Name and URL are required');
+      return;
+    }
+    setState(() { _saving = true; _error = null; });
+
+    try {
+      // Auto-detect website type from URL
+      String websiteType = 'custom_html';
+      Map<String, dynamic> apiConfig = {};
+      int interItemDelayMs = 3000;
+
+      // Detect Salesforce Commerce (LWR) sites
+      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('detectWebsiteType');
+      try {
+        final result = await callable.call({'baseUrl': url});
+        final payload = Map<String, dynamic>.from(result.data as Map);
+        websiteType = (payload['websiteType'] ?? websiteType).toString();
+        if (payload['apiConfig'] is Map) {
+          apiConfig = Map<String, dynamic>.from(payload['apiConfig'] as Map);
+        }
+        if (payload['interItemDelayMs'] is num) {
+          interItemDelayMs = (payload['interItemDelayMs'] as num).toInt();
+        }
+      } catch (_) {
+        // Detection failed, use defaults — will be refined on first scrape
+      }
+
+      final saveCallable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('saveBrandOwner');
+      await saveCallable.call({
+        'name': name,
+        'baseUrl': url,
+        'websiteType': websiteType,
+        'rateLimits': { 'interItemDelayMs': interItemDelayMs, 'maxProductsPerRun': 200 },
+        if (apiConfig.isNotEmpty) 'apiConfig': apiConfig,
+      });
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$name added')),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 450),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Add Website', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _nameCtl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Company Name',
+                  hintText: 'e.g., Solenis',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.business),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _urlCtl,
+                decoration: const InputDecoration(
+                  labelText: 'Website URL',
+                  hintText: 'https://products.solenis.com',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.language),
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+              ],
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: _saving ? null : _save,
+                    child: _saving
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Add'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Brand owner detail/edit screen (full form with all fields).
+class _BrandOwnerDetailScreen extends StatefulWidget {
+  final String docId;
+  final Map<String, dynamic> data;
+  const _BrandOwnerDetailScreen({required this.docId, required this.data});
+  @override
+  State<_BrandOwnerDetailScreen> createState() => _BrandOwnerDetailScreenState();
+}
+
+class _BrandOwnerDetailScreenState extends State<_BrandOwnerDetailScreen> {
+  late final TextEditingController _nameCtl;
+  late final TextEditingController _baseUrlCtl;
+  late final TextEditingController _notesCtl;
+  late final TextEditingController _delayCtl;
+  late final TextEditingController _maxProductsCtl;
+  late final TextEditingController _webstoreIdCtl;
+  late final TextEditingController _communityIdCtl;
+  late String _websiteType;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.data;
+    final rl = e['rateLimits'] is Map ? Map<String, dynamic>.from(e['rateLimits'] as Map) : <String, dynamic>{};
+    final ac = e['apiConfig'] is Map ? Map<String, dynamic>.from(e['apiConfig'] as Map) : <String, dynamic>{};
+    _nameCtl = TextEditingController(text: (e['name'] ?? '').toString());
+    _baseUrlCtl = TextEditingController(text: (e['baseUrl'] ?? '').toString());
+    _notesCtl = TextEditingController(text: (e['notes'] ?? '').toString());
+    _delayCtl = TextEditingController(text: (rl['interItemDelayMs'] ?? 3000).toString());
+    _maxProductsCtl = TextEditingController(text: (rl['maxProductsPerRun'] ?? 200).toString());
+    _webstoreIdCtl = TextEditingController(text: (ac['webstoreId'] ?? '').toString());
+    _communityIdCtl = TextEditingController(text: (ac['communityId'] ?? '').toString());
+    _websiteType = (e['websiteType'] ?? 'custom_html').toString();
+  }
+
+  @override
+  void dispose() {
+    _nameCtl.dispose(); _baseUrlCtl.dispose(); _notesCtl.dispose();
+    _delayCtl.dispose(); _maxProductsCtl.dispose();
+    _webstoreIdCtl.dispose(); _communityIdCtl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      final ac = <String, dynamic>{};
+      if (_webstoreIdCtl.text.trim().isNotEmpty) ac['webstoreId'] = _webstoreIdCtl.text.trim();
+      if (_communityIdCtl.text.trim().isNotEmpty) ac['communityId'] = _communityIdCtl.text.trim();
+
+      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('saveBrandOwner');
+      await callable.call({
+        'brandOwnerId': widget.docId,
+        'name': _nameCtl.text.trim(),
+        'baseUrl': _baseUrlCtl.text.trim(),
+        'websiteType': _websiteType,
+        'rateLimits': {
+          'interItemDelayMs': int.tryParse(_delayCtl.text.trim()) ?? 3000,
+          'maxProductsPerRun': int.tryParse(_maxProductsCtl.text.trim()) ?? 200,
+        },
+        if (ac.isNotEmpty) 'apiConfig': ac,
+        'notes': _notesCtl.text.trim(),
+      });
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Updated')));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(_nameCtl.text)),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextField(controller: _nameCtl, decoration: const InputDecoration(labelText: 'Company Name', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(controller: _baseUrlCtl, decoration: const InputDecoration(labelText: 'Website URL', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _websiteType,
+            decoration: const InputDecoration(labelText: 'Website Type', border: OutlineInputBorder()),
+            items: const [
+              DropdownMenuItem(value: 'salesforce_lwr', child: Text('Salesforce LWR')),
+              DropdownMenuItem(value: 'shopify', child: Text('Shopify')),
+              DropdownMenuItem(value: 'woocommerce', child: Text('WooCommerce')),
+              DropdownMenuItem(value: 'custom_html', child: Text('Custom HTML')),
+              DropdownMenuItem(value: 'other', child: Text('Other')),
+            ],
+            onChanged: (v) => setState(() => _websiteType = v!),
+          ),
+          const SizedBox(height: 16),
+          const Text('Rate Limits', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: TextField(controller: _delayCtl, decoration: const InputDecoration(labelText: 'Delay (ms)', border: OutlineInputBorder()), keyboardType: TextInputType.number)),
+            const SizedBox(width: 12),
+            Expanded(child: TextField(controller: _maxProductsCtl, decoration: const InputDecoration(labelText: 'Max Products', border: OutlineInputBorder()), keyboardType: TextInputType.number)),
+          ]),
+          if (_websiteType == 'salesforce_lwr') ...[
+            const SizedBox(height: 16),
+            const Text('Salesforce API Config', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            TextField(controller: _webstoreIdCtl, decoration: const InputDecoration(labelText: 'Webstore ID', border: OutlineInputBorder())),
+            const SizedBox(height: 8),
+            TextField(controller: _communityIdCtl, decoration: const InputDecoration(labelText: 'Community ID', border: OutlineInputBorder())),
+          ],
+          const SizedBox(height: 12),
+          TextField(controller: _notesCtl, maxLines: 3, decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder())),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: _saving ? const CircularProgressIndicator(strokeWidth: 2, color: Colors.white) : const Text('Save Changes'),
+          ),
+        ],
       ),
     );
   }
@@ -290,121 +776,98 @@ class _CombinedScrapeDialogState extends State<_CombinedScrapeDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 500),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return DialogAction(
+      title: 'New Scrape Job',
+      cancelText: 'Cancel',
+      onCancel: () => Navigator.pop(context),
+      actionText: _creating ? 'Starting...' : 'Start Scraping',
+      onAction: _creating ? null : _create,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _urlController,
+            decoration: const InputDecoration(
+              labelText: 'Catalog URL',
+              hintText: 'https://products.solenis.com/category/...',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.link),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              hintText: 'e.g., Solenis - Good Sense',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.label_outline),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
             children: [
-              const Text('New Scrape Job', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _urlController,
-                decoration: const InputDecoration(
-                  labelText: 'Catalog URL',
-                  hintText: 'https://products.solenis.com/category/...',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.link),
+              Expanded(
+                child: TextField(
+                  controller: _startPageController,
+                  decoration: const InputDecoration(
+                    labelText: 'Start Page',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.first_page),
+                  ),
+                  keyboardType: TextInputType.number,
                 ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  hintText: 'e.g., Solenis - Good Sense',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.label_outline),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _endPageController,
+                  decoration: const InputDecoration(
+                    labelText: 'End Page',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.last_page),
+                  ),
+                  keyboardType: TextInputType.number,
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _startPageController,
-                      decoration: const InputDecoration(
-                        labelText: 'Start Page',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.first_page),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _endPageController,
-                      decoration: const InputDecoration(
-                        labelText: 'End Page',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.last_page),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Brand dropdown
-              DropdownButtonFormField<String>(
-                value: _selectedBrandId,
-                decoration: const InputDecoration(
-                  labelText: 'Brand',
-                  border: OutlineInputBorder(),
-                ),
-                items: _brands.map((b) => DropdownMenuItem(
-                  value: b.id,
-                  child: Text(b.name.isEmpty ? b.id : b.name),
-                )).toList(),
-                onChanged: _loadingBrands ? null : (v) {
-                  final brand = _brands.firstWhere((b) => b.id == v);
-                  setState(() { _selectedBrandId = v; _selectedBrandName = brand.name; });
-                },
-              ),
-              const SizedBox(height: 12),
-              // Brand Owner dropdown
-              DropdownButtonFormField<String>(
-                value: _selectedBrandOwnerId,
-                decoration: const InputDecoration(
-                  labelText: 'Brand Owner',
-                  border: OutlineInputBorder(),
-                ),
-                items: _brandOwners.map((bo) => DropdownMenuItem(
-                  value: bo.id,
-                  child: Text(bo.name.isEmpty ? bo.id : bo.name),
-                )).toList(),
-                onChanged: _loadingBrandOwners ? null : (v) {
-                  setState(() => _selectedBrandOwnerId = v);
-                },
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
-              ],
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: _creating ? null : () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    onPressed: _creating ? null : _create,
-                    child: _creating
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('Start Scraping'),
-                  ),
-                ],
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedBrandId,
+            decoration: const InputDecoration(
+              labelText: 'Brand',
+              border: OutlineInputBorder(),
+            ),
+            items: _brands.map((b) => DropdownMenuItem(
+              value: b.id,
+              child: Text(b.name.isEmpty ? b.id : b.name),
+            )).toList(),
+            onChanged: _loadingBrands ? null : (v) {
+              final brand = _brands.firstWhere((b) => b.id == v);
+              setState(() { _selectedBrandId = v; _selectedBrandName = brand.name; });
+            },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedBrandOwnerId,
+            decoration: const InputDecoration(
+              labelText: 'Brand Owner',
+              border: OutlineInputBorder(),
+            ),
+            items: _brandOwners.map((bo) => DropdownMenuItem(
+              value: bo.id,
+              child: Text(bo.name.isEmpty ? bo.id : bo.name),
+            )).toList(),
+            onChanged: _loadingBrandOwners ? null : (v) {
+              setState(() => _selectedBrandOwnerId = v);
+            },
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+          ],
+        ],
       ),
     );
   }
