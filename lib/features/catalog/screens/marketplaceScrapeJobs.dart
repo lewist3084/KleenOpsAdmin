@@ -10,6 +10,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:kleenops_admin/services/catalog_firebase_service.dart';
+import 'package:shared_widgets/lists/standardView.dart';
+import 'package:shared_widgets/tiles/standard_tile_large.dart';
 import 'package:kleenops_admin/features/catalog/details/marketplaceStagingReviewDetails.dart';
 import 'package:kleenops_admin/features/catalog/details/websiteDetails.dart';
 import 'package:kleenops_admin/features/catalog/details/scrape_job_details.dart';
@@ -298,8 +300,47 @@ class _ScrapingTab extends StatelessWidget {
 }
 
 /// Review tab — staged products needing review.
-class _ReviewTab extends StatelessWidget {
+class _ReviewTab extends StatefulWidget {
   const _ReviewTab();
+  @override
+  State<_ReviewTab> createState() => _ReviewTabState();
+}
+
+class _ReviewTabState extends State<_ReviewTab> {
+  final Map<String, String> _categoryNames = {};
+  final Map<String, String> _imageUrlCache = {};
+  bool _categoriesLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategoryNames();
+  }
+
+  Future<void> _loadCategoryNames() async {
+    final snap = await FirebaseFirestore.instance.collection('objectCategory').get();
+    for (final doc in snap.docs) {
+      _categoryNames[doc.id] = (doc.data()['name'] ?? 'Unknown').toString();
+    }
+    if (mounted) setState(() => _categoriesLoaded = true);
+  }
+
+  String _resolveCategoryName(dynamic ref) {
+    if (ref is DocumentReference) return _categoryNames[ref.id] ?? 'Uncategorized';
+    return 'Uncategorized';
+  }
+
+  String _resolveImageUrl(Map<String, dynamic> data) {
+    final detailData = data['detailData'] is Map ? Map<String, dynamic>.from(data['detailData'] as Map) : <String, dynamic>{};
+    final storageImages = detailData['storageImages'] is List ? detailData['storageImages'] as List : [];
+    if (storageImages.isNotEmpty) {
+      final first = storageImages.first is Map ? Map<String, dynamic>.from(storageImages.first as Map) : <String, dynamic>{};
+      final url = (first['downloadUrl'] ?? '').toString();
+      if (url.isNotEmpty) return url;
+    }
+    final normalized = data['normalizedData'] is Map ? Map<String, dynamic>.from(data['normalizedData'] as Map) : <String, dynamic>{};
+    return (normalized['imageUrl'] ?? '').toString();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -315,58 +356,70 @@ class _ReviewTab extends StatelessWidget {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final docs = snapshot.data!.docs;
         if (docs.isEmpty) return const Center(child: Text('No products to review.'));
-        return ListView.builder(
-          padding: const EdgeInsets.all(8),
-          itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final doc = docs[index];
-            final data = doc.data();
-            final normalized = data['normalizedData'] is Map
-                ? Map<String, dynamic>.from(data['normalizedData'] as Map)
-                : <String, dynamic>{};
-            final rawData = data['rawData'] is Map
-                ? Map<String, dynamic>.from(data['rawData'] as Map)
-                : <String, dynamic>{};
-            final objectData = data['objectData'] is Map
-                ? Map<String, dynamic>.from(data['objectData'] as Map)
-                : <String, dynamic>{};
 
-            final name = (objectData['name'] ?? normalized['name'] ?? rawData['name'] ?? 'Unnamed').toString();
-            final productNumber = (objectData['productNumber'] ?? normalized['productNumber'] ?? '').toString();
-            final brandName = (normalized['brandName'] ?? rawData['brandName'] ?? '').toString();
-            final upc = (objectData['upc'] ?? normalized['upc'] ?? '').toString();
+        final items = docs.map((doc) {
+          final data = doc.data();
+          final objectData = data['objectData'] is Map
+              ? Map<String, dynamic>.from(data['objectData'] as Map)
+              : <String, dynamic>{};
+          final normalized = data['normalizedData'] is Map
+              ? Map<String, dynamic>.from(data['normalizedData'] as Map)
+              : <String, dynamic>{};
+          final rawData = data['rawData'] is Map
+              ? Map<String, dynamic>.from(data['rawData'] as Map)
+              : <String, dynamic>{};
 
-            return Card(
-              child: ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.inventory_2_outlined)),
-                title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600), maxLines: 2, overflow: TextOverflow.ellipsis),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (productNumber.isNotEmpty) Text('SKU: $productNumber', style: const TextStyle(fontSize: 12)),
-                    Row(
-                      children: [
-                        if (brandName.isNotEmpty) ...[
-                          Text(brandName, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                          const SizedBox(width: 8),
-                        ],
-                        if (upc.isNotEmpty) Text('UPC: $upc', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                      ],
-                    ),
-                  ],
-                ),
-                isThreeLine: productNumber.isNotEmpty,
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MarketplaceStagingReviewDetailsScreen(
-                      docId: doc.id,
-                      initialData: data,
-                    ),
-                  ),
+          return {
+            'docId': doc.id,
+            'data': data,
+            'name': (objectData['name'] ?? normalized['name'] ?? rawData['name'] ?? 'Unnamed').toString(),
+            'objectCategoryId': objectData['objectCategoryId'],
+            'scalarUnitQuantity': objectData['scalarUnitQuantity'],
+            'caseQuantity': objectData['caseQuantity'],
+            'brand': (objectData['brand'] ?? normalized['brandName'] ?? '').toString(),
+            'imageUrl': _resolveImageUrl(data),
+          };
+        }).toList();
+
+        return StandardView<Map<String, dynamic>>(
+          items: items,
+          groupBy: (item) => _resolveCategoryName(item['objectCategoryId']),
+          groupCollapsible: true,
+          initialGroupExpanded: true,
+          headerIcon: null,
+          disableGrouping: false,
+          onTap: (item) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MarketplaceStagingReviewDetailsScreen(
+                  docId: item['docId'] as String,
+                  initialData: item['data'] as Map<String, dynamic>,
                 ),
               ),
+            );
+          },
+          itemBuilder: (item) {
+            final name = item['name'] as String;
+            final qty = item['scalarUnitQuantity'];
+            final caseQty = item['caseQuantity'];
+            final brand = item['brand'] as String;
+            final imageUrl = item['imageUrl'] as String;
+
+            final secondLine = qty != null ? '$qty' : '';
+            final thirdLine = <String>[
+              if (brand.isNotEmpty) brand,
+              if (caseQty != null) 'Case of $caseQty',
+            ].join(' · ');
+
+            return StandardTileLargeDart(
+              imageUrl: imageUrl,
+              firstLine: name,
+              firstLineIcon: Icons.category_outlined,
+              secondLine: secondLine,
+              secondLineIcon: secondLine.isNotEmpty ? Icons.straighten_sharp : null,
+              thirdLine: thirdLine.isNotEmpty ? thirdLine : null,
+              thirdLineIcon: thirdLine.isNotEmpty ? Icons.branding_watermark_outlined : null,
             );
           },
         );
