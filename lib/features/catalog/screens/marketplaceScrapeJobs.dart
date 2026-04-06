@@ -90,16 +90,18 @@ class _ScrapeJobsScreenState extends ConsumerState<ScrapeJobsScreen>
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (_tabController.index == 0) {
-            showDialog(context: context, builder: (_) => const _AddWebsiteDialog());
-          } else {
-            showDialog(context: context, builder: (_) => const _CombinedScrapeDialog());
-          }
-        },
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: _tabController.index == 2
+          ? null
+          : FloatingActionButton(
+              onPressed: () {
+                if (_tabController.index == 0) {
+                  showDialog(context: context, builder: (_) => const _AddWebsiteDialog());
+                } else {
+                  showDialog(context: context, builder: (_) => const _CombinedScrapeDialog());
+                }
+              },
+              child: const Icon(Icons.add),
+            ),
     );
   }
 }
@@ -310,6 +312,8 @@ class _ReviewTabState extends State<_ReviewTab> {
   final Map<String, String> _categoryNames = {};
   final Map<String, String> _imageUrlCache = {};
   bool _categoriesLoaded = false;
+  bool _processing = false;
+  List<String> _currentDocIds = [];
 
   @override
   void initState() {
@@ -342,88 +346,183 @@ class _ReviewTabState extends State<_ReviewTab> {
     return (normalized['imageUrl'] ?? '').toString();
   }
 
+  Future<void> _confirmClear(BuildContext context) async {
+    if (_currentDocIds.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear All Review Items'),
+        content: Text('Are you sure you want to clear ${_currentDocIds.length} items from review? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _processing = true);
+    try {
+      final db = FirebaseFirestore.instance;
+      final batch = db.batch();
+      for (final id in _currentDocIds) {
+        batch.delete(db.collection('stagedProduct').doc(id));
+      }
+      await batch.commit();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_currentDocIds.length} items cleared')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
+  Future<void> _confirmTransfer(BuildContext context) async {
+    if (_currentDocIds.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Transfer All to Catalog'),
+        content: Text('Are you sure you want to transfer ${_currentDocIds.length} products to the object catalog?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Transfer All')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _processing = true);
+    try {
+      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('bulkApproveStaged');
+      await callable.call({'stagedIds': _currentDocIds});
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_currentDocIds.length} products transferred')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Transfer failed: $e')));
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('stagedProduct')
-          .where('status', isEqualTo: 'needs_review')
-          .orderBy('createdAt', descending: true)
-          .limit(100)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final docs = snapshot.data!.docs;
-        if (docs.isEmpty) return const Center(child: Text('No products to review.'));
+    return Column(
+      children: [
+        Expanded(
+          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('stagedProduct')
+                .where('status', isEqualTo: 'needs_review')
+                .orderBy('createdAt', descending: true)
+                .limit(100)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final docs = snapshot.data!.docs;
+              _currentDocIds = docs.map((d) => d.id).toList();
+              if (docs.isEmpty) return const Center(child: Text('No products to review.'));
 
-        final items = docs.map((doc) {
-          final data = doc.data();
-          final objectData = data['objectData'] is Map
-              ? Map<String, dynamic>.from(data['objectData'] as Map)
-              : <String, dynamic>{};
-          final normalized = data['normalizedData'] is Map
-              ? Map<String, dynamic>.from(data['normalizedData'] as Map)
-              : <String, dynamic>{};
-          final rawData = data['rawData'] is Map
-              ? Map<String, dynamic>.from(data['rawData'] as Map)
-              : <String, dynamic>{};
+              final items = docs.map((doc) {
+                final data = doc.data();
+                final objectData = data['objectData'] is Map
+                    ? Map<String, dynamic>.from(data['objectData'] as Map)
+                    : <String, dynamic>{};
+                final normalized = data['normalizedData'] is Map
+                    ? Map<String, dynamic>.from(data['normalizedData'] as Map)
+                    : <String, dynamic>{};
+                final rawData = data['rawData'] is Map
+                    ? Map<String, dynamic>.from(data['rawData'] as Map)
+                    : <String, dynamic>{};
 
-          return {
-            'docId': doc.id,
-            'data': data,
-            'name': (objectData['name'] ?? normalized['name'] ?? rawData['name'] ?? 'Unnamed').toString(),
-            'objectCategoryId': objectData['objectCategoryId'],
-            'scalarUnitQuantity': objectData['scalarUnitQuantity'],
-            'caseQuantity': objectData['caseQuantity'],
-            'brand': (objectData['brand'] ?? normalized['brandName'] ?? '').toString(),
-            'imageUrl': _resolveImageUrl(data),
-          };
-        }).toList();
+                return {
+                  'docId': doc.id,
+                  'data': data,
+                  'name': (objectData['name'] ?? normalized['name'] ?? rawData['name'] ?? 'Unnamed').toString(),
+                  'objectCategoryId': objectData['objectCategoryId'],
+                  'scalarUnitQuantity': objectData['scalarUnitQuantity'],
+                  'caseQuantity': objectData['caseQuantity'],
+                  'brand': (objectData['brand'] ?? normalized['brandName'] ?? '').toString(),
+                  'imageUrl': _resolveImageUrl(data),
+                };
+              }).toList();
 
-        return StandardView<Map<String, dynamic>>(
-          items: items,
-          groupBy: (item) => _resolveCategoryName(item['objectCategoryId']),
-          groupCollapsible: true,
-          initialGroupExpanded: true,
-          headerIcon: null,
-          disableGrouping: false,
-          onTap: (item) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => MarketplaceStagingReviewDetailsScreen(
-                  docId: item['docId'] as String,
-                  initialData: item['data'] as Map<String, dynamic>,
+              return StandardView<Map<String, dynamic>>(
+                items: items,
+                groupBy: (item) => _resolveCategoryName(item['objectCategoryId']),
+                groupCollapsible: true,
+                initialGroupExpanded: true,
+                headerIcon: null,
+                disableGrouping: false,
+                onTap: (item) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MarketplaceStagingReviewDetailsScreen(
+                        docId: item['docId'] as String,
+                        initialData: item['data'] as Map<String, dynamic>,
+                      ),
+                    ),
+                  );
+                },
+                itemBuilder: (item) {
+                  final name = item['name'] as String;
+                  final qty = item['scalarUnitQuantity'];
+                  final caseQty = item['caseQuantity'];
+                  final brand = item['brand'] as String;
+                  final imageUrl = item['imageUrl'] as String;
+
+                  final secondLine = qty != null ? '$qty' : '';
+                  final thirdLine = <String>[
+                    if (brand.isNotEmpty) brand,
+                    if (caseQty != null) 'Case of $caseQty',
+                  ].join(' · ');
+
+                  return StandardTileLargeDart(
+                    imageUrl: imageUrl,
+                    firstLine: name,
+                    firstLineIcon: Icons.category_outlined,
+                    secondLine: secondLine,
+                    secondLineIcon: secondLine.isNotEmpty ? Icons.straighten_sharp : null,
+                    thirdLine: thirdLine.isNotEmpty ? thirdLine : null,
+                    thirdLineIcon: thirdLine.isNotEmpty ? Icons.branding_watermark_outlined : null,
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        if (_currentDocIds.isNotEmpty)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(color: Colors.grey.withValues(alpha: 0.3), offset: const Offset(0, -2), blurRadius: 4),
+              ],
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Row(children: [
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black),
+                  onPressed: _processing ? null : () => _confirmClear(context),
+                  child: const Text('Clear'),
                 ),
               ),
-            );
-          },
-          itemBuilder: (item) {
-            final name = item['name'] as String;
-            final qty = item['scalarUnitQuantity'];
-            final caseQty = item['caseQuantity'];
-            final brand = item['brand'] as String;
-            final imageUrl = item['imageUrl'] as String;
-
-            final secondLine = qty != null ? '$qty' : '';
-            final thirdLine = <String>[
-              if (brand.isNotEmpty) brand,
-              if (caseQty != null) 'Case of $caseQty',
-            ].join(' · ');
-
-            return StandardTileLargeDart(
-              imageUrl: imageUrl,
-              firstLine: name,
-              firstLineIcon: Icons.category_outlined,
-              secondLine: secondLine,
-              secondLineIcon: secondLine.isNotEmpty ? Icons.straighten_sharp : null,
-              thirdLine: thirdLine.isNotEmpty ? thirdLine : null,
-              thirdLineIcon: thirdLine.isNotEmpty ? Icons.branding_watermark_outlined : null,
-            );
-          },
-        );
-      },
+              const SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.secondary, foregroundColor: Colors.white),
+                  onPressed: _processing ? null : () => _confirmTransfer(context),
+                  child: Text(_processing ? 'Working...' : 'Transfer'),
+                ),
+              ),
+            ]),
+          ),
+      ],
     );
   }
 }
