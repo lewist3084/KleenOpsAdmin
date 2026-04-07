@@ -89,6 +89,11 @@ class WizardItem {
   final int position;
   final bool aiAssistAvailable;
 
+  /// If non-null, this item only shows when the selected entity type
+  /// matches one of these values (e.g. ['llc', 's_corp', 'c_corp', 'partnership']).
+  /// A null value means the item is always visible.
+  final List<String>? requiredEntityTypes;
+
   const WizardItem({
     required this.key,
     required this.label,
@@ -96,6 +101,7 @@ class WizardItem {
     required this.icon,
     required this.position,
     this.aiAssistAvailable = false,
+    this.requiredEntityTypes,
   });
 }
 
@@ -164,11 +170,18 @@ const List<WizardCategory> kSetupWizardCategories = [
         aiAssistAvailable: true,
       ),
       WizardItem(
+        key: 'call_routing',
+        label: 'Set Up Call Routing',
+        description: 'Auto-attendant, extensions, and department ring groups.',
+        icon: Icons.phone_in_talk_outlined,
+        position: 2,
+      ),
+      WizardItem(
         key: 'business_email',
         label: 'Set Up Business Email',
         description: 'Professional email with your own domain.',
         icon: Icons.email_outlined,
-        position: 2,
+        position: 3,
         aiAssistAvailable: true,
       ),
       WizardItem(
@@ -176,7 +189,7 @@ const List<WizardCategory> kSetupWizardCategories = [
         label: 'Set Up a Website / Domain',
         description: 'Register a domain and create a landing page.',
         icon: Icons.language,
-        position: 3,
+        position: 4,
         aiAssistAvailable: true,
       ),
     ],
@@ -214,11 +227,22 @@ const List<WizardCategory> kSetupWizardCategories = [
         aiAssistAvailable: true,
       ),
       WizardItem(
+        key: 'registered_agent',
+        label: 'Registered Agent & Business Address',
+        description:
+            'Designate a registered agent and get a professional '
+            'business address to keep your personal address private.',
+        icon: Icons.contact_mail_outlined,
+        position: 3,
+        aiAssistAvailable: true,
+        requiredEntityTypes: ['llc', 's_corp', 'c_corp', 'partnership'],
+      ),
+      WizardItem(
         key: 'operating_agreement',
         label: 'Create Operating Agreement',
         description: 'Defines ownership structure and responsibilities.',
         icon: Icons.handshake_outlined,
-        position: 3,
+        position: 4,
         aiAssistAvailable: true,
       ),
     ],

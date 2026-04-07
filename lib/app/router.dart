@@ -26,58 +26,71 @@ import '../features/catalog/screens/scrape_jobs_wrapper.dart';
 import '../features/catalog/screens/brand_owners_wrapper.dart';
 import '../features/catalog/screens/staging_review_wrapper.dart';
 import '../features/device_registry/screens/device_registry_home.dart';
-import '../features/finances/screens/financeHome.dart';
-import '../features/finances/screens/financeCustomers.dart';
-import '../features/finances/screens/financeInvoices.dart';
-import '../features/finances/screens/financeBills.dart';
-import '../features/finances/screens/financePayments.dart';
-import '../features/finances/tabs/ledgerTabs.dart';
-import '../features/finances/screens/financeAccounts.dart';
-import '../features/finances/screens/financeStats.dart';
-import '../features/finances/screens/financeBanking.dart';
-import '../features/finances/screens/financeSetupWizard.dart';
-import '../features/finances/screens/financePayroll.dart';
-import '../features/finances/details/financePayrollRunDetails.dart';
-import '../features/finances/details/financePayStubDetails.dart';
-import '../features/finances/forms/financePayrollRunForm.dart';
-import '../features/finances/screens/financeW2Generation.dart';
-import '../features/hr/details/hrEmployeeDetails.dart';
-import '../features/hr/details/hrOnboardingDetails.dart';
-import '../features/hr/details/hrBenefitPlanDetails.dart';
+import '../common/communications/screens/internal_messages_screen.dart';
+import '../common/communications/screens/message_board_screen.dart';
+import '../common/communications/screens/comm_placeholder_screen.dart';
+import '../common/communications/screens/email_screen.dart';
+import '../common/communications/screens/calendar_screen.dart';
+import '../common/communications/screens/directory_screen.dart';
+import '../common/communications/screens/intercom_screen.dart';
+import '../features/onboarding/guides/setup_guide_data.dart';
+import '../features/onboarding/guides/setup_guide_gate.dart';
+import '../features/finances/screens/finance_home.dart';
+import '../features/finances/screens/finance_customers.dart';
+import '../features/finances/screens/finance_invoices.dart';
+import '../features/finances/screens/finance_bills.dart';
+import '../features/finances/screens/finance_payments.dart';
+import '../features/finances/tabs/ledger_tabs.dart';
+import '../features/finances/screens/finance_accounts.dart';
+import '../features/finances/screens/finance_stats.dart';
+import '../features/finances/screens/finance_banking.dart';
+import '../features/finances/screens/finance_setup_wizard.dart';
+import '../features/finances/screens/finance_payroll.dart';
+import '../features/finances/details/finance_payroll_run_details.dart';
+import '../features/finances/details/finance_pay_stub_details.dart';
+import '../features/finances/forms/finance_payroll_run_form.dart';
+import '../features/finances/screens/finance_w2_generation.dart';
+import '../features/hr/details/hr_employee_details.dart';
+import '../features/hr/details/hr_onboarding_details.dart';
+import '../features/hr/details/hr_benefit_plan_details.dart';
 import '../features/hr/forms/hr_team_form.dart';
 import '../features/hr/forms/hr_benefit_plan_form.dart';
 import '../features/hr/forms/hr_benefit_enrollment_form.dart';
-import '../features/hr/screens/hrHome.dart';
-import '../features/hr/screens/hrTeam.dart';
-import '../features/hr/screens/hrRoles.dart';
-import '../features/hr/screens/hrTimeOff.dart';
-import '../features/hr/screens/hrDocuments.dart';
-import '../features/hr/tabs/hrEmployeeTabs.dart';
-import '../features/hr/screens/hrStats.dart';
-import '../features/hr/screens/hrOnboarding.dart';
-import '../features/hr/screens/hrBenefits.dart';
-import '../features/hr/screens/hrTimeEntry.dart';
-import '../features/hr/screens/hrNewHireChecklist.dart';
-import '../features/admin/screens/adminHome.dart';
-import '../features/admin/tabs/adminCompanyTabs.dart';
-import '../features/admin/screens/adminPolicies.dart';
-import '../features/admin/screens/adminCompliance.dart';
-import '../features/admin/screens/adminTaxMonitor.dart';
-import '../features/admin/forms/adminStateRuleForm.dart';
-import '../features/admin/forms/adminFederalRuleForm.dart';
-import '../features/admin/screens/adminSetupWizard.dart';
-import '../features/sales/screens/salesHome.dart';
+import '../features/hr/screens/hr_home.dart';
+import '../features/hr/screens/hr_team.dart';
+import '../features/hr/screens/hr_roles.dart';
+import '../features/hr/screens/hr_time_off.dart';
+import '../features/hr/screens/hr_documents.dart';
+import '../features/hr/tabs/hr_employee_tabs.dart';
+import '../features/hr/screens/hr_stats.dart';
+import '../features/hr/screens/hr_onboarding.dart';
+import '../features/hr/screens/hr_benefits.dart';
+import '../features/hr/screens/hr_time_entry.dart';
+import '../features/hr/screens/hr_new_hire_checklist.dart';
+import '../features/admin/screens/admin_home.dart';
+import '../features/admin/tabs/admin_company_tabs.dart';
+import '../features/admin/screens/admin_policies.dart';
+import '../features/admin/screens/admin_compliance.dart';
+import '../features/admin/screens/admin_tax_monitor.dart';
+import '../features/admin/forms/admin_state_rule_form.dart';
+import '../features/admin/forms/admin_federal_rule_form.dart';
+import '../features/admin/screens/admin_setup_wizard.dart';
+import '../features/sales/screens/sales_home.dart';
 import '../features/sales/screens/customer_portal_requests.dart';
 import '../features/sales/screens/customer_invite_screen.dart';
-import '../features/sales/tabs/salesTabs.dart';
-import '../features/sales/tabs/marketingTabs.dart';
-import '../features/sales/screens/salesStats.dart';
-import '../features/sales/details/marketingAdsDetails.dart';
-import '../features/purchasing/screens/purchasingHome.dart';
-import '../features/purchasing/screens/purchasingRequests.dart';
-import '../features/purchasing/tabs/objectsTabs.dart';
-import '../features/purchasing/screens/purchasingVendors.dart';
-import '../features/purchasing/screens/purchasingStats.dart';
+import '../features/sales/tabs/sales_tabs.dart';
+import '../features/sales/tabs/marketing_tabs.dart';
+import '../features/sales/screens/sales_stats.dart';
+import '../features/sales/details/marketing_ads_details.dart';
+import '../features/inventory/screens/inventory_home.dart';
+import '../features/inventory/screens/inventory_fulfillment.dart';
+import '../features/inventory/screens/inventory_request_form.dart';
+import '../features/inventory/screens/inventory_stats.dart';
+import '../features/purchasing/screens/purchasing_home.dart';
+import '../features/purchasing/screens/purchasing_requests.dart';
+import '../features/purchasing/tabs/objects_tabs.dart';
+import '../features/purchasing/screens/purchasing_vendors.dart';
+import '../features/purchasing/screens/purchasing_stats.dart';
 import 'routes.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey =
@@ -109,7 +122,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.dashboard,
         name: AppRouteIds.dashboard,
-        builder: (context, state) => const DashboardHome(),
+        builder: (context, state) => SetupGuideGate(
+          guide: mainGuide,
+          child: const DashboardHome(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.companies,
@@ -153,7 +169,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.legalHome,
         name: AppRouteIds.legalHome,
-        builder: (context, state) => const LegalHome(),
+        builder: (context, state) => SetupGuideGate(
+          guide: legalGuide,
+          child: const LegalHome(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.legalDocuments,
@@ -209,7 +228,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.financeHome,
         name: AppRouteIds.financeHome,
-        builder: (_, __) => const FinancesHomeScreen(),
+        builder: (_, __) => SetupGuideGate(
+          guide: financeGuide,
+          child: const FinancesHomeScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.financeLedger,
@@ -302,7 +324,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.hrHome,
         name: AppRouteIds.hrHome,
-        builder: (_, __) => const HrHomeScreen(),
+        builder: (_, __) => SetupGuideGate(
+          guide: hrGuide,
+          child: const HrHomeScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.hrEmployees,
@@ -443,7 +468,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.adminHome,
         name: AppRouteIds.adminHome,
-        builder: (_, __) => const AdminHomeScreen(),
+        builder: (_, __) => SetupGuideGate(
+          guide: adminGuide,
+          child: const AdminHomeScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.adminCompany,
@@ -502,7 +530,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.salesHome,
         name: AppRouteIds.salesHome,
-        builder: (_, __) => const SalesHomeScreen(),
+        builder: (_, __) => SetupGuideGate(
+          guide: salesGuide,
+          child: const SalesHomeScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.salesSales,
@@ -548,11 +579,38 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
+      // Inventory routes
+      GoRoute(
+        path: AppRoutePaths.inventoryHome,
+        name: AppRouteIds.inventoryHome,
+        builder: (_, __) => SetupGuideGate(
+          guide: inventoryGuide,
+          child: const InventoryHomeScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.inventoryFulfillment,
+        name: AppRouteIds.inventoryFulfillment,
+        builder: (_, __) => const InventoryFulfillmentScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.inventoryRequestForm,
+        name: AppRouteIds.inventoryRequestForm,
+        builder: (_, __) => const InventoryRequestFormScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.inventoryStats,
+        name: AppRouteIds.inventoryStats,
+        builder: (_, __) => const InventoryStatsScreen(),
+      ),
       // Purchasing routes
       GoRoute(
         path: AppRoutePaths.purchasingHome,
         name: AppRouteIds.purchasingHome,
-        builder: (_, __) => const PurchasingHomeScreen(),
+        builder: (_, __) => SetupGuideGate(
+          guide: purchasingGuide,
+          child: const PurchasingHomeScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.purchasingOrders,
@@ -573,6 +631,61 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutePaths.purchasingStats,
         name: AppRouteIds.purchasingStats,
         builder: (_, __) => const PurchasingStatsScreen(),
+      ),
+
+      // ── Communication routes ──────────────────────────────────────────
+      GoRoute(
+        path: AppRoutePaths.commInternalMessages,
+        name: AppRouteIds.commInternalMessages,
+        builder: (_, __) => const InternalMessagesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.commMessageBoard,
+        name: AppRouteIds.commMessageBoard,
+        builder: (_, __) => const AdminMessageBoardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.commExternalMessages,
+        name: AppRouteIds.commExternalMessages,
+        builder: (_, __) => const CommPlaceholderScreen(
+          title: 'External Messages',
+          icon: Icons.sms_outlined,
+          description:
+              'SMS messaging with external contacts will be available '
+              'once Twilio SMS integration is configured.',
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.commEmail,
+        name: AppRouteIds.commEmail,
+        builder: (_, __) => const AdminEmailScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.commCalendar,
+        name: AppRouteIds.commCalendar,
+        builder: (_, __) => const AdminCalendarScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.commDirectory,
+        name: AppRouteIds.commDirectory,
+        builder: (_, __) => const AdminDirectoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.commIntercom,
+        name: AppRouteIds.commIntercom,
+        builder: (_, __) => const AdminIntercomScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.commVideoCall,
+        name: AppRouteIds.commVideoCall,
+        builder: (_, __) => const CommPlaceholderScreen(
+          title: 'Video Call',
+          icon: Icons.video_camera_front,
+          description:
+              'Video conferencing uses the same WebRTC infrastructure '
+              'as the Intercom. Select Intercom > Voice Call for '
+              'audio-only calls.',
+        ),
       ),
     ],
   );

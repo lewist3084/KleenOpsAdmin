@@ -11,7 +11,7 @@ import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 
-import 'marketplaceScrapeJobs.dart';
+import 'marketplace_scrape_jobs.dart';
 
 class ScrapeJobsWrapper extends StatelessWidget {
   const ScrapeJobsWrapper({super.key});

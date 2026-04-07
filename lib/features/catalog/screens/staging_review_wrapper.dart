@@ -11,7 +11,7 @@ import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 
-import 'marketplaceStagingReview.dart';
+import 'marketplace_staging_review.dart';
 
 class StagingReviewWrapper extends StatelessWidget {
   const StagingReviewWrapper({super.key});

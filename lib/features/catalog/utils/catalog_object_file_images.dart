@@ -1,7 +1,7 @@
 // catalog_object_file_images.dart — simplified for admin app.
 // TODO: Migrate full image management from kleenops app.
 
-import 'package:kleenops_admin/services/catalog_firebase_service.dart';
+import 'package:shared_widgets/services/catalog_firebase_service.dart';
 
 class CatalogObjectFileImages {
   final String objectDocId;

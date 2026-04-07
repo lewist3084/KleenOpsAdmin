@@ -11,7 +11,10 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/material.dart';
 
 import '../firebase_options.dart';
-import '../services/catalog_firebase_service.dart';
+import 'package:shared_widgets/services/catalog_firebase_service.dart';
+import 'package:shared_widgets/services/external_firebase_service.dart';
+import 'package:shared_widgets/services/tenant_firebase_service.dart';
+import '../firebase_external_options.dart';
 
 class BootService {
   BootService._();
@@ -41,6 +44,14 @@ class BootService {
 
     // 4. Catalog (uses default kleenops project — no separate init needed)
     await CatalogFirebaseService.instance.init();
+
+    // 5. External companies Firebase project
+    await ExternalFirebaseService.instance.init(ExternalFirebaseOptions.currentPlatform);
+
+    // 6. BYU company IDs for tenant routing
+    TenantFirebaseService.instance.registerByuCompanies([
+      'j5ZTlxjvsuwt89qwwfJs', // BYU company
+    ]);
   }
 
   Future<void> _activateAppCheck() async {

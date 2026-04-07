@@ -7,7 +7,7 @@ import 'package:intl/intl.dart';
 
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
-import 'package:kleenops_admin/services/firestore_service.dart';
+import 'package:shared_widgets/services/firestore_service.dart';
 
 class HrBenefitEnrollmentForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;

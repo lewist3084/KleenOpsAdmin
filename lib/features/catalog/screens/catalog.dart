@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
-import 'package:kleenops_admin/services/catalog_firebase_service.dart';
+import 'package:shared_widgets/services/catalog_firebase_service.dart';
 import 'package:kleenops_admin/l10n/app_localizations.dart';
 
 class CatalogContent extends StatefulWidget {

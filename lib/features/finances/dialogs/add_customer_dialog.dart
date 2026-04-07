@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
-import 'package:kleenops_admin/services/firestore_service.dart';
+import 'package:shared_widgets/services/firestore_service.dart';
 
 /// Shows a quick-add dialog to create a customer with just a name.
 Future<DocumentReference<Map<String, dynamic>>?> showAddCustomerDialog({

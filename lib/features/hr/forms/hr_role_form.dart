@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
-import 'package:kleenops_admin/services/firestore_service.dart';
+import 'package:shared_widgets/services/firestore_service.dart';
 
 class HrRoleForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;

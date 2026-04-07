@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:kleenops_admin/features/finances/services/local_tax_lookup_service.dart';
-import 'package:kleenops_admin/services/firestore_service.dart';
+import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
 
 class HrEmployeeForm extends StatefulWidget {

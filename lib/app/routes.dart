@@ -93,6 +93,12 @@ class AppRouteIds {
   static const adminTaxMonitor = 'adminTaxMonitor';
   static const adminSetupWizard = 'adminSetupWizard';
 
+  // Inventory
+  static const inventoryHome = 'inventoryHome';
+  static const inventoryFulfillment = 'inventoryFulfillment';
+  static const inventoryRequestForm = 'inventoryRequestForm';
+  static const inventoryStats = 'inventoryStats';
+
   // Sales
   static const salesHome = 'salesHome';
   static const salesSales = 'salesSales';
@@ -110,6 +116,16 @@ class AppRouteIds {
   static const purchasingOrders = 'purchasingOrders';
   static const purchasingVendors = 'purchasingVendors';
   static const purchasingStats = 'purchasingStats';
+
+  // Communications
+  static const commInternalMessages = 'commInternalMessages';
+  static const commExternalMessages = 'commExternalMessages';
+  static const commMessageBoard = 'commMessageBoard';
+  static const commEmail = 'commEmail';
+  static const commCalendar = 'commCalendar';
+  static const commDirectory = 'commDirectory';
+  static const commIntercom = 'commIntercom';
+  static const commVideoCall = 'commVideoCall';
 }
 
 class AppRoutePaths {
@@ -188,6 +204,12 @@ class AppRoutePaths {
   static const adminTaxMonitor = '/admin/compliance/tax-monitor';
   static const adminSetupWizard = '/admin/setup-wizard';
 
+  // Inventory
+  static const inventoryHome = '/inventory/home';
+  static const inventoryFulfillment = '/inventory/fulfillment';
+  static const inventoryRequestForm = '/inventory/request/form';
+  static const inventoryStats = '/inventory/stats';
+
   // Sales
   static const salesHome = '/sales/home';
   static const salesSales = '/sales/sales';
@@ -205,4 +227,14 @@ class AppRoutePaths {
   static const purchasingOrders = '/purchasing/orders';
   static const purchasingVendors = '/purchasing/vendors';
   static const purchasingStats = '/purchasing/stats';
+
+  // Communications
+  static const commInternalMessages = '/comm/internal-messages';
+  static const commExternalMessages = '/comm/external-messages';
+  static const commMessageBoard = '/comm/message-board';
+  static const commEmail = '/comm/email';
+  static const commCalendar = '/comm/calendar';
+  static const commDirectory = '/comm/directory';
+  static const commIntercom = '/comm/intercom';
+  static const commVideoCall = '/comm/video-call';
 }

@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:kleenops_admin/services/firestore_service.dart';
+import 'package:shared_widgets/services/firestore_service.dart';
 
 class FinanceAccountService {
   FinanceAccountService({FirestoreService? firestore})
