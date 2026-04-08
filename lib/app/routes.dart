@@ -80,6 +80,8 @@ class AppRouteIds {
   static const hrBenefitPlanForm = 'hrBenefitPlanForm';
   static const hrBenefitEnrollmentForm = 'hrBenefitEnrollmentForm';
   static const hrOnboardingTemplateForm = 'hrOnboardingTemplateForm';
+  static const hrOnboardingProfile = 'hrOnboardingProfile';
+  static const hrOnboardingProfileForm = 'hrOnboardingProfileForm';
   static const hrTimeEntry = 'hrTimeEntry';
   static const hrNewHireChecklist = 'hrNewHireChecklist';
 
@@ -116,6 +118,59 @@ class AppRouteIds {
   static const purchasingOrders = 'purchasingOrders';
   static const purchasingVendors = 'purchasingVendors';
   static const purchasingStats = 'purchasingStats';
+
+  // Registration (first-time onboarding)
+  static const registrationFork = 'registrationFork';
+  static const registrationJoinQr = 'registrationJoinQr';
+  static const registrationBusinessType = 'registrationBusinessType';
+  static const registrationInternalSetup = 'registrationInternalSetup';
+
+  // Tasks
+  static const tasksHome = 'tasksHome';
+  static const tasksTasks = 'tasksTasks';
+
+  // Facilities
+  static const facilitiesHome = 'facilitiesHome';
+  static const facilitiesProperties = 'facilitiesProperties';
+
+  // Marketplace
+  static const marketplaceHome = 'marketplaceHome';
+
+  // Processes
+  static const processesHome = 'processesHome';
+
+  // Scheduling
+  static const schedulingHome = 'schedulingHome';
+  static const schedulingTeams = 'schedulingTeams';
+
+  // Supervision
+  static const supervisionHome = 'supervisionHome';
+  static const supervisionTeams = 'supervisionTeams';
+
+  // Training
+  static const trainingHome = 'trainingHome';
+
+  // Quality
+  static const qualityHome = 'qualityHome';
+  static const qualityTeams = 'qualityTeams';
+
+  // Safety
+  static const safetyHome = 'safetyHome';
+  static const safetyAnalysis = 'safetyAnalysis';
+
+  // Occupancy
+  static const occupancyHome = 'occupancyHome';
+  static const occupancyProperty = 'occupancyProperty';
+
+  // Engagement
+  static const engagementHome = 'engagementHome';
+  static const engagementReports = 'engagementReports';
+
+  // Setup dashboard (post-registration card-based onboarding)
+  static const setupDashboard = 'setupDashboard';
+
+  // Me (admin's own profile + onboarding)
+  static const meInfo = 'meInfo';
 
   // Communications
   static const commInternalMessages = 'commInternalMessages';
@@ -191,6 +246,8 @@ class AppRoutePaths {
   static const hrBenefitPlanForm = '/hr/benefits/form';
   static const hrBenefitEnrollmentForm = '/hr/benefits/enrollment/form';
   static const hrOnboardingTemplateForm = '/hr/onboarding/template/form';
+  static const hrOnboardingProfile = '/hr/onboarding/profile';
+  static const hrOnboardingProfileForm = '/hr/onboarding/profile/form';
   static const hrTimeEntry = '/hr/time-entry';
   static const hrNewHireChecklist = '/hr/new-hire-checklist';
 
@@ -227,6 +284,59 @@ class AppRoutePaths {
   static const purchasingOrders = '/purchasing/orders';
   static const purchasingVendors = '/purchasing/vendors';
   static const purchasingStats = '/purchasing/stats';
+
+  // Registration (first-time onboarding)
+  static const registrationFork = '/registration';
+  static const registrationJoinQr = '/registration/join';
+  static const registrationBusinessType = '/registration/business-type';
+  static const registrationInternalSetup = '/registration/internal-setup';
+
+  // Tasks
+  static const tasksHome = '/tasks/home';
+  static const tasksTasks = '/tasks/tasks';
+
+  // Facilities
+  static const facilitiesHome = '/facilities/home';
+  static const facilitiesProperties = '/facilities/properties';
+
+  // Marketplace
+  static const marketplaceHome = '/marketplace/home';
+
+  // Processes
+  static const processesHome = '/processes/home';
+
+  // Scheduling
+  static const schedulingHome = '/scheduling/home';
+  static const schedulingTeams = '/scheduling/teams';
+
+  // Supervision
+  static const supervisionHome = '/supervision/home';
+  static const supervisionTeams = '/supervision/teams';
+
+  // Training
+  static const trainingHome = '/training/home';
+
+  // Quality
+  static const qualityHome = '/quality/home';
+  static const qualityTeams = '/quality/teams';
+
+  // Safety
+  static const safetyHome = '/safety/home';
+  static const safetyAnalysis = '/safety/analysis';
+
+  // Occupancy
+  static const occupancyHome = '/occupancy/home';
+  static const occupancyProperty = '/occupancy/property';
+
+  // Engagement
+  static const engagementHome = '/engagement/home';
+  static const engagementReports = '/engagement/reports';
+
+  // Setup dashboard (post-registration card-based onboarding)
+  static const setupDashboard = '/setup';
+
+  // Me (admin's own profile + onboarding)
+  static const meInfo = '/me/info';
 
   // Communications
   static const commInternalMessages = '/comm/internal-messages';

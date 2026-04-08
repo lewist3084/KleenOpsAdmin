@@ -339,16 +339,377 @@ const inventoryGuide = SetupGuide(
   ],
 );
 
+const tasksGuide = SetupGuide(
+  key: 'tasks',
+  title: 'Tasks',
+  slides: [
+    GuideSlide(
+      icon: Icons.assignment_turned_in,
+      title: 'Track What Gets Done',
+      body: 'Tasks are the day-to-day work your team performs — '
+          'cleaning a room, restocking supplies, completing a route. '
+          'Every task ties back to a process and a location.',
+      color: Color(0xFF002E5D),
+    ),
+    GuideSlide(
+      icon: Icons.checklist,
+      title: 'Assign and Complete',
+      body: 'Assign tasks to team members, track them through the '
+          'day, and review what was completed. Photos, timecards, '
+          'and quality checks all live alongside the task.',
+      color: Color(0xFF2E7D32),
+    ),
+    GuideSlide(
+      icon: Icons.bar_chart,
+      title: 'Performance and Quality',
+      body: 'Performance and quality scores roll up from individual '
+          'tasks so you always know how your team is doing.',
+      color: Color(0xFF6A1B9A),
+    ),
+  ],
+);
+
+const facilitiesGuide = SetupGuide(
+  key: 'facilities',
+  title: 'Facilities',
+  slides: [
+    GuideSlide(
+      icon: Icons.business,
+      title: 'Properties, Buildings, Floors',
+      body: 'Model the physical world your team works in. Properties '
+          'have buildings, buildings have floors, and floors have '
+          'individual locations like rooms, restrooms, and hallways.',
+      color: Color(0xFF1565C0),
+    ),
+    GuideSlide(
+      icon: Icons.map,
+      title: 'Locations and Routes',
+      body: 'Tag each location with what it is, what it needs, and '
+          'how often. The system uses this to schedule and route work.',
+      color: Color(0xFFE65100),
+    ),
+    GuideSlide(
+      icon: Icons.category,
+      title: 'Property Types',
+      body: 'Schools, offices, hospitals, retail — each property type '
+          'has different needs. Configure them once and reuse them '
+          'across every property you manage.',
+      color: Color(0xFF6A1B9A),
+    ),
+  ],
+);
+
+const objectsGuide = SetupGuide(
+  key: 'objects',
+  title: 'Objects',
+  slides: [
+    GuideSlide(
+      icon: Icons.category,
+      title: 'Catalog of Things',
+      body: 'Objects are the physical items your business deals with — '
+          'cleaning chemicals, equipment, restroom fixtures, dispensers, '
+          'and consumables. The catalog is your single source of truth.',
+      color: Color(0xFF1565C0),
+    ),
+    GuideSlide(
+      icon: Icons.science,
+      title: 'Elements and Specs',
+      body: 'Each object has elements (its components) and specs '
+          '(dimensions, capacity, materials). This data feeds into '
+          'cost estimates and process planning.',
+      color: Color(0xFF2E7D32),
+    ),
+    GuideSlide(
+      icon: Icons.link,
+      title: 'Linked to Processes',
+      body: 'Objects are tied to the processes that use them, so '
+          'you always know how much of what you need to get the '
+          'work done.',
+      color: Color(0xFF6A1B9A),
+    ),
+  ],
+);
+
+const marketplaceGuide = SetupGuide(
+  key: 'marketplace',
+  title: 'Marketplace',
+  slides: [
+    GuideSlide(
+      icon: Icons.storefront,
+      title: 'Buy and Sell',
+      body: 'The marketplace lets you browse cleaning products, '
+          'equipment, and services from vendors across the platform.',
+      color: Color(0xFFE65100),
+    ),
+    GuideSlide(
+      icon: Icons.local_offer,
+      title: 'Vendor Listings',
+      body: 'Compare prices, read reviews, and find the best deals '
+          'on the items your business needs most.',
+      color: Color(0xFF1565C0),
+    ),
+    GuideSlide(
+      icon: Icons.shopping_bag,
+      title: 'One-Click Ordering',
+      body: 'Add items directly to your purchasing workflow with '
+          'a single tap.',
+      color: Color(0xFF2E7D32),
+    ),
+  ],
+);
+
+const processesGuide = SetupGuide(
+  key: 'processes',
+  title: 'Processes',
+  slides: [
+    GuideSlide(
+      icon: Icons.route,
+      title: 'How the Work Gets Done',
+      body: 'A process is a documented way of doing something — '
+          'how to clean a restroom, how to restock a dispenser, '
+          'how to inspect a floor. Each process has steps, materials, '
+          'and time estimates.',
+      color: Color(0xFF002E5D),
+    ),
+    GuideSlide(
+      icon: Icons.fact_check,
+      title: 'Standardize Your Operation',
+      body: 'Once a process is defined, your whole team works '
+          'the same way. Quality goes up and training time goes down.',
+      color: Color(0xFF2E7D32),
+    ),
+    GuideSlide(
+      icon: Icons.attach_money,
+      title: 'Costs Roll Up',
+      body: 'Material and labor costs in each process automatically '
+          'feed into pricing, quotes, and budget reports.',
+      color: Color(0xFF6A1B9A),
+    ),
+  ],
+);
+
+const schedulingGuide = SetupGuide(
+  key: 'scheduling',
+  title: 'Scheduling',
+  slides: [
+    GuideSlide(
+      icon: Icons.view_timeline,
+      title: 'Plan the Week',
+      body: 'Build schedules for your teams across all the properties '
+          'you serve. Drag and drop to assign tasks, shifts, and routes.',
+      color: Color(0xFF1565C0),
+    ),
+    GuideSlide(
+      icon: Icons.event_repeat,
+      title: 'Recurring Work',
+      body: 'Most cleaning work is recurring. Set up daily, weekly, '
+          'or monthly schedules once and let the system generate '
+          'tasks automatically.',
+      color: Color(0xFF2E7D32),
+    ),
+    GuideSlide(
+      icon: Icons.notifications_active,
+      title: 'Alerts and Conflicts',
+      body: 'Get notified about scheduling conflicts, missing coverage, '
+          'and team members who are unavailable.',
+      color: Color(0xFFE65100),
+    ),
+  ],
+);
+
+const supervisionGuide = SetupGuide(
+  key: 'supervision',
+  title: 'Supervision',
+  slides: [
+    GuideSlide(
+      icon: Icons.groups,
+      title: 'Manage Your Teams',
+      body: 'See what your teams are working on right now, who is on '
+          'site, and what is being completed across every property.',
+      color: Color(0xFFC62828),
+    ),
+    GuideSlide(
+      icon: Icons.handshake,
+      title: 'Live Communication',
+      body: 'Talk to supervisors and team members in the field through '
+          'the built-in messaging, walkie-talkie, and intercom features.',
+      color: Color(0xFF1565C0),
+    ),
+    GuideSlide(
+      icon: Icons.fact_check,
+      title: 'Real-Time Oversight',
+      body: 'Track productivity, attendance, and quality scores '
+          'in real time so you can act before problems grow.',
+      color: Color(0xFF2E7D32),
+    ),
+  ],
+);
+
+const trainingGuide = SetupGuide(
+  key: 'training',
+  title: 'Training',
+  slides: [
+    GuideSlide(
+      icon: Icons.school,
+      title: 'Build Your Library',
+      body: 'Upload videos, documents, and quizzes to build a training '
+          'library your team can access anytime from their phones.',
+      color: Color(0xFF1565C0),
+    ),
+    GuideSlide(
+      icon: Icons.workspace_premium,
+      title: 'Certifications',
+      body: 'Track who has completed what, when certifications expire, '
+          'and who needs refresher training.',
+      color: Color(0xFF2E7D32),
+    ),
+    GuideSlide(
+      icon: Icons.quiz,
+      title: 'Test Knowledge',
+      body: 'Quizzes confirm comprehension and unlock new tasks once '
+          'a team member is qualified to perform them.',
+      color: Color(0xFF6A1B9A),
+    ),
+  ],
+);
+
+const qualityGuide = SetupGuide(
+  key: 'quality',
+  title: 'Quality',
+  slides: [
+    GuideSlide(
+      icon: Icons.auto_awesome,
+      title: 'Inspect Your Work',
+      body: 'Run quality inspections on completed tasks. Score them, '
+          'photograph them, and use the results to coach your team.',
+      color: Color(0xFF002E5D),
+    ),
+    GuideSlide(
+      icon: Icons.fact_check,
+      title: 'Customer-Visible Reports',
+      body: 'Share quality reports with your customers so they can '
+          'see exactly what was done and how well.',
+      color: Color(0xFF2E7D32),
+    ),
+    GuideSlide(
+      icon: Icons.trending_up,
+      title: 'Improve Over Time',
+      body: 'Spot trends, identify struggling team members, and '
+          'celebrate teams that consistently deliver excellent work.',
+      color: Color(0xFF6A1B9A),
+    ),
+  ],
+);
+
+const safetyGuide = SetupGuide(
+  key: 'safety',
+  title: 'Safety',
+  slides: [
+    GuideSlide(
+      icon: Icons.warning_amber,
+      title: 'Stay Safe on the Job',
+      body: 'Manage hazard analyses, safety data sheets, PPE '
+          'requirements, and incident reports — all in one place.',
+      color: Color(0xFFE65100),
+    ),
+    GuideSlide(
+      icon: Icons.shield,
+      title: 'Job Hazard Analyses',
+      body: 'Document the hazards of every process and the controls '
+          'you use to mitigate them. Keep your team — and your '
+          'insurance carrier — happy.',
+      color: Color(0xFF002E5D),
+    ),
+    GuideSlide(
+      icon: Icons.medical_services,
+      title: 'Incident Tracking',
+      body: 'Report and follow up on every incident. Use the data '
+          'to spot patterns and prevent the next one.',
+      color: Color(0xFFC62828),
+    ),
+  ],
+);
+
+const occupancyGuide = SetupGuide(
+  key: 'occupancy',
+  title: 'Occupancy',
+  slides: [
+    GuideSlide(
+      icon: Icons.door_front_door,
+      title: 'Track Who Is Where',
+      body: 'Monitor real-time occupancy of buildings, floors, and '
+          'individual spaces using sensors, badge swipes, or manual '
+          'check-ins.',
+      color: Color(0xFF1565C0),
+    ),
+    GuideSlide(
+      icon: Icons.insights,
+      title: 'Demand-Driven Cleaning',
+      body: 'Use occupancy data to clean what was actually used, '
+          'not what was on the schedule. Save time and supplies.',
+      color: Color(0xFF2E7D32),
+    ),
+    GuideSlide(
+      icon: Icons.timeline,
+      title: 'Usage Reports',
+      body: 'Show customers how their space is really being used '
+          'with beautiful, easy-to-read reports.',
+      color: Color(0xFF6A1B9A),
+    ),
+  ],
+);
+
+const engagementGuide = SetupGuide(
+  key: 'engagement',
+  title: 'Engagement',
+  slides: [
+    GuideSlide(
+      icon: Icons.headset_mic,
+      title: 'Stay Connected',
+      body: 'Engagement is your hub for communicating with customers '
+          'and tenants — service requests, feedback, satisfaction '
+          'surveys, and announcements.',
+      color: Color(0xFF1565C0),
+    ),
+    GuideSlide(
+      icon: Icons.feedback,
+      title: 'Listen to Feedback',
+      body: 'Collect ratings and comments from the people who use '
+          'the spaces you clean. Respond quickly and close the loop.',
+      color: Color(0xFFE65100),
+    ),
+    GuideSlide(
+      icon: Icons.bar_chart,
+      title: 'Engagement Reports',
+      body: 'Track satisfaction over time, identify problem areas, '
+          'and prove your value to customers with hard numbers.',
+      color: Color(0xFF6A1B9A),
+    ),
+  ],
+);
+
 /// All guides, for listing in the menu drawer.
 const allGuides = [
   mainGuide,
-  financeGuide,
+  tasksGuide,
+  facilitiesGuide,
+  objectsGuide,
+  marketplaceGuide,
+  processesGuide,
+  schedulingGuide,
   hrGuide,
-  adminGuide,
-  legalGuide,
-  salesGuide,
-  purchasingGuide,
+  supervisionGuide,
+  trainingGuide,
+  qualityGuide,
+  safetyGuide,
   inventoryGuide,
+  purchasingGuide,
+  occupancyGuide,
+  engagementGuide,
+  salesGuide,
+  legalGuide,
+  financeGuide,
+  adminGuide,
 ];
 
 /// Lookup by key.

@@ -8,3 +8,4 @@ const colTimeline = 'timeline';
 const colBankAccount = 'bankAccount';
 const colBankTransaction = 'bankTransaction';
 const colFile = 'file';
+const colKleenops = 'kleenops';

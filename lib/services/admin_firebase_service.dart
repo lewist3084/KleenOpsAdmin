@@ -4,6 +4,7 @@
 // Queries across all companies rather than scoping to one.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../constants/firestore_paths.dart';
 
@@ -322,5 +323,120 @@ class AdminFirebaseService {
         .collection(subcollection);
     if (limit != null) query = query.limit(limit);
     return query.snapshots();
+  }
+
+  // ── Onboarding funnel ───────────────────────────────────────────────
+
+  /// One-shot read of the rolled-up onboarding funnel doc that
+  /// `aggregateFunnelDaily` writes. Returns null when the rollup has never
+  /// run yet (so the dashboard can show an empty state).
+  Future<OnboardingFunnel?> loadOnboardingFunnel() async {
+    final snap = await _fs.collection('funnelTotals').doc('onboarding').get();
+    if (!snap.exists) return null;
+    return OnboardingFunnel.fromMap(snap.data() ?? const {});
+  }
+
+  /// Live stream of the same doc — handy for refresh-on-click without a
+  /// manual reload, since `recomputeFunnelOnDemand` writes the same doc.
+  Stream<OnboardingFunnel?> onboardingFunnelStream() {
+    return _fs
+        .collection('funnelTotals')
+        .doc('onboarding')
+        .snapshots()
+        .map((snap) =>
+            snap.exists ? OnboardingFunnel.fromMap(snap.data() ?? const {}) : null);
+  }
+
+  /// Trigger the on-demand callable so the dashboard refresh button can
+  /// rebuild the funnel without waiting for the daily cron.
+  Future<void> recomputeFunnelNow({int windowDays = 7}) async {
+    final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+        .httpsCallable('recomputeFunnelOnDemand');
+    await callable.call({'windowDays': windowDays});
+  }
+}
+
+// ── Funnel model ──────────────────────────────────────────────────────
+
+/// Typed view of the `funnelTotals/onboarding` doc written by
+/// `funnelTotals.js → aggregateFunnelDaily`.
+class OnboardingFunnel {
+  const OnboardingFunnel({
+    required this.updatedAt,
+    required this.windowDays,
+    required this.eventCount,
+    required this.stageCounts,
+    required this.forkPickedByBranch,
+    required this.businessTypePickedByType,
+    required this.sectionOpened,
+    required this.sectionCompleted,
+    required this.screenTimeAverageMs,
+    required this.screenTimeMedianMs,
+    required this.screenTimeSampleCount,
+  });
+
+  /// When the rollup ran. Null if the doc has no `updatedAt`.
+  final DateTime? updatedAt;
+
+  /// How many days back the rollup looked.
+  final int windowDays;
+
+  /// Total events scanned during the rollup.
+  final int eventCount;
+
+  /// Top-level funnel stage counts. Keys are the snake_case event names
+  /// from `funnelTotals.js → ORDERED_FUNNEL_STAGES`.
+  final Map<String, int> stageCounts;
+
+  /// Breakdown of `registration_fork_picked` by `branch`. Keys: 'join', 'new'.
+  final Map<String, int> forkPickedByBranch;
+
+  /// Breakdown of `business_type_picked` by `type`. Keys: 'internal',
+  /// 'facilities'.
+  final Map<String, int> businessTypePickedByType;
+
+  /// Per-section open counts. Keys match `setup_dashboard_screen.dart`'s
+  /// `_Section.key` values (e.g. 'company_info', 'domain', 'phone').
+  final Map<String, int> sectionOpened;
+  final Map<String, int> sectionCompleted;
+
+  /// Average / median time on each onboarding route, in milliseconds.
+  final Map<String, int> screenTimeAverageMs;
+  final Map<String, int> screenTimeMedianMs;
+  final Map<String, int> screenTimeSampleCount;
+
+  factory OnboardingFunnel.fromMap(Map<String, dynamic> map) {
+    final totals = (map['totals'] as Map?)?.cast<String, dynamic>() ??
+        const <String, dynamic>{};
+    final screenTime = (map['screenTime'] as Map?)?.cast<String, dynamic>() ??
+        const <String, dynamic>{};
+
+    Map<String, int> intMap(dynamic raw) {
+      if (raw is! Map) return const {};
+      final out = <String, int>{};
+      raw.forEach((k, v) {
+        if (k is String && v is num) out[k] = v.toInt();
+      });
+      return out;
+    }
+
+    final stageCounts = <String, int>{};
+    totals.forEach((k, v) {
+      if (v is num) stageCounts[k] = v.toInt();
+    });
+
+    return OnboardingFunnel(
+      updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
+      windowDays: (map['windowDays'] as num?)?.toInt() ?? 7,
+      eventCount: (map['eventCount'] as num?)?.toInt() ?? 0,
+      stageCounts: stageCounts,
+      forkPickedByBranch: intMap(totals['forkPickedByBranch']),
+      businessTypePickedByType: intMap(totals['businessTypePickedByType']),
+      sectionOpened: intMap(totals['sectionOpened']),
+      sectionCompleted: intMap(totals['sectionCompleted']),
+      screenTimeAverageMs: intMap(screenTime['averageMs']),
+      screenTimeMedianMs: intMap(screenTime['medianMs']),
+      screenTimeSampleCount: intMap(screenTime['sampleCount']),
+    );
   }
 }

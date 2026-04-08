@@ -109,6 +109,19 @@ class HrOnboardingScreen extends StatelessWidget {
   }
 }
 
+String _formatEmploymentType(String value) {
+  switch (value) {
+    case 'fullTime':
+      return 'Full-Time';
+    case 'partTime':
+      return 'Part-Time';
+    case 'contractor':
+      return 'Contractor';
+    default:
+      return value;
+  }
+}
+
 class _OnboardingContent extends StatelessWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
 
@@ -183,6 +196,63 @@ class _OnboardingContent extends StatelessWidget {
                       onTap: () => context.push(
                         AppRoutePaths.hrOnboardingDetails,
                         extra: {'documentId': doc.id, 'name': name},
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ),
+
+          // ── Onboarding Profiles ──
+          ContainerActionWidget(
+            title: 'Onboarding Profiles',
+            actionText: 'New Profile',
+            onAction: () => context.push(AppRoutePaths.hrOnboardingProfileForm),
+            content: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: companyRef
+                  .collection('onboardingProfile')
+                  .orderBy('name')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final docs = snapshot.data?.docs ?? [];
+                if (docs.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'No onboarding profiles yet. Create one to apply preset defaults at scan time.',
+                      style: TextStyle(color: Colors.grey[500]),
+                    ),
+                  );
+                }
+                return Column(
+                  children: docs.map((doc) {
+                    final data = doc.data();
+                    final name = (data['name'] ?? 'Untitled').toString();
+                    final employmentType =
+                        (data['employmentType'] as String?) ?? '';
+                    final payType = (data['payType'] as String?) ?? '';
+                    final summary = [
+                      if (employmentType.isNotEmpty)
+                        _formatEmploymentType(employmentType),
+                      if (payType.isNotEmpty)
+                        payType[0].toUpperCase() + payType.substring(1),
+                    ].join(' · ');
+
+                    return StandardTileSmallDart(
+                      label: name,
+                      secondaryText: summary.isEmpty ? null : summary,
+                      labelIcon: Icons.assignment_ind_outlined,
+                      trailingIcon1: Icons.edit,
+                      onTrailing1Tap: () => context.push(
+                        AppRoutePaths.hrOnboardingProfileForm,
+                        extra: {'docId': doc.id},
                       ),
                     );
                   }).toList(),

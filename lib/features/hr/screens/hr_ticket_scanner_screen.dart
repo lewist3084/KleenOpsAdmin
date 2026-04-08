@@ -184,6 +184,7 @@ class _HrTicketScannerScreenState extends State<HrTicketScannerScreen> {
         'companyId': companyRef.id,
         'teamId': chosen.team.ref.id,
         'roleId': chosen.role.ref.id,
+        if (chosen.profileRef != null) 'profileId': chosen.profileRef!.id,
       });
 
       if (!mounted) return;
@@ -214,6 +215,10 @@ class _HrTicketScannerScreenState extends State<HrTicketScannerScreen> {
   ) async {
     final teamSnap = await FirebaseFirestore.instance.collection('team').get();
     final roleSnap = await FirebaseFirestore.instance.collection('role').get();
+    final profileSnap = await companyRef
+        .collection('onboardingProfile')
+        .orderBy('name')
+        .get();
 
     final teamOptions = teamSnap.docs
         .map((doc) => _AssignmentOption(
@@ -231,6 +236,19 @@ class _HrTicketScannerScreenState extends State<HrTicketScannerScreen> {
         .toList()
       ..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
 
+    final profileOptions = profileSnap.docs
+        .map((doc) => _ProfileOption(
+              ref: doc.reference,
+              label: _resolveLabel(doc.data(), 'profile', doc.id),
+              defaultTeamRef: doc.data()['defaultTeamId'] is DocumentReference
+                  ? doc.data()['defaultTeamId'] as DocumentReference
+                  : null,
+              defaultRoleRef: doc.data()['defaultRoleId'] is DocumentReference
+                  ? doc.data()['defaultRoleId'] as DocumentReference
+                  : null,
+            ))
+        .toList();
+
     if (teamOptions.isEmpty) {
       throw StateError('No teams available. Please create a team first.');
     }
@@ -238,10 +256,22 @@ class _HrTicketScannerScreenState extends State<HrTicketScannerScreen> {
       throw StateError('No roles available. Please create a role first.');
     }
 
+    _ProfileOption? selectedProfile;
     _AssignmentOption? selectedTeam;
     _AssignmentOption? selectedRole;
     String? errorText;
     void Function(VoidCallback) rebuild = (_) {};
+
+    _AssignmentOption? optionForRef(
+      List<_AssignmentOption> options,
+      DocumentReference? ref,
+    ) {
+      if (ref == null) return null;
+      for (final opt in options) {
+        if (opt.ref.path == ref.path) return opt;
+      }
+      return null;
+    }
 
     return showDialog<_AssignmentResult>(
       context: context,
@@ -256,6 +286,44 @@ class _HrTicketScannerScreenState extends State<HrTicketScannerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (profileOptions.isNotEmpty) ...[
+                    DropdownButtonFormField<_ProfileOption?>(
+                      value: selectedProfile,
+                      decoration: const InputDecoration(
+                        labelText: 'Profile (optional)',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        const DropdownMenuItem<_ProfileOption?>(
+                          value: null,
+                          child: Text('— None —'),
+                        ),
+                        ...profileOptions.map(
+                          (opt) => DropdownMenuItem<_ProfileOption?>(
+                            value: opt,
+                            child: Text(opt.label),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) => setState(() {
+                        selectedProfile = value;
+                        if (value != null) {
+                          final teamFromProfile =
+                              optionForRef(teamOptions, value.defaultTeamRef);
+                          if (teamFromProfile != null) {
+                            selectedTeam = teamFromProfile;
+                          }
+                          final roleFromProfile =
+                              optionForRef(roleOptions, value.defaultRoleRef);
+                          if (roleFromProfile != null) {
+                            selectedRole = roleFromProfile;
+                          }
+                        }
+                        errorText = null;
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   DropdownButtonFormField<_AssignmentOption>(
                     value: selectedTeam,
                     decoration: const InputDecoration(
@@ -312,7 +380,15 @@ class _HrTicketScannerScreenState extends State<HrTicketScannerScreen> {
             }
             Navigator.pop(
               dialogCtx,
-              _AssignmentResult(team: selectedTeam!, role: selectedRole!),
+              _AssignmentResult(
+                team: selectedTeam!,
+                role: selectedRole!,
+                profileRef: selectedProfile?.ref
+                    .withConverter<Map<String, dynamic>>(
+                      fromFirestore: (s, _) => s.data() ?? <String, dynamic>{},
+                      toFirestore: (m, _) => m,
+                    ),
+              ),
             );
           },
         );
@@ -378,10 +454,26 @@ class _AssignmentResult {
   const _AssignmentResult({
     required this.team,
     required this.role,
+    this.profileRef,
   });
 
   final _AssignmentOption team;
   final _AssignmentOption role;
+  final DocumentReference<Map<String, dynamic>>? profileRef;
+}
+
+class _ProfileOption {
+  const _ProfileOption({
+    required this.ref,
+    required this.label,
+    this.defaultTeamRef,
+    this.defaultRoleRef,
+  });
+
+  final DocumentReference<Map<String, dynamic>> ref;
+  final String label;
+  final DocumentReference? defaultTeamRef;
+  final DocumentReference? defaultRoleRef;
 }
 
 

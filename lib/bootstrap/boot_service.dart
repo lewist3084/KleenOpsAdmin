@@ -5,6 +5,7 @@
 
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kReleaseMode, kIsWeb, debugPrint;
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
@@ -12,9 +13,6 @@ import 'package:flutter/material.dart';
 
 import '../firebase_options.dart';
 import 'package:shared_widgets/services/catalog_firebase_service.dart';
-import 'package:shared_widgets/services/external_firebase_service.dart';
-import 'package:shared_widgets/services/tenant_firebase_service.dart';
-import '../firebase_external_options.dart';
 
 class BootService {
   BootService._();
@@ -42,16 +40,15 @@ class BootService {
       FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
     }
 
+    // 3b. Firebase Analytics — touching the singleton ensures first_open /
+    // session_start auto-events fire on cold launch. Custom funnel events go
+    // through AnalyticsService.
+    await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
+
     // 4. Catalog (uses default kleenops project — no separate init needed)
     await CatalogFirebaseService.instance.init();
 
-    // 5. External companies Firebase project
-    await ExternalFirebaseService.instance.init(ExternalFirebaseOptions.currentPlatform);
-
-    // 6. BYU company IDs for tenant routing
-    TenantFirebaseService.instance.registerByuCompanies([
-      'j5ZTlxjvsuwt89qwwfJs', // BYU company
-    ]);
+    // 5. Admin app uses only the default kleenops project — no external tenant init needed.
   }
 
   Future<void> _activateAppCheck() async {

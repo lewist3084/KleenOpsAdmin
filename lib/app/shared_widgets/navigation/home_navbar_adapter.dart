@@ -125,4 +125,53 @@ const HomeNavConfig _navConfig = {
     HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
     HomeNavItem(label: 'Support', icon: Icons.support_agent, route: AppRoutePaths.support),
   ],
+  'tasks': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Tasks', icon: Icons.assignment_turned_in, route: AppRoutePaths.tasksTasks),
+  ],
+  'facilities': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Properties', icon: Icons.business, route: AppRoutePaths.facilitiesProperties),
+  ],
+  'marketplace': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Marketplace', icon: Icons.storefront, route: AppRoutePaths.marketplaceHome),
+  ],
+  'processes': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Processes', icon: Icons.route, route: AppRoutePaths.processesHome),
+  ],
+  'scheduling': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Teams', icon: Icons.view_timeline, route: AppRoutePaths.schedulingTeams),
+  ],
+  'supervision': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Teams', icon: Icons.groups, route: AppRoutePaths.supervisionTeams),
+  ],
+  'training': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Training', icon: Icons.school, route: AppRoutePaths.trainingHome),
+  ],
+  'quality': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Teams', icon: Icons.auto_awesome, route: AppRoutePaths.qualityTeams),
+  ],
+  'safety': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Analysis', icon: Icons.warning_amber, route: AppRoutePaths.safetyAnalysis),
+  ],
+  'occupancy': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Property', icon: Icons.door_front_door, route: AppRoutePaths.occupancyProperty),
+  ],
+  'engagement': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Reports', icon: Icons.headset_mic, route: AppRoutePaths.engagementReports),
+  ],
+  'inventory': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Fulfillment', icon: Icons.inventory_2, route: AppRoutePaths.inventoryFulfillment),
+    HomeNavItem(label: 'Stats', icon: Icons.bar_chart, route: AppRoutePaths.inventoryStats),
+  ],
 };

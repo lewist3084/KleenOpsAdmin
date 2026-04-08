@@ -15,6 +15,9 @@ import '../features/ai_usage/screens/ai_usage_home.dart';
 import '../features/storage_usage/screens/storage_home.dart';
 import '../features/users/screens/users_home.dart';
 import '../features/onboarding_review/screens/onboarding_home.dart';
+import '../features/me/tabs/me_info_tabs.dart';
+import '../features/onboarding/screens/setup_dashboard_screen.dart';
+import '../services/analytics_navigator_observer.dart';
 import '../features/legal/screens/legal_home.dart';
 import '../features/legal/screens/legal_documents.dart';
 import '../features/legal/screens/legal_compliance.dart';
@@ -54,6 +57,7 @@ import '../features/hr/details/hr_employee_details.dart';
 import '../features/hr/details/hr_onboarding_details.dart';
 import '../features/hr/details/hr_benefit_plan_details.dart';
 import '../features/hr/forms/hr_team_form.dart';
+import '../features/hr/forms/hr_onboarding_profile_form.dart';
 import '../features/hr/forms/hr_benefit_plan_form.dart';
 import '../features/hr/forms/hr_benefit_enrollment_form.dart';
 import '../features/hr/screens/hr_home.dart';
@@ -91,6 +95,22 @@ import '../features/purchasing/screens/purchasing_requests.dart';
 import '../features/purchasing/tabs/objects_tabs.dart';
 import '../features/purchasing/screens/purchasing_vendors.dart';
 import '../features/purchasing/screens/purchasing_stats.dart';
+import '../features/tasks/screens/tasks_home.dart';
+import '../features/facilities/screens/facilities_home.dart';
+import '../features/marketplace/screens/marketplace_home.dart';
+import '../features/processes/screens/processes_home.dart';
+import '../features/scheduling/screens/scheduling_home.dart';
+import '../features/supervision/screens/supervision_home.dart';
+import '../features/training/screens/training_home.dart';
+import '../features/quality/screens/quality_home.dart';
+import '../features/safety/screens/safety_home.dart';
+import '../features/occupancy/screens/occupancy_home.dart';
+import '../features/engagement/screens/engagement_home.dart';
+import '../features/registration/providers/registration_provider.dart';
+import '../features/registration/screens/registration_fork_screen.dart';
+import '../features/registration/screens/registration_join_qr_screen.dart';
+import '../features/registration/screens/registration_business_type_screen.dart';
+import '../features/registration/screens/registration_internal_setup_screen.dart';
 import 'routes.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey =
@@ -98,19 +118,57 @@ final GlobalKey<NavigatorState> rootNavigatorKey =
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateChangesProvider);
+  final needsRegistration = ref.watch(needsRegistrationProvider);
+  // Owners whose kleenops doc pre-dates the fork-style registration
+  // flow (no businessType / propertyType) get caught here and routed
+  // back through the fork screens to backfill those fields.
+  final profileGate = ref.watch(kleenopsProfileGateProvider).asData?.value;
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutePaths.dashboard,
+    observers: [AnalyticsNavigatorObserver()],
     redirect: (context, state) {
       final isLoggedIn = authState.maybeWhen(
         data: (user) => user != null,
         orElse: () => false,
       );
-      final isLoginRoute = state.matchedLocation == AppRoutePaths.login;
+      final here = state.matchedLocation;
+      final isLoginRoute = here == AppRoutePaths.login;
+      final isRegistrationRoute = here.startsWith('/registration');
 
       if (!isLoggedIn && !isLoginRoute) return AppRoutePaths.login;
       if (isLoggedIn && isLoginRoute) return AppRoutePaths.dashboard;
+
+      if (isLoggedIn) {
+        // Wait for the registration check to resolve before deciding.
+        final needs = needsRegistration.asData?.value;
+        if (needs == null) return null;
+
+        if (needs == true && !isRegistrationRoute) {
+          return AppRoutePaths.registrationFork;
+        }
+
+        // Onboarded owner with an incomplete kleenops doc -> backfill.
+        if (needs == false &&
+            profileGate != null &&
+            profileGate.isOwner &&
+            !profileGate.profileComplete &&
+            !isRegistrationRoute) {
+          if (profileGate.businessType == 'internalUse') {
+            return AppRoutePaths.registrationInternalSetup;
+          }
+          // Default fork (covers null businessType and any other case).
+          return AppRoutePaths.registrationBusinessType;
+        }
+
+        if (needs == false &&
+            isRegistrationRoute &&
+            (profileGate == null || profileGate.profileComplete)) {
+          return AppRoutePaths.dashboard;
+        }
+      }
+
       return null;
     },
     routes: [
@@ -118,6 +176,27 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutePaths.login,
         name: AppRouteIds.login,
         builder: (context, state) => const AdminAuthScreen(),
+      ),
+      // Registration (first-time onboarding) routes
+      GoRoute(
+        path: AppRoutePaths.registrationFork,
+        name: AppRouteIds.registrationFork,
+        builder: (context, state) => const RegistrationForkScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.registrationJoinQr,
+        name: AppRouteIds.registrationJoinQr,
+        builder: (context, state) => const RegistrationJoinQrScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.registrationBusinessType,
+        name: AppRouteIds.registrationBusinessType,
+        builder: (context, state) => const RegistrationBusinessTypeScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.registrationInternalSetup,
+        name: AppRouteIds.registrationInternalSetup,
+        builder: (context, state) => const RegistrationInternalSetupScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.dashboard,
@@ -165,6 +244,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         name: AppRouteIds.onboardingHome,
         builder: (context, state) => const OnboardingHome(),
       ),
+      GoRoute(
+        path: AppRoutePaths.meInfo,
+        name: AppRouteIds.meInfo,
+        builder: (context, state) => const MeInfoTabsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.setupDashboard,
+        name: AppRouteIds.setupDashboard,
+        builder: (context, state) => const SetupDashboardScreen(),
+      ),
       // Legal sub-routes
       GoRoute(
         path: AppRoutePaths.legalHome,
@@ -177,7 +266,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.legalDocuments,
         name: AppRouteIds.legalDocuments,
-        builder: (context, state) => const LegalDocumentsScreen(),
+        builder: (context, state) => SetupGuideGate(
+          guide: legalGuide,
+          child: const LegalDocumentsScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.legalCompliance,
@@ -202,7 +294,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.catalog,
         name: AppRouteIds.catalogHome,
-        builder: (context, state) => const CatalogHome(),
+        builder: (context, state) => SetupGuideGate(
+          guide: objectsGuide,
+          child: const CatalogHome(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.catalogScrapeJobs,
@@ -236,7 +331,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.financeLedger,
         name: AppRouteIds.financeLedger,
-        builder: (_, __) => const FinanceLedgerTabsScreen(),
+        builder: (_, __) => SetupGuideGate(
+          guide: financeGuide,
+          child: const FinanceLedgerTabsScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.financeCustomers,
@@ -332,7 +430,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.hrEmployees,
         name: AppRouteIds.hrEmployees,
-        builder: (_, __) => const HrEmployeeTabsScreen(),
+        builder: (_, __) => SetupGuideGate(
+          guide: hrGuide,
+          child: const HrEmployeeTabsScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.hrRoles,
@@ -369,6 +470,23 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutePaths.hrOnboarding,
         name: AppRouteIds.hrOnboarding,
         builder: (_, __) => const HrOnboardingScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.hrOnboardingProfileForm,
+        name: AppRouteIds.hrOnboardingProfileForm,
+        pageBuilder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final docId = extra?['docId'] as String?;
+          return _noTransitionPage(
+            state,
+            CompanyWrapper(
+              builder: (companyRef) => HrOnboardingProfileForm(
+                companyRef: companyRef,
+                docId: docId,
+              ),
+            ),
+          );
+        },
       ),
       GoRoute(
         path: AppRoutePaths.hrBenefits,
@@ -476,7 +594,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.adminCompany,
         name: AppRouteIds.adminCompany,
-        builder: (_, __) => const AdminCompanyTabsScreen(),
+        builder: (_, __) => SetupGuideGate(
+          guide: adminGuide,
+          child: const AdminCompanyTabsScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.adminPolicies,
@@ -538,7 +659,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.salesSales,
         name: AppRouteIds.salesSales,
-        builder: (_, __) => const SalesTabsScreen(),
+        builder: (_, __) => SetupGuideGate(
+          guide: salesGuide,
+          child: const SalesTabsScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.salesMarketing,
@@ -591,7 +715,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.inventoryFulfillment,
         name: AppRouteIds.inventoryFulfillment,
-        builder: (_, __) => const InventoryFulfillmentScreen(),
+        builder: (_, __) => SetupGuideGate(
+          guide: inventoryGuide,
+          child: const InventoryFulfillmentScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.inventoryRequestForm,
@@ -615,7 +742,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.purchasingOrders,
         name: AppRouteIds.purchasingOrders,
-        builder: (_, __) => const PurchasingRequestsScreen(),
+        builder: (_, __) => SetupGuideGate(
+          guide: purchasingGuide,
+          child: const PurchasingRequestsScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutePaths.purchasingObjects,
@@ -631,6 +761,138 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutePaths.purchasingStats,
         name: AppRouteIds.purchasingStats,
         builder: (_, __) => const PurchasingStatsScreen(),
+      ),
+
+      // ── New overlord feature routes ─────────────────────────────────
+      // Action routes (the ones the dashboard buttons go to) are gated;
+      // *Home alias routes are not, since they share the same screen.
+      GoRoute(
+        path: AppRoutePaths.tasksHome,
+        name: AppRouteIds.tasksHome,
+        builder: (_, __) => const TasksHome(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.tasksTasks,
+        name: AppRouteIds.tasksTasks,
+        builder: (_, __) => SetupGuideGate(
+          guide: tasksGuide,
+          child: const TasksHome(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.facilitiesHome,
+        name: AppRouteIds.facilitiesHome,
+        builder: (_, __) => const FacilitiesHome(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.facilitiesProperties,
+        name: AppRouteIds.facilitiesProperties,
+        builder: (_, __) => SetupGuideGate(
+          guide: facilitiesGuide,
+          child: const FacilitiesHome(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.marketplaceHome,
+        name: AppRouteIds.marketplaceHome,
+        builder: (_, __) => SetupGuideGate(
+          guide: marketplaceGuide,
+          child: const MarketplaceHome(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.processesHome,
+        name: AppRouteIds.processesHome,
+        builder: (_, __) => SetupGuideGate(
+          guide: processesGuide,
+          child: const ProcessesHome(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.schedulingHome,
+        name: AppRouteIds.schedulingHome,
+        builder: (_, __) => const SchedulingHome(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.schedulingTeams,
+        name: AppRouteIds.schedulingTeams,
+        builder: (_, __) => SetupGuideGate(
+          guide: schedulingGuide,
+          child: const SchedulingHome(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.supervisionHome,
+        name: AppRouteIds.supervisionHome,
+        builder: (_, __) => const SupervisionHome(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.supervisionTeams,
+        name: AppRouteIds.supervisionTeams,
+        builder: (_, __) => SetupGuideGate(
+          guide: supervisionGuide,
+          child: const SupervisionHome(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.trainingHome,
+        name: AppRouteIds.trainingHome,
+        builder: (_, __) => SetupGuideGate(
+          guide: trainingGuide,
+          child: const TrainingHome(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.qualityHome,
+        name: AppRouteIds.qualityHome,
+        builder: (_, __) => const QualityHome(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.qualityTeams,
+        name: AppRouteIds.qualityTeams,
+        builder: (_, __) => SetupGuideGate(
+          guide: qualityGuide,
+          child: const QualityHome(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.safetyHome,
+        name: AppRouteIds.safetyHome,
+        builder: (_, __) => const SafetyHome(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.safetyAnalysis,
+        name: AppRouteIds.safetyAnalysis,
+        builder: (_, __) => SetupGuideGate(
+          guide: safetyGuide,
+          child: const SafetyHome(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.occupancyHome,
+        name: AppRouteIds.occupancyHome,
+        builder: (_, __) => const OccupancyHome(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.occupancyProperty,
+        name: AppRouteIds.occupancyProperty,
+        builder: (_, __) => SetupGuideGate(
+          guide: occupancyGuide,
+          child: const OccupancyHome(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.engagementHome,
+        name: AppRouteIds.engagementHome,
+        builder: (_, __) => const EngagementHome(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.engagementReports,
+        name: AppRouteIds.engagementReports,
+        builder: (_, __) => SetupGuideGate(
+          guide: engagementGuide,
+          child: const EngagementHome(),
+        ),
       ),
 
       // ── Communication routes ──────────────────────────────────────────
