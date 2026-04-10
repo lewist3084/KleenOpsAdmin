@@ -107,11 +107,14 @@ const HomeNavConfig _navConfig = {
     HomeNavItem(label: 'Invoices', icon: Icons.receipt_long, route: AppRoutePaths.financeInvoices),
     HomeNavItem(label: 'Payments', icon: Icons.payments_outlined, route: AppRoutePaths.financePayments),
   ],
-  // Objects section (catalog, scraping, staging)
+  // Catalog & scraping workflows live under the Marketplace hub now. Home
+  // returns to the dashboard MenuButtonBlock; Catalog/Scraping/Resell use the
+  // marketplace routes so the user lands on the marketplace-styled screens.
   'catalog': [
     HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
-    HomeNavItem(label: 'Catalog', icon: Icons.inventory_2, route: AppRoutePaths.catalog),
+    HomeNavItem(label: 'Catalog', icon: Icons.inventory_2, route: AppRoutePaths.marketplaceHome),
     HomeNavItem(label: 'Scraping', icon: Icons.build, route: AppRoutePaths.catalogScrapeJobs),
+    HomeNavItem(label: 'Resell', icon: Icons.storefront, route: AppRoutePaths.marketplaceResell),
   ],
   'deviceRegistry': [
     HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
@@ -133,9 +136,20 @@ const HomeNavConfig _navConfig = {
     HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
     HomeNavItem(label: 'Properties', icon: Icons.business, route: AppRoutePaths.facilitiesProperties),
   ],
+  // Marketplace section hosts the Catalog + Scraping + Resell workflows.
+  // Home returns to the dashboard's MenuButtonBlock (no separate hub).
+  // Mirrors the regular CleanOps marketplace nav with an extra Scraping
+  // button (admin-only — not exposed to customers).
   'marketplace': [
     HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
-    HomeNavItem(label: 'Marketplace', icon: Icons.storefront, route: AppRoutePaths.marketplaceHome),
+    HomeNavItem(label: 'Catalog', icon: Icons.inventory_2, route: AppRoutePaths.marketplaceHome),
+    HomeNavItem(label: 'Scraping', icon: Icons.build, route: AppRoutePaths.catalogScrapeJobs),
+    HomeNavItem(label: 'Resell', icon: Icons.storefront, route: AppRoutePaths.marketplaceResell),
+  ],
+  // Objects section — mirrors the regular CleanOps objects nav (Home + Objects).
+  'objects': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Objects', icon: Icons.category, route: AppRoutePaths.objectsHome),
   ],
   'processes': [
     HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),

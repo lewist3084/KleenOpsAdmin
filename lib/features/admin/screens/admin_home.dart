@@ -87,7 +87,7 @@ class AdminHomeScreen extends StatelessWidget {
               ),
               ContentMenuItem(
                 icon: Icons.rocket_launch_outlined,
-                label: 'Setup Wizard',
+                label: 'Business Setup Wizard',
                 onTap: () => context.push(AppRoutePaths.adminSetupWizard),
               ),
               ContentMenuItem(

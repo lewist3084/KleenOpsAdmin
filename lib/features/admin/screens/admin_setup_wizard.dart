@@ -6,9 +6,7 @@ import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter
 import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
-import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
-import 'package:shared_widgets/tiles/standard_tile_small.dart';
 import 'package:go_router/go_router.dart';
 import '../models/setup_wizard_data.dart';
 import '../services/setup_wizard_service.dart';
@@ -116,36 +114,30 @@ class _WizardBody extends StatelessWidget {
         final overallProgress =
             (wizardData['overallProgress'] as num?)?.toDouble() ?? 0.0;
 
-        final totalItems = kSetupWizardTotalItems;
-        final doneCount = items.values
-            .where((v) {
-              final s = (v as Map<String, dynamic>)['status'];
-              return s == 'complete' || s == 'skipped';
-            })
-            .length;
-
         return SingleChildScrollView(
-          padding: EdgeInsets.only(
-            bottom: kBottomNavigationBarHeight +
-                16.0 +
+          padding: EdgeInsets.fromLTRB(
+            20,
+            32,
+            20,
+            kBottomNavigationBarHeight +
+                32.0 +
                 MediaQuery.of(context).padding.bottom,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Progress header
-              _ProgressHeader(
-                progress: overallProgress,
-                doneCount: doneCount,
-                totalCount: totalItems,
-              ),
-              // Category sections
-              for (final cat in kSetupWizardCategories)
+              _ProgressHeader(progress: overallProgress),
+              const SizedBox(height: 28),
+              for (final cat in kSetupWizardCategories) ...[
                 _CategorySection(
                   category: cat,
                   itemsData: items,
                   service: service,
                 ),
+                const SizedBox(height: 16),
+              ],
+              const SizedBox(height: 12),
+              _BottomActions(service: service),
             ],
           ),
         );
@@ -158,83 +150,49 @@ class _WizardBody extends StatelessWidget {
 
 class _ProgressHeader extends StatelessWidget {
   final double progress;
-  final int doneCount;
-  final int totalCount;
 
-  const _ProgressHeader({
-    required this.progress,
-    required this.doneCount,
-    required this.totalCount,
-  });
+  const _ProgressHeader({required this.progress});
 
   @override
   Widget build(BuildContext context) {
-    final percent = (progress * 100).round();
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 64,
-            height: 64,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                CircularProgressIndicator(
-                  value: progress,
-                  strokeWidth: 6,
-                  backgroundColor: Colors.grey.shade200,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    progress >= 1.0 ? Colors.green : Theme.of(context).primaryColor,
-                  ),
-                ),
-                Center(
-                  child: Text(
-                    '$percent%',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+    final color = Theme.of(context).primaryColor;
+    final isDone = progress >= 1.0;
+    final accent = isDone ? Colors.green : color;
+
+    return Column(
+      children: [
+        // Circular icon (matches the registration ForkCard motif:
+        // large tinted circle with a centered glyph).
+        Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
           ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  progress >= 1.0
-                      ? 'All Set!'
-                      : 'Getting Your Business Ready',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$doneCount of $totalCount steps completed',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
+          child: Icon(
+            isDone ? Icons.check_circle_outline : Icons.rocket_launch_outlined,
+            size: 56,
+            color: accent,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          isDone ? 'All Set!' : 'Business Setup Wizard',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: accent,
+              ),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 }
 
 // ── Category section ───────────────────────────────────────────────────────
 
-class _CategorySection extends StatelessWidget {
+class _CategorySection extends StatefulWidget {
   final WizardCategory category;
   final Map<String, dynamic> itemsData;
   final SetupWizardService service;
@@ -246,10 +204,19 @@ class _CategorySection extends StatelessWidget {
   });
 
   @override
+  State<_CategorySection> createState() => _CategorySectionState();
+}
+
+class _CategorySectionState extends State<_CategorySection> {
+  bool _expanded = false;
+
+  void _toggle() => setState(() => _expanded = !_expanded);
+
+  @override
   Widget build(BuildContext context) {
     // Resolve the selected entity type from wizard data (if completed).
     final entityData =
-        (itemsData['entity_type'] as Map<String, dynamic>?) ?? {};
+        (widget.itemsData['entity_type'] as Map<String, dynamic>?) ?? {};
     final entityTypeRaw =
         ((entityData['data'] as Map<String, dynamic>?)?['entityType']
                 as String?) ??
@@ -257,7 +224,7 @@ class _CategorySection extends StatelessWidget {
     final entityType = entityTypeRaw?.toLowerCase().trim();
 
     // Filter items based on entity type requirement.
-    final visibleItems = category.items.where((item) {
+    final visibleItems = widget.category.items.where((item) {
       if (item.requiredEntityTypes == null) return true;
       if (entityType == null) return false; // hide until entity type chosen
       return item.requiredEntityTypes!.contains(entityType);
@@ -267,20 +234,190 @@ class _CategorySection extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return ContainerActionWidget(
-      title: category.label,
-      actionText: '',
-      content: Column(
-        children: [
-          for (final item in visibleItems) ...[
-            _WizardTile(
-              item: item,
-              itemData: (itemsData[item.key] as Map<String, dynamic>?) ?? {},
-              service: service,
+    final color = Theme.of(context).primaryColor;
+    final completedCount = visibleItems.where((item) {
+      final data =
+          (widget.itemsData[item.key] as Map<String, dynamic>?) ?? {};
+      final s = parseWizardStatus(data['status'] as String?);
+      return s == WizardItemStatus.complete || s == WizardItemStatus.skipped;
+    }).length;
+    final hasAnyProgress = visibleItems.any((item) {
+      final data =
+          (widget.itemsData[item.key] as Map<String, dynamic>?) ?? {};
+      final s = parseWizardStatus(data['status'] as String?);
+      return s != WizardItemStatus.notStarted;
+    });
+    final total = visibleItems.length;
+    final isComplete = total > 0 && completedCount >= total;
+    final percent = total > 0 ? ((completedCount / total) * 100).round() : 0;
+    final accent = isComplete ? Colors.green : color;
+
+    return Material(
+      color: Colors.white,
+      elevation: 1,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: accent.withValues(alpha: 0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Tappable header — toggles expansion.
+            InkWell(
+              onTap: _toggle,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(widget.category.icon,
+                          size: 26, color: accent),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.category.label,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isComplete
+                                ? 'Complete'
+                                : '$completedCount of $total complete',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _CategoryChip(
+                      isComplete: isComplete,
+                      hasAnyProgress: hasAnyProgress,
+                      percent: percent,
+                      expanded: _expanded,
+                    ),
+                  ],
+                ),
+              ),
             ),
-            if (item != visibleItems.last)
-              Divider(height: 1, color: Colors.grey[200]),
+            // Expanded item list.
+            if (_expanded)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Divider(height: 1),
+                    const SizedBox(height: 4),
+                    for (final item in visibleItems)
+                      _WizardTile(
+                        item: item,
+                        itemData:
+                            (widget.itemsData[item.key] as Map<String, dynamic>?) ??
+                                {},
+                        service: widget.service,
+                      ),
+                  ],
+                ),
+              ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Category chip (Start / percent / done) ─────────────────────────────────
+
+class _CategoryChip extends StatelessWidget {
+  final bool isComplete;
+  final bool hasAnyProgress;
+  final int percent;
+  final bool expanded;
+
+  const _CategoryChip({
+    required this.isComplete,
+    required this.hasAnyProgress,
+    required this.percent,
+    required this.expanded,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).primaryColor;
+
+    if (isComplete) {
+      return Container(
+        width: 32,
+        height: 32,
+        decoration: const BoxDecoration(
+          color: Colors.green,
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.check, size: 18, color: Colors.white),
+      );
+    }
+
+    final String label;
+    final Color bg;
+    final Color fg;
+    if (hasAnyProgress) {
+      label = '$percent%';
+      bg = Colors.amber.shade100;
+      fg = Colors.amber.shade900;
+    } else if (expanded) {
+      label = '0%';
+      bg = color.withValues(alpha: 0.1);
+      fg = color;
+    } else {
+      label = 'Start';
+      bg = color.withValues(alpha: 0.1);
+      fg = color;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: fg,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            expanded ? Icons.expand_less : Icons.expand_more,
+            size: 16,
+            color: fg,
+          ),
         ],
       ),
     );
@@ -302,29 +439,76 @@ class _WizardTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = Theme.of(context).primaryColor;
     final status = parseWizardStatus(itemData['status'] as String?);
-    final statusLabel = wizardStatusLabel(status);
-    final statusColor = wizardStatusColor(status);
+    final isComplete = status == WizardItemStatus.complete;
+    final tileColor = isComplete ? Colors.green : color;
 
-    return StandardTileSmallDart(
-      label: item.label,
-      secondaryText: item.description,
-      leadingIcon: item.icon,
-      leadingIconColor: status == WizardItemStatus.complete
-          ? Colors.green
-          : Theme.of(context).primaryColor,
-      trailingIcon1: status == WizardItemStatus.complete
-          ? Icons.check_circle
-          : null,
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
       onTap: () => _onTileTap(context, status),
-      trailingWidget: status != WizardItemStatus.complete
-          ? _StatusButton(
-              label: statusLabel,
-              color: statusColor,
-              aiAvailable: item.aiAssistAvailable,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: tileColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(item.icon, size: 22, color: tileColor),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          item.label,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      if (item.aiAssistAvailable)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: Icon(
+                            Icons.auto_awesome,
+                            size: 14,
+                            color: Colors.amber[700],
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    item.description,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            _StatusButton(
+              status: status,
               onTap: () => _onTileTap(context, status),
-            )
-          : null,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -360,44 +544,120 @@ class _WizardTile extends StatelessWidget {
 }
 
 class _StatusButton extends StatelessWidget {
-  final String label;
-  final Color color;
-  final bool aiAvailable;
+  final WizardItemStatus status;
   final VoidCallback onTap;
 
   const _StatusButton({
-    required this.label,
-    required this.color,
-    required this.aiAvailable,
+    required this.status,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (aiAvailable)
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: Icon(Icons.auto_awesome, size: 14, color: Colors.amber[700]),
-          ),
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(16),
+    final color = Theme.of(context).primaryColor;
+
+    if (status == WizardItemStatus.complete) {
+      return Container(
+        width: 32,
+        height: 32,
+        decoration: const BoxDecoration(
+          color: Colors.green,
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.check, size: 18, color: Colors.white),
+      );
+    }
+
+    final label = wizardStatusLabel(status);
+    final isContinue = status == WizardItemStatus.inProgress;
+    final bg = isContinue
+        ? Colors.amber.shade100
+        : color.withValues(alpha: 0.1);
+    final fg = isContinue ? Colors.amber.shade900 : color;
+
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: fg,
             ),
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Bottom actions ─────────────────────────────────────────────────────────
+
+class _BottomActions extends StatelessWidget {
+  final SetupWizardService service;
+  const _BottomActions({required this.service});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TextButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          child: Text(
+            'Skip for now',
+            style: TextStyle(
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: () => _confirmDismiss(context),
+          child: Text(
+            'Don\'t show again',
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
             ),
           ),
         ),
       ],
     );
+  }
+
+  Future<void> _confirmDismiss(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hide setup wizard?'),
+        content: const Text(
+          'You can still find this wizard later in the side menu under '
+          '"Business Setup Wizard".',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hide'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await service.dismiss();
+      if (context.mounted) Navigator.of(context).maybePop();
+    }
   }
 }
 

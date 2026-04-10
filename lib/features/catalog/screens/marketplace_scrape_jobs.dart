@@ -309,41 +309,32 @@ class _ReviewTab extends StatefulWidget {
 }
 
 class _ReviewTabState extends State<_ReviewTab> {
-  final Map<String, String> _categoryNames = {};
-  final Map<String, String> _imageUrlCache = {};
-  bool _categoriesLoaded = false;
   bool _processing = false;
   List<String> _currentDocIds = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadCategoryNames();
-  }
-
-  Future<void> _loadCategoryNames() async {
-    final snap = await FirebaseFirestore.instance.collection('objectCategory').get();
-    for (final doc in snap.docs) {
-      _categoryNames[doc.id] = (doc.data()['name'] ?? 'Unknown').toString();
-    }
-    if (mounted) setState(() => _categoriesLoaded = true);
-  }
-
-  String _resolveCategoryName(dynamic ref) {
-    if (ref is DocumentReference) return _categoryNames[ref.id] ?? 'Uncategorized';
-    return 'Uncategorized';
-  }
-
   String _resolveImageUrl(Map<String, dynamic> data) {
     final detailData = data['detailData'] is Map ? Map<String, dynamic>.from(data['detailData'] as Map) : <String, dynamic>{};
+    // Prefer Firebase Storage URLs (CORS-enabled for the admin domain).
     final storageImages = detailData['storageImages'] is List ? detailData['storageImages'] as List : [];
     if (storageImages.isNotEmpty) {
       final first = storageImages.first is Map ? Map<String, dynamic>.from(storageImages.first as Map) : <String, dynamic>{};
       final url = (first['downloadUrl'] ?? '').toString();
-      if (url.isNotEmpty) return url;
+      if (url.startsWith('http')) return url;
     }
+    // Fall back to imageLinks (productmarketingcloud.com CDN — may work on
+    // mobile but blocked by CORS on web for some vendors).
+    final imageLinks = detailData['imageLinks'] is List ? detailData['imageLinks'] as List : [];
+    if (imageLinks.isNotEmpty) {
+      final first = imageLinks.first is Map ? Map<String, dynamic>.from(imageLinks.first as Map) : <String, dynamic>{};
+      final url = (first['href'] ?? first['url'] ?? '').toString();
+      if (url.startsWith('http')) return url;
+    }
+    // Last resort: normalizedData.imageUrl. Skip if it's a relative path
+    // (e.g. "/cms/delivery/media/...") — those render as broken images on
+    // web because there's no host to resolve against.
     final normalized = data['normalizedData'] is Map ? Map<String, dynamic>.from(data['normalizedData'] as Map) : <String, dynamic>{};
-    return (normalized['imageUrl'] ?? '').toString();
+    final fallback = (normalized['imageUrl'] ?? '').toString();
+    return fallback.startsWith('http') ? fallback : '';
   }
 
   Future<void> _confirmClear(BuildContext context) async {
@@ -442,86 +433,98 @@ class _ReviewTabState extends State<_ReviewTab> {
                   'docId': doc.id,
                   'data': data,
                   'name': (objectData['name'] ?? normalized['name'] ?? rawData['name'] ?? 'Unnamed').toString(),
-                  'objectCategoryId': objectData['objectCategoryId'],
-                  'scalarUnitQuantity': objectData['scalarUnitQuantity'],
-                  'caseQuantity': objectData['caseQuantity'],
-                  'brand': (objectData['brand'] ?? normalized['brandName'] ?? '').toString(),
+                  'suggestedCategoryKey': (data['suggestedCategoryKey'] ?? '').toString(),
+                  'suggestedScalarKey': (data['suggestedScalarKey'] ?? '').toString(),
+                  'suggestedCategoryId': data['suggestedCategoryId'],
                   'imageUrl': _resolveImageUrl(data),
                 };
               }).toList();
 
-              return StandardView<Map<String, dynamic>>(
-                items: items,
-                groupBy: (item) => _resolveCategoryName(item['objectCategoryId']),
-                groupCollapsible: true,
-                initialGroupExpanded: true,
-                headerIcon: null,
-                disableGrouping: false,
-                onTap: (item) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => MarketplaceStagingReviewDetailsScreen(
-                        docId: item['docId'] as String,
-                        initialData: item['data'] as Map<String, dynamic>,
-                      ),
+              return Column(
+                children: [
+                  Expanded(
+                    child: StandardView<Map<String, dynamic>>(
+                      items: items,
+                      // Group by the LLM-suggested category so the reviewer sees
+                      // products clustered by type (Consumables - Liquid, Furnishings,
+                      // etc.) before they even open the detail view.
+                      groupBy: (item) {
+                        final key = item['suggestedCategoryKey'] as String;
+                        return key.isNotEmpty ? key : 'Uncategorized';
+                      },
+                      groupCollapsible: true,
+                      initialGroupExpanded: true,
+                      headerIcon: null,
+                      disableGrouping: false,
+                      onTap: (item) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MarketplaceStagingReviewDetailsScreen(
+                              docId: item['docId'] as String,
+                              initialData: item['data'] as Map<String, dynamic>,
+                            ),
+                          ),
+                        );
+                      },
+                      itemBuilder: (item) {
+                        final name = item['name'] as String;
+                        final imageUrl = item['imageUrl'] as String;
+                        final suggestedCategory = item['suggestedCategoryKey'] as String;
+                        final suggestedScalar = item['suggestedScalarKey'] as String;
+
+                        return StandardTileLargeDart(
+                          imageUrl: imageUrl,
+                          firstLine: name,
+                          firstLineIcon: Icons.category_outlined,
+                          secondLine: suggestedCategory.isNotEmpty
+                              ? suggestedCategory
+                              : 'No category',
+                          secondLineIcon: suggestedCategory.isNotEmpty
+                              ? Icons.category_outlined
+                              : Icons.help_outline,
+                          thirdLine: suggestedScalar.isNotEmpty
+                              ? 'Usage: $suggestedScalar'
+                              : 'Usage: Not set',
+                          thirdLineIcon: Icons.straighten,
+                        );
+                      },
                     ),
-                  );
-                },
-                itemBuilder: (item) {
-                  final name = item['name'] as String;
-                  final qty = item['scalarUnitQuantity'];
-                  final caseQty = item['caseQuantity'];
-                  final brand = item['brand'] as String;
-                  final imageUrl = item['imageUrl'] as String;
-
-                  final secondLine = qty != null ? '$qty' : '';
-                  final thirdLine = <String>[
-                    if (brand.isNotEmpty) brand,
-                    if (caseQty != null) 'Case of $caseQty',
-                  ].join(' · ');
-
-                  return StandardTileLargeDart(
-                    imageUrl: imageUrl,
-                    firstLine: name,
-                    firstLineIcon: Icons.category_outlined,
-                    secondLine: secondLine,
-                    secondLineIcon: secondLine.isNotEmpty ? Icons.straighten_sharp : null,
-                    thirdLine: thirdLine.isNotEmpty ? thirdLine : null,
-                    thirdLineIcon: thirdLine.isNotEmpty ? Icons.branding_watermark_outlined : null,
-                  );
-                },
+                  ),
+                  // Clear / Transfer bar — inside the StreamBuilder so it
+                  // renders as soon as docs arrive, instead of waiting for a
+                  // parent setState that may never fire.
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(color: Colors.grey.withValues(alpha: 0.3), offset: const Offset(0, -2), blurRadius: 4),
+                      ],
+                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: Row(children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black),
+                          onPressed: _processing ? null : () => _confirmClear(context),
+                          child: const Text('Clear'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.secondary, foregroundColor: Colors.white),
+                          onPressed: _processing ? null : () => _confirmTransfer(context),
+                          child: Text(_processing ? 'Working...' : 'Transfer'),
+                        ),
+                      ),
+                    ]),
+                  ),
+                ],
               );
             },
           ),
         ),
-        if (_currentDocIds.isNotEmpty)
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(color: Colors.grey.withValues(alpha: 0.3), offset: const Offset(0, -2), blurRadius: 4),
-              ],
-            ),
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: Row(children: [
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black),
-                  onPressed: _processing ? null : () => _confirmClear(context),
-                  child: const Text('Clear'),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.secondary, foregroundColor: Colors.white),
-                  onPressed: _processing ? null : () => _confirmTransfer(context),
-                  child: Text(_processing ? 'Working...' : 'Transfer'),
-                ),
-              ),
-            ]),
-          ),
       ],
     );
   }
@@ -829,25 +832,34 @@ class _CombinedScrapeDialogState extends State<_CombinedScrapeDialog> {
   }
 
   Future<void> _loadBrands() async {
+    // Read directly from Firestore instead of going through the
+    // getCatalogBrands Cloud Function. The function was silently failing
+    // in the web app (likely auth/CORS), leaving the dropdown empty.
+    // Direct reads match how brand owners are loaded (_loadBrandOwners)
+    // and remove the Cloud Function as a failure surface.
     try {
-      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
-          .httpsCallable('getCatalogBrands');
-      final result = await callable.call();
-      final payload = Map<String, dynamic>.from(result.data as Map);
-      final rawBrands = payload['brands'] as List<dynamic>? ?? const [];
+      final snap = await FirebaseFirestore.instance
+          .collection('brand')
+          .orderBy('name')
+          .get();
       final brands = <_BrandOption>[];
-      for (final raw in rawBrands) {
-        if (raw is! Map) continue;
-        final map = Map<String, dynamic>.from(raw);
-        final id = (map['id'] ?? '').toString().trim();
-        if (id.isEmpty) continue;
-        final name = (map['name'] ?? map['brand'] ?? '').toString().trim();
-        brands.add(_BrandOption(id: id, name: name));
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final name = (data['name'] ?? data['brand'] ?? '').toString().trim();
+        brands.add(_BrandOption(id: doc.id, name: name));
       }
-      brands.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      brands.sort((a, b) {
+        final aName = a.name.toLowerCase();
+        final bName = b.name.toLowerCase();
+        if (aName.isEmpty && bName.isEmpty) return a.id.compareTo(b.id);
+        if (aName.isEmpty) return 1;
+        if (bName.isEmpty) return -1;
+        return aName.compareTo(bName);
+      });
       if (!mounted) return;
       setState(() { _brands = brands; _loadingBrands = false; });
     } catch (e) {
+      debugPrint('Failed to load brands: $e');
       if (!mounted) return;
       setState(() { _brands = []; _loadingBrands = false; });
     }
@@ -2492,20 +2504,19 @@ class _CreateScrapeJobDialogState extends State<_CreateScrapeJobDialog> {
   }
 
   Future<void> _loadBrands() async {
+    // Direct Firestore read — matches how brand owners are loaded.
+    // The getCatalogBrands Cloud Function was silently failing in the
+    // web app, leaving the dropdown empty.
     try {
-      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
-          .httpsCallable('getCatalogBrands');
-      final result = await callable.call();
-      final payload = Map<String, dynamic>.from(result.data as Map);
-      final rawBrands = payload['brands'] as List<dynamic>? ?? const [];
+      final snap = await FirebaseFirestore.instance
+          .collection('brand')
+          .orderBy('name')
+          .get();
       final brands = <_BrandOption>[];
-      for (final raw in rawBrands) {
-        if (raw is! Map) continue;
-        final map = Map<String, dynamic>.from(raw);
-        final id = (map['id'] ?? '').toString().trim();
-        if (id.isEmpty) continue;
-        final name = (map['name'] ?? map['brand'] ?? '').toString().trim();
-        brands.add(_BrandOption(id: id, name: name));
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final name = (data['name'] ?? data['brand'] ?? '').toString().trim();
+        brands.add(_BrandOption(id: doc.id, name: name));
       }
       brands.sort((a, b) {
         final aName = a.name.toLowerCase();
@@ -2521,7 +2532,7 @@ class _CreateScrapeJobDialogState extends State<_CreateScrapeJobDialog> {
         _loadingBrands = false;
       });
     } catch (e) {
-      debugPrint('Failed to load catalog brands: $e');
+      debugPrint('Failed to load brands: $e');
       if (!mounted) return;
       setState(() {
         _brands = [];

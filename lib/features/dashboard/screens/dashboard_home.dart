@@ -61,7 +61,7 @@ class DashboardHome extends ConsumerWidget {
         label: 'Objects',
         icon: Icons.category_outlined,
         accessFlagKey: 'objects',
-        onPressed: (ctx) => ctx.go(AppRoutePaths.catalog),
+        onPressed: (ctx) => ctx.go(AppRoutePaths.objectsHome),
       ),
       MenuButtonConfig(
         id: 'marketplace',

@@ -135,6 +135,10 @@ class AppRouteIds {
 
   // Marketplace
   static const marketplaceHome = 'marketplaceHome';
+  static const marketplaceResell = 'marketplaceResell';
+
+  // Objects
+  static const objectsHome = 'objectsHome';
 
   // Processes
   static const processesHome = 'processesHome';
@@ -301,6 +305,10 @@ class AppRoutePaths {
 
   // Marketplace
   static const marketplaceHome = '/marketplace/home';
+  static const marketplaceResell = '/marketplace/resell';
+
+  // Objects
+  static const objectsHome = '/objects';
 
   // Processes
   static const processesHome = '/processes/home';

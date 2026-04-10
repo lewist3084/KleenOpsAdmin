@@ -394,14 +394,18 @@ class _StagedProductListState extends State<_StagedProductList> {
                     data['normalizedData'] as Map<String, dynamic>? ?? {};
                 final rawData = data['rawData'] as Map<String, dynamic>? ?? {};
                 final name = normalized['name']?.toString() ?? loc.commonUnnamed;
-                final productNumber =
-                    normalized['productNumber']?.toString() ?? '';
-                final brandName = normalized['brandName']?.toString() ?? '';
                 final imageUrl = normalized['imageUrl']?.toString() ??
                     rawData['imageUrl']?.toString() ??
                     '';
                 final isExcluded =
                     widget.excludedDocIds?.contains(doc.id) ?? false;
+
+                // Show the two fields the reviewer cares about most in the
+                // list: suggested category + suggested usage (scalar).
+                final suggestedCategory =
+                    (data['suggestedCategoryKey'] ?? '').toString();
+                final suggestedScalar =
+                    (data['suggestedScalarKey'] ?? '').toString();
 
                 return InkWell(
                   onTap: () async {
@@ -417,8 +421,16 @@ class _StagedProductListState extends State<_StagedProductList> {
                   child: StandardTileLargeDart(
                     imageUrl: imageUrl,
                     firstLine: name,
-                    secondLine:
-                        productNumber.isNotEmpty ? productNumber : brandName,
+                    secondLine: suggestedCategory.isNotEmpty
+                        ? suggestedCategory
+                        : 'No category',
+                    secondLineIcon: suggestedCategory.isNotEmpty
+                        ? Icons.category_outlined
+                        : Icons.help_outline,
+                    thirdLine: suggestedScalar.isNotEmpty
+                        ? 'Usage: $suggestedScalar'
+                        : 'Usage: Not set',
+                    thirdLineIcon: Icons.straighten,
                     trailingIcon1: Icons.close,
                     trailingAction1: () =>
                         widget.onToggleExcluded?.call(doc.id),

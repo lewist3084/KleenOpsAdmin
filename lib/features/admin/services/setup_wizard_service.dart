@@ -84,6 +84,15 @@ class SetupWizardService {
   Future<void> completeItem(String itemKey, {Map<String, dynamic>? data}) =>
       updateItemStatus(itemKey, WizardItemStatus.complete, data: data);
 
+  /// Hide the wizard from auto-display surfaces. The wizard remains
+  /// reachable from the side menu.
+  Future<void> dismiss() async {
+    await _doc.set({
+      'dismissed': true,
+      'dismissedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<void> _recalculateProgress() async {
     final snap = await _doc.get();
     final wizardData = snap.data();

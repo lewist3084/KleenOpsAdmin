@@ -98,6 +98,8 @@ import '../features/purchasing/screens/purchasing_stats.dart';
 import '../features/tasks/screens/tasks_home.dart';
 import '../features/facilities/screens/facilities_home.dart';
 import '../features/marketplace/screens/marketplace_home.dart';
+import '../features/marketplace/screens/marketplace_resell.dart';
+import '../features/objects/screens/objects_tabs.dart' as objects_root;
 import '../features/processes/screens/processes_home.dart';
 import '../features/scheduling/screens/scheduling_home.dart';
 import '../features/supervision/screens/supervision_home.dart';
@@ -799,6 +801,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           guide: marketplaceGuide,
           child: const MarketplaceHome(),
         ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.marketplaceResell,
+        name: AppRouteIds.marketplaceResell,
+        builder: (_, __) => SetupGuideGate(
+          guide: marketplaceGuide,
+          child: const MarketplaceResellScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.objectsHome,
+        name: AppRouteIds.objectsHome,
+        builder: (_, __) => const objects_root.ObjectsTabsScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.processesHome,

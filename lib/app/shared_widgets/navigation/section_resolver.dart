@@ -4,6 +4,7 @@ String resolveAppSection(String path) {
   if (path.startsWith('/tasks')) return 'tasks';
   if (path.startsWith('/facilities')) return 'facilities';
   if (path.startsWith('/marketplace')) return 'marketplace';
+  if (path.startsWith('/objects')) return 'objects';
   if (path.startsWith('/processes')) return 'processes';
   if (path.startsWith('/scheduling')) return 'scheduling';
   if (path.startsWith('/supervision')) return 'supervision';
