@@ -465,6 +465,14 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
                   ),
                   const SizedBox(height: 12),
                   HeaderInfoIconValue(
+                    header: 'Product Weight Unit',
+                    value: _resolvedWeightUnit().isNotEmpty
+                        ? _resolvedWeightUnit()
+                        : 'Not set',
+                    icon: Icons.balance_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
                     header: 'Product Weight',
                     value: productWeight is num
                         ? productWeight.toStringAsFixed(2)
@@ -473,17 +481,10 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
                   ),
                   const SizedBox(height: 12),
                   HeaderInfoIconValue(
-                    header: 'Product Weight Unit',
-                    value: _weightUnitName.isNotEmpty
-                        ? _weightUnitName
-                        : 'Not set',
-                    icon: Icons.balance_outlined,
-                  ),
-                  const SizedBox(height: 12),
-                  HeaderInfoIconValue(
                     header: 'Container Type',
-                    value:
-                        containerType.isNotEmpty ? containerType : 'Not set',
+                    value: containerType.isNotEmpty
+                        ? _titleCase(containerType)
+                        : 'Not set',
                     icon: Icons.takeout_dining_outlined,
                   ),
                 ],
@@ -509,21 +510,17 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
                         _categoryName.isNotEmpty ? _categoryName : 'Not set',
                     icon: Icons.category,
                   ),
+                  if (productLine.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    HeaderInfoIconValue(
+                      header: 'Object Subcategory',
+                      value: productLine,
+                      icon: Icons.subdirectory_arrow_right,
+                    ),
+                  ],
                 ],
               ),
             ),
-
-            // 5. Product Line
-            if (productLine.isNotEmpty)
-              ContainerActionWidget(
-                title: 'Product Line',
-                actionText: '',
-                content: HeaderInfoIconValue(
-                  header: 'Product Line',
-                  value: productLine,
-                  icon: Icons.linear_scale,
-                ),
-              ),
 
             // 6. Attributes
             if (color.isNotEmpty || fragrance.isNotEmpty)
@@ -579,88 +576,35 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
                 ),
               ),
 
-            // 7. Resources (documents)
+            // 7. Resources — documents + web-address row. Uses
+            // StandardTileLargeDart so PDF rows show a thumbnail of the
+            // first page automatically (the tile internally renders PDFs
+            // via SfPdfViewer when the url extension is `.pdf`). The
+            // dedicated Images container and Source container were
+            // removed; the canonical URL now lives here as a "Web
+            // Address" row alongside the PDFs.
             ContainerActionWidget(
-              title: 'Resources (${documents.length})',
+              title: 'Resources',
               actionText: '',
-              content: documents.isEmpty
-                  ? const Text('No documents')
-                  : Column(
-                      children: [
-                        for (final doc in documents) _buildDocTile(doc),
-                      ],
-                    ),
+              content: _buildResourcesContent(documents, canonicalUrl),
             ),
-
-            // 8. Images
-            ContainerActionWidget(
-              title: 'Images (${_images.length})',
-              actionText: '',
-              content: _images.isEmpty
-                  ? const Text('No images')
-                  : Column(
-                      children: [
-                        for (int i = 0; i < _images.length; i++)
-                          ListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            leading: ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: Image.network(
-                                (_images[i]['downloadUrl'] ?? '').toString(),
-                                width: 48,
-                                height: 48,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(
-                                    Icons.broken_image,
-                                    size: 48),
-                              ),
-                            ),
-                            title: Text(
-                              (_images[i]['isMaster'] == true || i == 0)
-                                  ? 'Primary Image'
-                                  : 'Image ${i + 1}',
-                              style: TextStyle(
-                                fontWeight: (_images[i]['isMaster'] == true ||
-                                        i == 0)
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-            ),
-
-            // 9. Source
-            if (canonicalUrl.isNotEmpty)
-              ContainerActionWidget(
-                title: 'Source',
-                actionText: '',
-                content: InkWell(
-                  onTap: () async {
-                    final uri = Uri.tryParse(canonicalUrl);
-                    if (uri != null) {
-                      await launchUrl(uri,
-                          mode: LaunchMode.externalApplication);
-                    }
-                  },
-                  child: Row(children: [
-                    const Icon(Icons.link, size: 18, color: Colors.blue),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(canonicalUrl,
-                          style: const TextStyle(
-                              color: Colors.blue, fontSize: 12),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                  ]),
-                ),
-              ),
-
       ],
     );
+  }
+
+  Widget _buildResourcesContent(
+      List<Map<String, dynamic>> documents, String canonicalUrl) {
+    final rows = <Widget>[];
+    for (final doc in documents) {
+      rows.add(_buildDocTile(doc));
+    }
+    if (canonicalUrl.isNotEmpty) {
+      rows.add(_buildWebAddressTile(canonicalUrl));
+    }
+    if (rows.isEmpty) {
+      return Text('No resources', style: TextStyle(color: Colors.grey.shade600));
+    }
+    return Column(children: rows);
   }
 
   /// Elements tab body — Parts / Materials / Processes sub-tabs. Catalog
@@ -844,36 +788,98 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
 
   String _titleCase(String s) {
     if (s.isEmpty) return s;
-    return s[0].toUpperCase() + s.substring(1);
+    return s
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase())
+        .join(' ');
   }
 
+  /// Resolves the product weight unit, preferring the reference-resolved
+  /// name but falling back to a raw string field on the object doc for
+  /// products transferred before the productWeightUnitId ref was wired up.
+  String _resolvedWeightUnit() {
+    if (_weightUnitName.isNotEmpty) return _weightUnitName;
+    final d = _data ?? const <String, dynamic>{};
+    final raw = (d['productWeightUnit'] ?? d['productWeightUom'] ?? '')
+        .toString()
+        .trim();
+    return raw;
+  }
+
+  /// Renders one resource row (SDS / TDS / etc.) using the same
+  /// StandardTileLargeDart shape the rest of the catalog uses. Passes
+  /// the PDF URL through as the tile's imageUrl — StandardTileLargeDart
+  /// detects the `.pdf` extension and renders the first page via
+  /// SfPdfViewer automatically, so the thumbnail shows the actual
+  /// document rather than a generic icon.
+  ///
+  ///   firstLine  : file / document name
+  ///   secondLine : file CATEGORY — "SDS", "TDS", etc.
+  ///   thirdLine  : file TYPE — "PDF" (derived from the URL extension)
   Widget _buildDocTile(Map<String, dynamic> doc) {
     final url = (doc['url'] ?? doc['downloadUrl'] ?? '').toString();
-    final type = (doc['type'] ?? '').toString();
+    final category = (doc['type'] ?? '').toString().toUpperCase();
     final name = (doc['name'] ?? doc['fileName'] ?? 'Document').toString();
-    final isSds = type.toUpperCase() == 'SDS';
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        isSds ? Icons.warning_amber_outlined : Icons.description_outlined,
-        color: isSds ? Colors.orange : Colors.blue,
+
+    // Derive file type from the URL extension (PDF / JPG / etc.). Falls
+    // back to an explicit `fileType` / `fileExtension` field on the doc.
+    String fileType = (doc['fileType'] ?? doc['fileExtension'] ?? '')
+        .toString()
+        .toUpperCase();
+    if (fileType.isEmpty && url.isNotEmpty) {
+      final path = Uri.tryParse(url)?.path ?? url;
+      final dot = path.lastIndexOf('.');
+      if (dot >= 0 && dot < path.length - 1) {
+        fileType = path.substring(dot + 1).toUpperCase();
+      }
+    }
+
+    return InkWell(
+      onTap: url.isEmpty
+          ? null
+          : () async {
+              final uri = Uri.tryParse(url);
+              if (uri != null) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+      child: StandardTileLargeDart(
+        imageUrl: url,
+        firstLine: name,
+        firstLineIcon: category == 'SDS'
+            ? Icons.warning_amber_outlined
+            : Icons.description_outlined,
+        secondLine: category.isNotEmpty ? category : '',
+        secondLineIcon:
+            category.isNotEmpty ? Icons.folder_outlined : null,
+        thirdLine: fileType.isNotEmpty ? fileType : null,
+        thirdLineIcon: fileType.isNotEmpty ? Icons.insert_drive_file_outlined : null,
       ),
-      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: type.isNotEmpty
-          ? Text(type.toUpperCase(), style: const TextStyle(fontSize: 11))
-          : null,
-      trailing: url.isNotEmpty
-          ? IconButton(
-              icon: const Icon(Icons.open_in_new, size: 18),
-              onPressed: () async {
-                final uri = Uri.tryParse(url);
-                if (uri != null) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                }
-              },
-            )
-          : null,
+    );
+  }
+
+  /// Web Address row — the canonical source URL for the product, shown
+  /// in the Resources container alongside the PDF resources. Tapping
+  /// opens the URL externally. Previously lived in its own "Source"
+  /// container; now consolidated here.
+  Widget _buildWebAddressTile(String url) {
+    return InkWell(
+      onTap: () async {
+        final uri = Uri.tryParse(url);
+        if (uri != null) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      },
+      child: StandardTileLargeDart(
+        imageUrl: '',
+        firstLine: url,
+        firstLineIcon: Icons.link,
+        secondLine: 'Web Address',
+        secondLineIcon: Icons.folder_outlined,
+        thirdLine: 'URL',
+        thirdLineIcon: Icons.language,
+      ),
     );
   }
 }
