@@ -396,11 +396,21 @@ class _MarketplaceStagingReviewDetailsScreenState
     String color, String fragrance, String containerType, String productLine,
     bool isConsumable, List<dynamic> allDocs, String canonicalUrl, List<dynamic> storageImages,
   ) {
+    // Resolve the suggested/confirmed category name for flat display.
+    final displayCategory = _categoryName.isNotEmpty
+        ? _categoryName
+        : _suggestedCategoryName.isNotEmpty
+            ? _suggestedCategoryName
+            : _s(_data['suggestedCategoryKey']) ?? 'Not set';
+    final displayUsage = _scalarName.isNotEmpty
+        ? _scalarName
+        : _s(_data['suggestedScalarKey']) ?? 'Not set';
+
     return Column(
       children: [
-        // 1. Product Details — header suppressed; ordered Brand, Brand Owner,
-        // Product Code, UPC.
+        // 1. Brand
         ContainerActionWidget(
+          title: 'Brand',
           actionText: '',
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,11 +423,20 @@ class _MarketplaceStagingReviewDetailsScreenState
               const SizedBox(height: 12),
               HeaderInfoIconValue(
                 header: 'Brand Owner',
-                value:
-                    _brandOwnerName.isNotEmpty ? _brandOwnerName : 'Not set',
+                value: _brandOwnerName.isNotEmpty ? _brandOwnerName : 'Not set',
                 icon: Icons.business_outlined,
               ),
-              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+
+        // 2. Identifiers
+        ContainerActionWidget(
+          title: 'Identifiers',
+          actionText: '',
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               HeaderInfoIconValue(
                 header: 'Product Code',
                 value: productCode.isNotEmpty ? productCode : 'Not set',
@@ -433,210 +452,138 @@ class _MarketplaceStagingReviewDetailsScreenState
           ),
         ),
 
-        // 2. Specifications — header suppressed; Usage, Unit, Unit Value.
-        // SKU Config intentionally omitted (lives at the packaging level).
+        // 3. Item Packaging — product weight + container/packing type
         ContainerActionWidget(
+          title: 'Item Packaging',
+          actionText: '',
+          content: Builder(builder: (_) {
+            final od = _m(_data['objectData']);
+            final detail = _m(_data['detailData']);
+            final allSpecs = _m(detail['allSpecs']);
+            final allFields = _m(detail['allFields']);
+            final pdLocal = _m(_data['packagingData']);
+
+            // Per-unit weight
+            double? perUnitWeight = _toDouble(od['productWeight']);
+            if (perUnitWeight == null) {
+              final caseWeightRaw = _firstNonEmpty(allFields, const [
+                    'ItemNetWeightSKULB__c',
+                    'ItemNetWeightLB__c',
+                  ]) ??
+                  allSpecs['netWeightSku'] ??
+                  allSpecs['netWeight'];
+              final caseWeight = _toDouble(caseWeightRaw);
+              if (caseWeight != null) {
+                final pq = _toDouble(pdLocal['packQuantity']) ??
+                    _toDouble(allFields['ItemQuantityInSKU__c']) ??
+                    1.0;
+                perUnitWeight = pq > 1
+                    ? (caseWeight / pq * 100).roundToDouble() / 100
+                    : caseWeight;
+              }
+            }
+            final weightUom = _weightUom();
+
+            // Content unit + value
+            final contentUom = _scalarUnitName.isNotEmpty
+                ? _scalarUnitName
+                : _s(allFields['ItemConsumerUnitSizeUOM__c']) ??
+                    _s(allFields['ItemBaseUoM__c']) ??
+                    'Not set';
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                HeaderInfoIconValue(
+                  header: 'Content Unit',
+                  value: contentUom,
+                  icon: Icons.science_outlined,
+                ),
+                const SizedBox(height: 12),
+                HeaderInfoIconValue(
+                  header: 'Content Value',
+                  value: unitQty != null ? '$unitQty' : 'Not set',
+                  icon: Icons.format_list_numbered,
+                ),
+                const SizedBox(height: 12),
+                HeaderInfoIconValue(
+                  header: 'Product Weight',
+                  value: perUnitWeight != null
+                      ? perUnitWeight.toStringAsFixed(2)
+                      : 'Not set',
+                  icon: Icons.scale_outlined,
+                ),
+                const SizedBox(height: 12),
+                HeaderInfoIconValue(
+                  header: 'Product Weight Unit',
+                  value: weightUom.isNotEmpty ? weightUom : 'Not set',
+                  icon: Icons.balance_outlined,
+                ),
+                const SizedBox(height: 12),
+                HeaderInfoIconValue(
+                  header: 'Container Type',
+                  value: containerType.isNotEmpty ? containerType : 'Not set',
+                  icon: Icons.takeout_dining_outlined,
+                ),
+              ],
+            );
+          }),
+        ),
+
+        // 4. Categories — usage + object category as flat data (no
+        // suggestion/confirm UX — the LLM's pick is displayed as fact).
+        ContainerActionWidget(
+          title: 'Categories',
           actionText: '',
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               HeaderInfoIconValue(
                 header: 'Usage',
-                // Prefer the confirmed scalar name (resolved from
-                // objectData.scalarId). Falls back to the scraper's
-                // suggestedScalarKey so the reviewer sees the LLM's pick
-                // before they've confirmed the category.
-                value: _scalarName.isNotEmpty
-                    ? _scalarName
-                    : _s(_data['suggestedScalarKey']) ?? 'Not set',
+                value: displayUsage,
                 icon: Icons.straighten,
               ),
               const SizedBox(height: 12),
               HeaderInfoIconValue(
-                header: 'Unit',
-                // Prefer the resolved scalarUnitId reference name; fall back
-                // to the literal unitOfMeasure string via the shared
-                // `_weightUom()` helper, which checks objectData →
-                // top-level → normalizedData → detailData → allSpecs.
-                // The scraper writes the value to `detailData.allSpecs`
-                // (and `detailData` top-level), so an inline fallback that
-                // misses those paths will show "Not set" even when "LB" is
-                // present.
-                value: _scalarUnitName.isNotEmpty
-                    ? _scalarUnitName
-                    : (() {
-                        final uom = _weightUom();
-                        return uom.isEmpty ? 'Not set' : uom;
-                      })(),
-                icon: Icons.science_outlined,
+                header: 'Object Category',
+                value: displayCategory,
+                icon: Icons.category,
               ),
-              const SizedBox(height: 12),
-              HeaderInfoIconValue(
-                header: 'Unit Value',
-                value: unitQty != null ? '$unitQty' : 'Not set',
-                icon: Icons.format_list_numbered,
-              ),
-              const SizedBox(height: 12),
-              // Unit Weight = weight of one individual consumer unit (one
-              // can, one bottle, one wipe, etc.).
-              //
-              // CRITICAL: Solenis does NOT expose a per-individual-unit
-              // weight field. The `ItemNetWeightSKULB__c` family is the
-              // CASE-level total — for a 6×16oz multipack of air freshener,
-              // ItemNetWeightSKULB__c = 6.261 LB which is the whole case,
-              // not one can. To get per-can weight you have to divide by
-              // ItemQuantityInSKU__c (or equivalently the pack quantity the
-              // scraper writes into packagingData).
-              //
-              // We prefer the `*LB__c` suffixed fields because the
-              // unsuffixed fields hold the metric base value (KG):
-              //   ItemNetWeight__c       = "2.84"  (KG)
-              //   ItemNetWeightLB__c     = "6.261" (LB ← what we want)
-              Builder(builder: (_) {
-                final detail = _m(_data['detailData']);
-                final allSpecs = _m(detail['allSpecs']);
-                final allFields = _m(detail['allFields']);
-                final pd = _m(_data['packagingData']);
-                final uom = _weightUom();
-
-                // Case-level net weight, LB-first.
-                final caseWeightRaw = _firstNonEmpty(allFields, const [
-                      'ItemNetWeightSKULB__c',
-                      'ItemNetWeightLB__c',
-                    ]) ??
-                    allSpecs['netWeightSku'] ??
-                    allSpecs['netWeight'] ??
-                    allSpecs['grossWeightSku'] ??
-                    allSpecs['grossWeight'];
-                final caseWeight = _toDouble(caseWeightRaw);
-
-                // Pack quantity — how many consumer units share this case.
-                // The scraper already extracts this into packagingData; we
-                // also accept the raw Solenis field as a fallback.
-                final packQty = _toDouble(pd['packQuantity']) ??
-                    _toDouble(allFields['ItemQuantityInSKU__c']) ??
-                    1.0;
-
-                String displayValue;
-                if (caseWeight == null) {
-                  displayValue = 'Not set';
-                } else if (packQty > 1) {
-                  final perUnit = caseWeight / packQty;
-                  // 2 decimal places matches Solenis's own display
-                  // precision (they publish "6.261" → 1 unit = 1.04).
-                  displayValue = uom.isEmpty
-                      ? perUnit.toStringAsFixed(2)
-                      : '${perUnit.toStringAsFixed(2)} $uom';
-                } else {
-                  // Single-unit product — case IS the unit, no division.
-                  displayValue = _formatWeight(caseWeightRaw, uom);
-                }
-
-                return HeaderInfoIconValue(
-                  header: 'Unit Weight',
-                  value: displayValue,
-                  icon: Icons.scale_outlined,
-                );
-              }),
-
-              // Per-consumer-unit dimensions. Solenis exposes these under
-              // the CU field family (ItemLengthCU__c / ItemLengthCUin__c
-              // etc.) and uses a dedicated UOM field `ItemCUDimensionsUOM__c`.
-              //
-              // These fields are commonly null for multipack consumables
-              // (where Solenis doesn't bother publishing per-can dimensions),
-              // but populated for products where the individual unit's
-              // footprint matters — dispensers, floor machines, bulk tools.
-              //
-              // Rendered conditionally: if ALL six candidate keys are
-              // missing/empty, the block is omitted entirely so products
-              // that don't publish CU data don't show empty rows.
-              Builder(builder: (_) {
-                final detail = _m(_data['detailData']);
-                final allFields = _m(detail['allFields']);
-
-                final cuLength = _firstNonEmpty(allFields, const [
-                  'ItemLengthCUin__c',
-                  'ItemLengthCU__c',
-                ]);
-                final cuWidth = _firstNonEmpty(allFields, const [
-                  'ItemWidthCUin__c',
-                  'ItemWidthCU__c',
-                ]);
-                final cuHeight = _firstNonEmpty(allFields, const [
-                  'ItemHeightCUin__c',
-                  'ItemHeightCU__c',
-                ]);
-
-                // If any are present, render the rows. Otherwise emit an
-                // empty widget so the container collapses without the
-                // "Not set" noise.
-                final hasAnyCu =
-                    cuLength != null || cuWidth != null || cuHeight != null;
-                if (!hasAnyCu) return const SizedBox.shrink();
-
-                // The `in` suffix on ItemLength**CUin**__c is already the
-                // unit. For the unsuffixed ItemLengthCU__c family we fall
-                // back to the vendor's declared CU UOM.
-                final cuUom = _s(allFields['ItemCUDimensionsUOM__c']) ?? 'in';
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 12),
-                    HeaderInfoIconValue(
-                      header: 'Length',
-                      value: _formatWeight(cuLength, cuUom),
-                      icon: Icons.straighten,
-                    ),
-                    const SizedBox(height: 12),
-                    HeaderInfoIconValue(
-                      header: 'Width',
-                      value: _formatWeight(cuWidth, cuUom),
-                      icon: Icons.straighten,
-                    ),
-                    const SizedBox(height: 12),
-                    HeaderInfoIconValue(
-                      header: 'Height',
-                      value: _formatWeight(cuHeight, cuUom),
-                      icon: Icons.height,
-                    ),
-                  ],
-                );
-              }),
             ],
           ),
         ),
 
-        // 3. Attributes — moved above Category per UX direction. Header kept.
-        if (color.isNotEmpty || fragrance.isNotEmpty || containerType.isNotEmpty || productLine.isNotEmpty)
+        // 5. Product Line
+        if (productLine.isNotEmpty)
+          ContainerActionWidget(
+            title: 'Product Line',
+            actionText: '',
+            content: HeaderInfoIconValue(
+              header: 'Product Line',
+              value: productLine,
+              icon: Icons.linear_scale,
+            ),
+          ),
+
+        // 6. Attributes — color, fragrance, and other product attributes.
+        if (color.isNotEmpty || fragrance.isNotEmpty)
           ContainerActionWidget(
             title: 'Attributes',
             actionText: '',
             content: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (productLine.isNotEmpty) HeaderInfoIconValue(header: 'Product Line', value: productLine, icon: Icons.linear_scale),
-                if (color.isNotEmpty) ...[if (productLine.isNotEmpty) const SizedBox(height: 12), HeaderInfoIconValue(header: 'Color', value: color, icon: Icons.palette_outlined)],
-                if (fragrance.isNotEmpty) ...[const SizedBox(height: 12), HeaderInfoIconValue(header: 'Fragrance', value: fragrance, icon: Icons.air)],
-                if (containerType.isNotEmpty) ...[const SizedBox(height: 12), HeaderInfoIconValue(header: 'Container', value: containerType, icon: Icons.takeout_dining_outlined)],
+                if (color.isNotEmpty)
+                  HeaderInfoIconValue(header: 'Color', value: color, icon: Icons.palette_outlined),
+                if (color.isNotEmpty && fragrance.isNotEmpty)
+                  const SizedBox(height: 12),
+                if (fragrance.isNotEmpty)
+                  HeaderInfoIconValue(header: 'Fragrance', value: fragrance, icon: Icons.air),
               ],
             ),
           ),
 
-        // 4. Category — header suppressed. Three visual states:
-        //   • CONFIRMED  : objectData.objectCategoryId is set; show the
-        //                  category name with a green check, "Change" action.
-        //   • SUGGESTED  : only suggestedCategoryId is set; show the
-        //                  suggestion with an amber pill + "Confirm" /
-        //                  "Change" actions. Reviewer must act to advance.
-        //   • UNSET      : neither set; show "Pick a category" CTA.
-        ContainerActionWidget(
-          actionText: '',
-          content: _buildCategoryRow(),
-        ),
-
-        // 5. Packaging (if multi-pack) — interactive preview tile
+        // 7. Packaging (if multi-pack) — interactive preview tile
         if (isMultiPack)
           ContainerActionWidget(
             title: 'Packaging (1)',
@@ -813,301 +760,14 @@ class _MarketplaceStagingReviewDetailsScreenState
     );
   }
 
-  /// Renders the Category row in one of three states:
-  ///   • CONFIRMED — `_categoryName` set; show the category in green with a
-  ///     checkmark and a "Change" button.
-  ///   • SUGGESTED — only `_suggestedCategoryName` set; show an amber pill
-  ///     with the suggestion and a "Confirm" / "Change" pair.
-  ///   • UNSET — neither set; show "No category yet" with a "Pick" button.
-  Widget _buildCategoryRow() {
-    final isConfirmed = _categoryName.isNotEmpty;
-    final hasSuggestion = !isConfirmed && _suggestedCategoryName.isNotEmpty;
-
-    if (isConfirmed) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(Icons.check_circle, size: 20, color: Colors.green.shade700),
-          const SizedBox(width: 8),
-          Expanded(
-            child: HeaderInfoIconValue(
-              header: 'Category',
-              value: _categoryName,
-              icon: Icons.category,
-            ),
-          ),
-          TextButton(
-            onPressed: _openCategoryPicker,
-            child: const Text('Change'),
-          ),
-        ],
-      );
-    }
-
-    if (hasSuggestion) {
-      // Reasoning written by the scraper's LLM classifier (Gemini 2.5 Flash).
-      // Falls back to '(keyword fallback)' when the LLM call failed at scrape
-      // time and the keyword classifier filled in.
-      final reasoning = _s(_data['suggestedCategoryReasoning']) ?? '';
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  'SUGGESTED',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.orange.shade800,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _suggestedCategoryName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              // Suggested usage (scalar) shown inline so the reviewer
-              // sees both category + usage without scrolling.
-              Builder(builder: (_) {
-                final suggestedScalar =
-                    _s(_data['suggestedScalarKey']) ?? '';
-                if (suggestedScalar.isEmpty) return const SizedBox.shrink();
-                return Text(
-                  suggestedScalar,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade600,
-                  ),
-                );
-              }),
-            ],
-          ),
-          if (reasoning.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              reasoning,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade700,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              FilledButton.icon(
-                onPressed: _confirmSuggestedCategory,
-                icon: const Icon(Icons.check, size: 18),
-                label: const Text('Confirm'),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: _openCategoryPicker,
-                icon: const Icon(Icons.swap_horiz, size: 18),
-                label: const Text('Change'),
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-
-    // Unset
-    return Row(
-      children: [
-        Icon(Icons.warning_amber_outlined, size: 20, color: Colors.grey.shade600),
-        const SizedBox(width: 8),
-        const Expanded(child: Text('No category yet')),
-        FilledButton.icon(
-          onPressed: _openCategoryPicker,
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Pick'),
-        ),
-      ],
-    );
-  }
-
-  /// Copies the suggested category onto `objectData.objectCategoryId` without
-  /// reopening the picker. Used when the reviewer agrees with the scraper.
-  /// Passes copyScalar:true so the matching scalar (Volume / Time / Count
-  /// derived by the scraper) lands on objectData.scalarId in the same write.
-  Future<void> _confirmSuggestedCategory() async {
-    final suggestedRef = _data['suggestedCategoryId'];
-    if (suggestedRef is! DocumentReference) return;
-    await _writeConfirmedCategory(suggestedRef, copyScalar: true);
-  }
-
-  /// Opens a picker that lists every doc in `objectCategory`. On selection,
-  /// writes the chosen ref to `objectData.objectCategoryId` on the staged
-  /// product and refreshes the local state.
-  Future<void> _openCategoryPicker() async {
-    final snap = await CatalogFirebaseService.instance.firestore
-        .collection('objectCategory')
-        .get();
-    final docs = snap.docs.toList()
-      ..sort((a, b) {
-        final an = ((a.data())['name'] ?? '').toString().toLowerCase();
-        final bn = ((b.data())['name'] ?? '').toString().toLowerCase();
-        return an.compareTo(bn);
-      });
-
-    if (!mounted) return;
-    final chosen = await showModalBottomSheet<DocumentReference>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Text(
-                  'Pick a category',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-              ),
-              for (final doc in docs)
-                ListTile(
-                  leading: const Icon(Icons.category_outlined),
-                  title: Text((doc.data()['name'] ?? '').toString()),
-                  onTap: () => Navigator.of(ctx).pop(doc.reference),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (chosen != null) {
-      await _writeConfirmedCategory(chosen);
-    }
-  }
-
-  /// Writes the chosen category ref into `objectData.objectCategoryId` on
-  /// the staged product and refreshes local state. Uses dotted-field update
-  /// so we don't have to round-trip the entire objectData map.
-  ///
-  /// Also writes `objectData.scalarId` from the scraper's
-  /// `suggestedScalarId` (when the reviewer accepts the LLM's category, the
-  /// matching scalar — Volume / Time / Count — comes along automatically per
-  /// the deterministic mapping baked into the scraper). The reviewer can
-  /// still override the scalar later in the standard objects form.
-  ///
-  /// Skips the scalar copy when the reviewer is overriding the category via
-  /// the picker — the suggested scalar was derived from the suggested
-  /// category, not the new one — so the scalar field stays at whatever the
-  /// staged product's `objectData.scalarId` already holds (often null).
-  Future<void> _writeConfirmedCategory(
-    DocumentReference ref, {
-    bool copyScalar = false,
-  }) async {
-    try {
-      final updates = <String, dynamic>{
-        'objectData.objectCategoryId': ref,
-      };
-
-      // When the reviewer confirms the LLM's suggested category, the
-      // matching scalar ref also moves onto objectData. The scraper writes
-      // both `suggestedCategoryId` and `suggestedScalarId` so we don't have
-      // to re-derive anything client-side.
-      DocumentReference? scalarRef;
-      if (copyScalar) {
-        final raw = _data['suggestedScalarId'];
-        if (raw is DocumentReference) {
-          scalarRef = raw;
-          updates['objectData.scalarId'] = raw;
-        }
-      }
-
-      // Clear scalarUnitId so a stale unit from the scraper's initial
-      // skuConfig parsing doesn't carry through to the object collection.
-      // Example: the scraper matched "oz" → Ounce under Volume, but the
-      // LLM then changed the scalar to Units (cartridge product). Keeping
-      // the old Ounce reference would be wrong. The reviewer picks the
-      // correct unit in the CleanOps objects form after transfer.
-      updates['objectData.scalarUnitId'] = FieldValue.delete();
-
-      await CatalogFirebaseService.instance.firestore
-          .collection('stagedProduct')
-          .doc(widget.docId)
-          .update(updates);
-
-      // Optimistically update local state so the UI flips to CONFIRMED
-      // without waiting for a full reload.
-      final od = _m(_data['objectData']);
-      od['objectCategoryId'] = ref;
-      if (scalarRef != null) {
-        od['scalarId'] = scalarRef;
-      }
-      _data['objectData'] = od;
-
-      try {
-        final s = await ref.get();
-        if (s.exists) {
-          _categoryName = ((s.data() as Map?)?['name'] ?? '').toString();
-        }
-      } catch (_) {}
-
-      // If we copied a scalar, refresh _scalarName too so the Specifications
-      // container's "Usage" row updates from "Not set" to (e.g.) "Time".
-      if (scalarRef != null) {
-        try {
-          final s = await scalarRef.get();
-          if (s.exists) {
-            _scalarName = ((s.data() as Map?)?['name'] ?? '').toString();
-          }
-        } catch (_) {}
-      }
-
-      if (mounted) {
-        setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Category set: $_categoryName')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to set category: $e')),
-        );
-      }
-    }
-  }
-
+  // Category is now displayed as plain text (the LLM's suggestion treated
+  // as fact) in the "Categories" ContainerActionWidget. The previous
+  // _buildCategoryRow / _confirmSuggestedCategory / _openCategoryPicker /
+  // _writeConfirmedCategory methods have been removed.
+  //
+  // The LLM's suggested category + scalar are written to objectData at
+  // scrape time via suggestedCategoryId / suggestedScalarId. The transfer
+  // function copies objectData straight to the object collection.
   Widget _buildPackagingPreviewTile(BuildContext context, Map<String, dynamic> pd, String parentName, dynamic caseQty) {
     final packQty = pd['packQuantity'];
     final packName = _s(pd['packName']) ?? _s(pd['name']) ?? '';

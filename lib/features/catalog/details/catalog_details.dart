@@ -1,63 +1,879 @@
-// catalog_details.dart — placeholder for admin app.
-// TODO: Migrate full catalog detail view from kleenops app.
+// catalog_details.dart
+//
+// Product detail screen for the admin catalog (marketplace → Catalog).
+// Reads from the global `object` collection (+ its `file` subcollection
+// for images) and renders in the same overall layout as the staging
+// review details — image carousel header + sectioned ContainerAction
+// widgets for Brand, Identifiers, Item Packaging, Categories, Attributes,
+// Packaging variants, Resources, Images, Source.
+//
+// Unlike the staging review version, everything here is displayed as
+// authoritative fact — no suggested/confirmed UX, no reviewer actions.
+// The transfer from stagedProduct into the object collection has already
+// committed the LLM's picks.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:shared_widgets/containers/container_action.dart';
+import 'package:shared_widgets/containers/container_header.dart';
+import 'package:shared_widgets/labels/header_info_icon_value.dart';
+import 'package:shared_widgets/labels/text_info_checkbox.dart';
 import 'package:shared_widgets/services/catalog_firebase_service.dart';
+import 'package:shared_widgets/tabs/standard_tab.dart';
+import 'package:shared_widgets/tiles/standard_tile_large.dart';
+import 'package:shared_widgets/viewers/file_carousel_viewer.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class CatalogDetailsScreen extends StatelessWidget {
+class CatalogDetailsScreen extends StatefulWidget {
   final String docId;
   const CatalogDetailsScreen({super.key, required this.docId});
 
   @override
+  State<CatalogDetailsScreen> createState() => _CatalogDetailsScreenState();
+}
+
+class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
+    with TickerProviderStateMixin {
+  Map<String, dynamic>? _data;
+  List<Map<String, dynamic>> _images = [];
+  /// Bulk packaging variants linked to this product. Each entry is the
+  /// raw objectData of a child `object` doc whose `parentProductId`
+  /// references this product. Populated by _loadPackagingVariants.
+  List<Map<String, dynamic>> _packagingVariants = [];
+  String _categoryName = '';
+  String _scalarName = '';
+  String _scalarUnitName = '';
+  String _weightUnitName = '';
+  String _brandName = '';
+  String _brandOwnerName = '';
+  bool _loading = true;
+
+  // Top-level tabs: Details / Elements. Mirrors the regular CleanOps
+  // objects_objects_details.dart layout but trimmed for the catalog
+  // context (no Charts/Records — those need per-company instance data).
+  late final TabController _topTabController;
+  // Inner Elements tabs: Parts / Materials / Processes (no Inventory —
+  // inventory only makes sense for a per-company instance).
+  late final TabController _elementsTabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _topTabController = TabController(length: 2, vsync: this);
+    _topTabController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _elementsTabController = TabController(length: 3, vsync: this);
+    _elementsTabController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _topTabController.dispose();
+    _elementsTabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final docRef = CatalogFirebaseService.instance.firestore
+          .collection('object')
+          .doc(widget.docId);
+      final snap = await docRef.get();
+      if (!snap.exists) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+      _data = snap.data() ?? <String, dynamic>{};
+      await _resolveReferences();
+      await _loadImages(docRef);
+      await _loadPackagingVariants(docRef);
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _resolveReferences() async {
+    final d = _data!;
+
+    // Brand / brand owner
+    _brandName = (d['brand'] ?? '').toString();
+    final brandOwnerRef = d['brandOwnerId'];
+    if (brandOwnerRef is DocumentReference) {
+      try {
+        final s = await brandOwnerRef.get();
+        if (s.exists) {
+          _brandOwnerName = ((s.data() as Map?)?['name'] ?? '').toString();
+        }
+      } catch (_) {}
+    }
+    // Walk the brand ref to pick up the brand owner if the object doc
+    // doesn't carry it directly (and also refresh _brandName).
+    final brandRef = d['brandId'];
+    if (brandRef is DocumentReference) {
+      try {
+        final s = await brandRef.get();
+        if (s.exists) {
+          final brandData = (s.data() as Map?) ?? const {};
+          if (_brandName.isEmpty) {
+            _brandName = (brandData['name'] ?? '').toString();
+          }
+          if (_brandOwnerName.isEmpty) {
+            final ownerRef = brandData['brandOwnerId'];
+            if (ownerRef is DocumentReference) {
+              final ownerSnap = await ownerRef.get();
+              if (ownerSnap.exists) {
+                _brandOwnerName =
+                    ((ownerSnap.data() as Map?)?['name'] ?? '').toString();
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Category / scalar / scalarUnit / weight unit
+    final catRef = d['objectCategoryId'];
+    if (catRef is DocumentReference) {
+      try {
+        final s = await catRef.get();
+        if (s.exists) {
+          _categoryName = ((s.data() as Map?)?['name'] ?? '').toString();
+        }
+      } catch (_) {}
+    }
+    final scalarRef = d['scalarId'];
+    if (scalarRef is DocumentReference) {
+      try {
+        final s = await scalarRef.get();
+        if (s.exists) {
+          _scalarName = ((s.data() as Map?)?['name'] ?? '').toString();
+        }
+      } catch (_) {}
+    }
+    final scalarUnitRef = d['scalarUnitId'];
+    if (scalarUnitRef is DocumentReference) {
+      try {
+        final s = await scalarUnitRef.get();
+        if (s.exists) {
+          final data = (s.data() as Map?) ?? const {};
+          _scalarUnitName = (data['abbreviatedName'] ??
+                  data['abbreviationName'] ??
+                  data['name'] ??
+                  '')
+              .toString();
+        }
+      } catch (_) {}
+    }
+    final weightUnitRef = d['productWeightUnitId'];
+    if (weightUnitRef is DocumentReference) {
+      try {
+        final s = await weightUnitRef.get();
+        if (s.exists) {
+          final data = (s.data() as Map?) ?? const {};
+          _weightUnitName = (data['abbreviatedName'] ??
+                  data['abbreviationName'] ??
+                  data['name'] ??
+                  '')
+              .toString();
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _loadImages(DocumentReference<Map<String, dynamic>> ref) async {
+    try {
+      // Read from the TOP-LEVEL `file` collection — matches the pattern
+      // CatalogObjectFileImages.headerImageUrls uses in the CleanOps app.
+      // Files are linked back to objects via the `objectId` field.
+      //
+      // This multi-field query requires a composite Firestore index on
+      // (objectId ASC, objectMediaRole ASC, order ASC). If the index is
+      // missing or still building, the query fails with
+      // FAILED_PRECONDITION. Log the error explicitly — silent empty
+      // results previously hid a missing-index bug for days.
+      final snap = await CatalogFirebaseService.instance.firestore
+          .collection('file')
+          .where('objectId', isEqualTo: ref.id)
+          .where('objectMediaRole', isEqualTo: 'header')
+          .orderBy('order')
+          .get();
+      _images = snap.docs.map((d) {
+        final data = d.data();
+        return <String, dynamic>{
+          'downloadUrl': (data['downloadUrl'] ?? '').toString(),
+          'name': (data['name'] ?? data['sourceFileName'] ?? '').toString(),
+          'isMaster': data['isMaster'] == true,
+          'order': data['order'] ?? 0,
+        };
+      }).toList();
+    } catch (e, st) {
+      debugPrint('[CatalogDetails] image query failed: $e\n$st');
+    }
+  }
+
+  /// Loads packaging-variant child objects that reference this product
+  /// via their `parentProductId` field. Each child is a full object doc
+  /// in the `object` collection (objectType: 'packaging') — the scraper
+  /// creates one per multi-pack SKU alongside the parent.
+  ///
+  /// Shown in the "Bulk Packaging" ContainerActionWidget on the detail
+  /// page so a reviewer can see at a glance how the base item is sold
+  /// (case of 6, case of 12, etc.) without creating duplicate top-level
+  /// entries in the catalog list.
+  Future<void> _loadPackagingVariants(
+      DocumentReference<Map<String, dynamic>> ref) async {
+    try {
+      final snap = await CatalogFirebaseService.instance.firestore
+          .collection('object')
+          .where('parentProductId', isEqualTo: ref)
+          .get();
+      final variants = snap.docs.map((d) {
+        final data = d.data();
+        return <String, dynamic>{
+          'docId': d.id,
+          'name': (data['name'] ?? '').toString(),
+          'packagingType': (data['packagingType'] ?? 'case').toString(),
+          'packQuantity': data['packQuantity'],
+          'upc': (data['objectBarcode'] ?? data['upc'] ?? '').toString(),
+          'productCode': (data['objectProductCode'] ?? data['productNumber'] ?? '')
+              .toString(),
+        };
+      }).toList();
+      // Stable order by pack quantity then name so the list is
+      // predictable across refreshes.
+      variants.sort((a, b) {
+        final aq = a['packQuantity'];
+        final bq = b['packQuantity'];
+        if (aq is num && bq is num && aq != bq) return aq.compareTo(bq);
+        return (a['name'] as String).compareTo(b['name'] as String);
+      });
+      _packagingVariants = variants;
+    } catch (e, st) {
+      debugPrint('[CatalogDetails] packaging variants query failed: $e\n$st');
+    }
+  }
+
+  String? _s(dynamic v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    return s.isEmpty ? null : s;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final db = CatalogFirebaseService.instance.firestore;
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_data == null) {
+      return const Scaffold(body: Center(child: Text('Product not found')));
+    }
+    final d = _data!;
+
+    final name = _s(d['name']) ?? 'Unnamed';
+    final description = _s(d['description']) ?? '';
+    final productCode =
+        _s(d['objectProductCode']) ?? _s(d['productNumber']) ?? '';
+    final upc = _s(d['objectBarcode']) ?? _s(d['upc']) ?? '';
+    final unitQty = d['scalarUnitQuantity'];
+    final productWeight = d['productWeight'];
+    final containerType = _s(d['containerType']) ?? '';
+    final productLine = _s(d['productLine']) ?? '';
+    final color = _s(d['color']) ?? '';
+    final fragrance = _s(d['fragrance']) ?? _s(d['scent']) ?? '';
+    final canonicalUrl = _s(d['canonicalUrl']) ?? '';
+    final documents = (d['documents'] is List)
+        ? List<Map<String, dynamic>>.from(
+            (d['documents'] as List)
+                .map((e) => e is Map
+                    ? Map<String, dynamic>.from(e)
+                    : <String, dynamic>{}))
+        : const <Map<String, dynamic>>[];
+
+    final mediaItems = <FileCarouselItem>[];
+    for (final img in _images) {
+      final url = (img['downloadUrl'] ?? '').toString();
+      if (url.isNotEmpty) {
+        mediaItems.add(FileCarouselItem.image(imageUrl: url));
+      }
+    }
+
+    // Build the per-tab body up front so we can swap based on the
+    // current top-level tab without nesting a giant switch inside the
+    // ListView builder.
+    final Widget tabBody;
+    switch (_topTabController.index) {
+      case 1:
+        tabBody = _buildElementsTab();
+        break;
+      case 0:
+      default:
+        tabBody = _buildDetailsTab(
+          name: name,
+          productCode: productCode,
+          upc: upc,
+          unitQty: unitQty,
+          productWeight: productWeight,
+          containerType: containerType,
+          productLine: productLine,
+          color: color,
+          fragrance: fragrance,
+          documents: documents,
+          canonicalUrl: canonicalUrl,
+        );
+    }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Product Details')),
-      body: FutureBuilder<DocumentSnapshot>(
-        future: db.collection('object').doc(docId).get(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Product not found'));
-          }
-          final data = snapshot.data!.data() as Map<String, dynamic>;
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text(data['name'] ?? 'Unnamed',
-                  style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 16),
-              if (data['description'] != null)
-                Text(data['description'].toString()),
-              const SizedBox(height: 12),
-              if (data['objectProductCode'] != null)
-                _row('Product Code', data['objectProductCode']),
-              if (data['objectBarcode'] != null)
-                _row('Barcode / UPC', data['objectBarcode']),
-            ],
-          );
-        },
+      appBar: null,
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: ListView(
+          children: [
+            ContainerHeader(
+              mediaItems: mediaItems.isNotEmpty ? mediaItems : null,
+              showImage: mediaItems.isNotEmpty,
+              titleHeader: 'Product',
+              title: name,
+              descriptionHeader: 'Description',
+              description: description,
+              textIcon: Icons.category_outlined,
+              descriptionIcon: Icons.info_outlined,
+            ),
+            // Top-level Details / Elements tabs — mirrors the regular
+            // CleanOps objects detail view so admins see a familiar
+            // layout when browsing the catalog.
+            Container(
+              color: Colors.white,
+              child: StandardTabBar(
+                controller: _topTabController,
+                isScrollable: false,
+                dividerColor: Colors.grey.shade300,
+                indicatorColor: Theme.of(context).primaryColor,
+                indicatorWeight: 3.0,
+                labelColor: Colors.black,
+                unselectedLabelColor: Colors.grey.shade600,
+                tabs: const [
+                  Tab(text: 'Details'),
+                  Tab(text: 'Elements'),
+                ],
+              ),
+            ),
+            tabBody,
+            const SizedBox(height: 80),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DetailsAppBar(title: name),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }
 
-  Widget _row(String label, dynamic value) {
+  /// Details tab body — all the existing sectioned content the catalog
+  /// detail page used to render flat directly inside the ListView, now
+  /// extracted into its own method so the top-level TabController can
+  /// swap it out for the Elements tab.
+  Widget _buildDetailsTab({
+    required String name,
+    required String productCode,
+    required String upc,
+    required dynamic unitQty,
+    required dynamic productWeight,
+    required String containerType,
+    required String productLine,
+    required String color,
+    required String fragrance,
+    required List<Map<String, dynamic>> documents,
+    required String canonicalUrl,
+  }) {
+    return Column(
+      children: [
+            // 1. Brand
+            ContainerActionWidget(
+              title: 'Brand',
+              actionText: '',
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  HeaderInfoIconValue(
+                    header: 'Brand',
+                    value: _brandName.isNotEmpty ? _brandName : 'Not set',
+                    icon: Icons.branding_watermark_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
+                    header: 'Brand Owner',
+                    value: _brandOwnerName.isNotEmpty
+                        ? _brandOwnerName
+                        : 'Not set',
+                    icon: Icons.business_outlined,
+                  ),
+                ],
+              ),
+            ),
+
+            // 2. Identifiers
+            ContainerActionWidget(
+              title: 'Identifiers',
+              actionText: '',
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  HeaderInfoIconValue(
+                    header: 'Product Code',
+                    value: productCode.isNotEmpty ? productCode : 'Not set',
+                    icon: Icons.confirmation_number_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
+                    header: 'UPC',
+                    value: upc.isNotEmpty ? upc : 'Not set',
+                    icon: Icons.qr_code,
+                  ),
+                ],
+              ),
+            ),
+
+            // 3. Item Packaging
+            ContainerActionWidget(
+              title: 'Item Packaging',
+              actionText: '',
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  HeaderInfoIconValue(
+                    header: 'Content Unit',
+                    value: _scalarUnitName.isNotEmpty
+                        ? _scalarUnitName
+                        : 'Not set',
+                    icon: Icons.science_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
+                    header: 'Content Value',
+                    value: unitQty != null ? '$unitQty' : 'Not set',
+                    icon: Icons.format_list_numbered,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
+                    header: 'Product Weight',
+                    value: productWeight is num
+                        ? productWeight.toStringAsFixed(2)
+                        : (_s(productWeight) ?? 'Not set'),
+                    icon: Icons.scale_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
+                    header: 'Product Weight Unit',
+                    value: _weightUnitName.isNotEmpty
+                        ? _weightUnitName
+                        : 'Not set',
+                    icon: Icons.balance_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
+                    header: 'Container Type',
+                    value:
+                        containerType.isNotEmpty ? containerType : 'Not set',
+                    icon: Icons.takeout_dining_outlined,
+                  ),
+                ],
+              ),
+            ),
+
+            // 4. Categories
+            ContainerActionWidget(
+              title: 'Categories',
+              actionText: '',
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  HeaderInfoIconValue(
+                    header: 'Usage',
+                    value: _scalarName.isNotEmpty ? _scalarName : 'Not set',
+                    icon: Icons.straighten,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
+                    header: 'Object Category',
+                    value:
+                        _categoryName.isNotEmpty ? _categoryName : 'Not set',
+                    icon: Icons.category,
+                  ),
+                ],
+              ),
+            ),
+
+            // 5. Product Line
+            if (productLine.isNotEmpty)
+              ContainerActionWidget(
+                title: 'Product Line',
+                actionText: '',
+                content: HeaderInfoIconValue(
+                  header: 'Product Line',
+                  value: productLine,
+                  icon: Icons.linear_scale,
+                ),
+              ),
+
+            // 6. Attributes
+            if (color.isNotEmpty || fragrance.isNotEmpty)
+              ContainerActionWidget(
+                title: 'Attributes',
+                actionText: '',
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (color.isNotEmpty)
+                      HeaderInfoIconValue(
+                        header: 'Color',
+                        value: color,
+                        icon: Icons.palette_outlined,
+                      ),
+                    if (color.isNotEmpty && fragrance.isNotEmpty)
+                      const SizedBox(height: 12),
+                    if (fragrance.isNotEmpty)
+                      HeaderInfoIconValue(
+                        header: 'Fragrance',
+                        value: fragrance,
+                        icon: Icons.air,
+                      ),
+                  ],
+                ),
+              ),
+
+            // 6a. Scalar — Floor / Wall / Ceiling Covering checkboxes.
+            // Mirrors the regular CleanOps app's Scaler section. Writes
+            // to the global `object` doc (catalog-level capability flags
+            // describing what the product can cover).
+            _buildScalarSection(),
+
+            // 6b. Track Object / Safety Response — checkbox toggles
+            // describing whether the product is tracked individually
+            // and whether it has safety-response significance.
+            _buildTrackSafetySection(),
+
+            // 6c. Bulk Packaging — child objects whose parentProductId
+            // references this product. Only rendered when the product
+            // has at least one variant (single-unit items don't get this
+            // section at all). Uses StandardTileLargeDart so each row
+            // matches the shape of the catalog list itself.
+            if (_packagingVariants.isNotEmpty)
+              ContainerActionWidget(
+                title: 'Bulk Packaging (${_packagingVariants.length})',
+                actionText: '',
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final v in _packagingVariants) _buildVariantTile(v),
+                  ],
+                ),
+              ),
+
+            // 7. Resources (documents)
+            ContainerActionWidget(
+              title: 'Resources (${documents.length})',
+              actionText: '',
+              content: documents.isEmpty
+                  ? const Text('No documents')
+                  : Column(
+                      children: [
+                        for (final doc in documents) _buildDocTile(doc),
+                      ],
+                    ),
+            ),
+
+            // 8. Images
+            ContainerActionWidget(
+              title: 'Images (${_images.length})',
+              actionText: '',
+              content: _images.isEmpty
+                  ? const Text('No images')
+                  : Column(
+                      children: [
+                        for (int i = 0; i < _images.length; i++)
+                          ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.network(
+                                (_images[i]['downloadUrl'] ?? '').toString(),
+                                width: 48,
+                                height: 48,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.broken_image,
+                                    size: 48),
+                              ),
+                            ),
+                            title: Text(
+                              (_images[i]['isMaster'] == true || i == 0)
+                                  ? 'Primary Image'
+                                  : 'Image ${i + 1}',
+                              style: TextStyle(
+                                fontWeight: (_images[i]['isMaster'] == true ||
+                                        i == 0)
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
+
+            // 9. Source
+            if (canonicalUrl.isNotEmpty)
+              ContainerActionWidget(
+                title: 'Source',
+                actionText: '',
+                content: InkWell(
+                  onTap: () async {
+                    final uri = Uri.tryParse(canonicalUrl);
+                    if (uri != null) {
+                      await launchUrl(uri,
+                          mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  child: Row(children: [
+                    const Icon(Icons.link, size: 18, color: Colors.blue),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(canonicalUrl,
+                          style: const TextStyle(
+                              color: Colors.blue, fontSize: 12),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ]),
+                ),
+              ),
+
+      ],
+    );
+  }
+
+  /// Elements tab body — Parts / Materials / Processes sub-tabs. Catalog
+  /// products don't have per-company instance data so all three are
+  /// placeholder shells until a future iteration wires up shared
+  /// part/material/process catalogs.
+  Widget _buildElementsTab() {
+    final inner = <Widget>[];
+    switch (_elementsTabController.index) {
+      case 1:
+        inner.add(_placeholderTab('Materials'));
+        break;
+      case 2:
+        inner.add(_placeholderTab('Processes'));
+        break;
+      case 0:
+      default:
+        inner.add(_placeholderTab('Parts'));
+    }
+    return Column(
+      children: [
+        Container(
+          color: Colors.white,
+          child: StandardTabBar(
+            controller: _elementsTabController,
+            isScrollable: false,
+            dividerColor: Colors.grey.shade300,
+            indicatorColor: Theme.of(context).primaryColor,
+            indicatorWeight: 2.0,
+            labelColor: Colors.black,
+            unselectedLabelColor: Colors.grey.shade600,
+            tabs: const [
+              Tab(text: 'Parts'),
+              Tab(text: 'Materials'),
+              Tab(text: 'Processes'),
+            ],
+          ),
+        ),
+        ...inner,
+      ],
+    );
+  }
+
+  Widget _placeholderTab(String label) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
+      padding: const EdgeInsets.all(32),
+      child: Center(
+        child: Text(
+          '$label coming soon',
+          style: TextStyle(color: Colors.grey.shade500),
+        ),
+      ),
+    );
+  }
+
+  /// Scalar covering checkboxes — Floor / Wall / Ceiling. Mirrors the
+  /// Scaler section in the regular CleanOps objects detail view. Writes
+  /// directly to the global `object` doc since this is the catalog-level
+  /// capability, not a per-company instance flag.
+  Widget _buildScalarSection() {
+    final d = _data ?? const <String, dynamic>{};
+    final docRef = CatalogFirebaseService.instance.firestore
+        .collection('object')
+        .doc(widget.docId);
+    return ContainerActionWidget(
+      title: 'Scalar',
+      actionText: '',
+      content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-              width: 140,
-              child: Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.bold))),
-          Expanded(child: Text(value?.toString() ?? '')),
+          TextInfoCheckbox(
+            text: 'Floor Covering',
+            value: d['floorCovering'] == true,
+            onChanged: (v) async {
+              await docRef.update({'floorCovering': v ?? false});
+              if (mounted) setState(() => d['floorCovering'] = v ?? false);
+            },
+          ),
+          const SizedBox(height: 6),
+          TextInfoCheckbox(
+            text: 'Wall Covering',
+            value: d['wallCovering'] == true,
+            onChanged: (v) async {
+              await docRef.update({'wallCovering': v ?? false});
+              if (mounted) setState(() => d['wallCovering'] = v ?? false);
+            },
+          ),
+          const SizedBox(height: 6),
+          TextInfoCheckbox(
+            text: 'Ceiling Covering',
+            value: d['ceilingCovering'] == true,
+            onChanged: (v) async {
+              await docRef.update({'ceilingCovering': v ?? false});
+              if (mounted) setState(() => d['ceilingCovering'] = v ?? false);
+            },
+          ),
         ],
       ),
+    );
+  }
+
+  /// Track Object + Safety Response checkboxes. Same writeback pattern
+  /// as _buildScalarSection — flips a boolean on the global object doc.
+  Widget _buildTrackSafetySection() {
+    final d = _data ?? const <String, dynamic>{};
+    final docRef = CatalogFirebaseService.instance.firestore
+        .collection('object')
+        .doc(widget.docId);
+    return ContainerActionWidget(
+      title: '',
+      actionText: '',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextInfoCheckbox(
+            text: 'Track Object',
+            value: d['trackObject'] == true,
+            onChanged: (v) async {
+              await docRef.update({'trackObject': v ?? false});
+              if (mounted) setState(() => d['trackObject'] = v ?? false);
+            },
+          ),
+          const SizedBox(height: 6),
+          TextInfoCheckbox(
+            text: 'Safety Response',
+            value: d['safetyResponse'] == true,
+            onChanged: (v) async {
+              await docRef.update({'safetyResponse': v ?? false});
+              if (mounted) setState(() => d['safetyResponse'] = v ?? false);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Renders one row in the Bulk Packaging container. Uses
+  /// StandardTileLargeDart to match the visual shape of the catalog
+  /// list itself, with three lines:
+  ///   1. Full product name
+  ///   2. Pack quantity (e.g. "Qty: 6 (case)")
+  ///   3. UPC (the bulk packaging barcode)
+  Widget _buildVariantTile(Map<String, dynamic> v) {
+    final name = (v['name'] as String).trim();
+    final packQty = v['packQuantity'];
+    final packType = (v['packagingType'] as String);
+    final upc = (v['upc'] as String);
+
+    final secondLine = packQty != null
+        ? (packType.isNotEmpty
+            ? 'Qty: $packQty (${packType.toLowerCase()})'
+            : 'Qty: $packQty')
+        : (packType.isNotEmpty ? _titleCase(packType) : '');
+
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                CatalogDetailsScreen(docId: v['docId'] as String),
+          ),
+        );
+      },
+      child: StandardTileLargeDart(
+        // Catalog images for packaging variants live under the variant's
+        // own docId in the top-level `file` collection — same shape as
+        // the parent product. Empty here for now to keep the row light;
+        // tapping opens the variant's own detail page where the carousel
+        // shows up.
+        imageUrl: '',
+        firstLine: name,
+        firstLineIcon: Icons.category_outlined,
+        secondLine: secondLine,
+        secondLineIcon: secondLine.isNotEmpty ? Icons.inventory_2_outlined : null,
+        thirdLine: upc.isNotEmpty ? 'UPC: $upc' : null,
+        thirdLineIcon: upc.isNotEmpty ? Icons.qr_code : null,
+      ),
+    );
+  }
+
+  String _titleCase(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1);
+  }
+
+  Widget _buildDocTile(Map<String, dynamic> doc) {
+    final url = (doc['url'] ?? doc['downloadUrl'] ?? '').toString();
+    final type = (doc['type'] ?? '').toString();
+    final name = (doc['name'] ?? doc['fileName'] ?? 'Document').toString();
+    final isSds = type.toUpperCase() == 'SDS';
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        isSds ? Icons.warning_amber_outlined : Icons.description_outlined,
+        color: isSds ? Colors.orange : Colors.blue,
+      ),
+      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: type.isNotEmpty
+          ? Text(type.toUpperCase(), style: const TextStyle(fontSize: 11))
+          : null,
+      trailing: url.isNotEmpty
+          ? IconButton(
+              icon: const Icon(Icons.open_in_new, size: 18),
+              onPressed: () async {
+                final uri = Uri.tryParse(url);
+                if (uri != null) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+            )
+          : null,
     );
   }
 }
