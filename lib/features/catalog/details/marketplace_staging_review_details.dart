@@ -6,7 +6,9 @@ import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/containers/container_header.dart';
 import 'package:shared_widgets/viewers/file_carousel_viewer.dart';
 import 'package:shared_widgets/labels/header_info_icon_value.dart';
+import 'package:shared_widgets/labels/text_info_checkbox.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
+import 'package:shared_widgets/tiles/standard_tile_large.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -28,9 +30,15 @@ class MarketplaceStagingReviewDetailsScreen extends StatefulWidget {
 
 class _MarketplaceStagingReviewDetailsScreenState
     extends State<MarketplaceStagingReviewDetailsScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late Map<String, dynamic> _data;
-  late TabController _tabController;
+  // Top tabs: Details / Elements / Additional. Mirrors the catalog detail
+  // structure (Details / Elements) and keeps the staging-only Additional
+  // tab as a third entry for raw vendor field inspection.
+  late TabController _topTabController;
+  // Inner Elements tabs: Parts / Materials / Processes — mirrors the
+  // catalog detail's nested element sub-tabs.
+  late TabController _elementsTabController;
   bool _loading = true;
 
   String _categoryName = '';
@@ -44,14 +52,17 @@ class _MarketplaceStagingReviewDetailsScreenState
   void initState() {
     super.initState();
     _data = Map<String, dynamic>.from(widget.initialData);
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() { if (mounted) setState(() {}); });
+    _topTabController = TabController(length: 3, vsync: this);
+    _topTabController.addListener(() { if (mounted) setState(() {}); });
+    _elementsTabController = TabController(length: 3, vsync: this);
+    _elementsTabController.addListener(() { if (mounted) setState(() {}); });
     _loadLatest();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _topTabController.dispose();
+    _elementsTabController.dispose();
     super.dispose();
   }
 
@@ -327,14 +338,13 @@ class _MarketplaceStagingReviewDetailsScreenState
     final productSheetLinks = _l(dd['productSheetLinks']);
     final allDocs = storageDocs.isNotEmpty ? storageDocs : [...sdsLinks, ...productSheetLinks];
 
-    // Build tab content based on current index
+    // Build tab content based on current top-level tab index. Mirrors the
+    // catalog detail's Details / Elements split, with Additional retained
+    // as a third tab for staging-only raw vendor field inspection.
     Widget tabContent;
-    switch (_tabController.index) {
+    switch (_topTabController.index) {
       case 1:
-        tabContent = const Padding(
-          padding: EdgeInsets.all(32),
-          child: Center(child: Text('Parts, Materials, Inventory, and Processes will appear here after transfer.')),
-        );
+        tabContent = _buildElementsTab();
         break;
       case 2:
         tabContent = _buildAdditionalTabInline(sd, specs, materialNumber, rd);
@@ -365,7 +375,7 @@ class _MarketplaceStagingReviewDetailsScreenState
             ),
             // Tabs
             StandardTabBar(
-              controller: _tabController,
+              controller: _topTabController,
               isScrollable: false,
               tabs: const [
                 Tab(text: 'Details'),
@@ -507,6 +517,12 @@ class _MarketplaceStagingReviewDetailsScreenState
                 ),
                 const SizedBox(height: 12),
                 HeaderInfoIconValue(
+                  header: 'Product Weight Unit',
+                  value: weightUom.isNotEmpty ? weightUom : 'Not set',
+                  icon: Icons.balance_outlined,
+                ),
+                const SizedBox(height: 12),
+                HeaderInfoIconValue(
                   header: 'Product Weight',
                   value: perUnitWeight != null
                       ? perUnitWeight.toStringAsFixed(2)
@@ -515,14 +531,10 @@ class _MarketplaceStagingReviewDetailsScreenState
                 ),
                 const SizedBox(height: 12),
                 HeaderInfoIconValue(
-                  header: 'Product Weight Unit',
-                  value: weightUom.isNotEmpty ? weightUom : 'Not set',
-                  icon: Icons.balance_outlined,
-                ),
-                const SizedBox(height: 12),
-                HeaderInfoIconValue(
                   header: 'Container Type',
-                  value: containerType.isNotEmpty ? containerType : 'Not set',
+                  value: containerType.isNotEmpty
+                      ? _titleCase(containerType)
+                      : 'Not set',
                   icon: Icons.takeout_dining_outlined,
                 ),
               ],
@@ -549,21 +561,17 @@ class _MarketplaceStagingReviewDetailsScreenState
                 value: displayCategory,
                 icon: Icons.category,
               ),
+              if (productLine.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                HeaderInfoIconValue(
+                  header: 'Object Subcategory',
+                  value: productLine,
+                  icon: Icons.subdirectory_arrow_right,
+                ),
+              ],
             ],
           ),
         ),
-
-        // 5. Product Line
-        if (productLine.isNotEmpty)
-          ContainerActionWidget(
-            title: 'Product Line',
-            actionText: '',
-            content: HeaderInfoIconValue(
-              header: 'Product Line',
-              value: productLine,
-              icon: Icons.linear_scale,
-            ),
-          ),
 
         // 6. Attributes — color, fragrance, and other product attributes.
         if (color.isNotEmpty || fragrance.isNotEmpty)
@@ -583,78 +591,246 @@ class _MarketplaceStagingReviewDetailsScreenState
             ),
           ),
 
-        // 7. Packaging (if multi-pack) — interactive preview tile
+        // 6a. Scalar covering checkboxes — Floor / Wall / Ceiling. Mirrors
+        // the catalog detail's Scalar section. Writes go to
+        // stagedProduct.objectData so they transfer to the object on
+        // approval.
+        _buildScalarSection(),
+
+        // 6b. Track Object / Safety Response checkboxes.
+        _buildTrackSafetySection(),
+
+        // 6c. Bulk Packaging — single child variant tile (the scraper
+        // currently emits one packagingData per staged product). Uses
+        // StandardTileLargeDart for shape parity with the catalog detail.
         if (isMultiPack)
           ContainerActionWidget(
-            title: 'Packaging (1)',
+            title: 'Bulk Packaging (1)',
             actionText: '',
-            content: _buildPackagingPreviewTile(context, packagingData, name, caseQty),
+            content: _buildVariantTile(packagingData, name, caseQty),
           ),
 
-        // 6. Resources (documents)
+        // 7. Resources — documents + web-address row, merged from the
+        // separate Resources / Images / Source containers the staging view
+        // used to render. Mirrors the catalog detail's single Resources
+        // container.
         ContainerActionWidget(
-          title: 'Resources (${allDocs.length})',
+          title: 'Resources',
           actionText: '',
-          content: allDocs.isEmpty
-              ? const Text('No documents')
-              : Column(
-                  children: [
-                    for (final doc in allDocs)
-                      _buildDocTile(doc),
-                  ],
-                ),
+          content: _buildResourcesContent(allDocs, canonicalUrl),
         ),
-
-        // 7. Images
-        ContainerActionWidget(
-          title: 'Images (${storageImages.length})',
-          actionText: '',
-          content: storageImages.isEmpty
-              ? const Text('No images uploaded')
-              : Column(
-                  children: [
-                    for (int i = 0; i < storageImages.length; i++)
-                      ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Image.network(
-                            (_m(storageImages[i])['downloadUrl'] ?? '').toString(),
-                            width: 48, height: 48, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 48),
-                          ),
-                        ),
-                        title: Text(i == 0 ? 'Primary Image' : 'Image ${i + 1}',
-                            style: TextStyle(fontWeight: i == 0 ? FontWeight.bold : FontWeight.normal)),
-                        subtitle: Row(children: [
-                          const Icon(Icons.cloud_done, size: 14, color: Colors.green),
-                          const SizedBox(width: 4),
-                          const Text('In Storage', style: TextStyle(fontSize: 11, color: Colors.green)),
-                        ]),
-                      ),
-                  ],
-                ),
-        ),
-
-        // 8. Source
-        if (canonicalUrl.isNotEmpty)
-          ContainerActionWidget(
-            title: 'Source',
-            actionText: '',
-            content: InkWell(
-              onTap: () async {
-                final uri = Uri.tryParse(canonicalUrl);
-                if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
-              },
-              child: Row(children: [
-                const Icon(Icons.link, size: 18, color: Colors.blue),
-                const SizedBox(width: 8),
-                Expanded(child: Text(canonicalUrl, style: const TextStyle(color: Colors.blue, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis)),
-              ]),
-            ),
-          ),
       ],
+    );
+  }
+
+  /// Resources tile body — one StandardTileLargeDart per document plus a
+  /// trailing Web Address row when a canonical URL is present. PDF rows
+  /// render their first page as the thumbnail because StandardTileLargeDart
+  /// detects the `.pdf` extension.
+  Widget _buildResourcesContent(List<dynamic> docs, String canonicalUrl) {
+    final rows = <Widget>[];
+    for (final doc in docs) {
+      rows.add(_buildResourceTile(doc));
+    }
+    if (canonicalUrl.isNotEmpty) {
+      rows.add(_buildWebAddressTile(canonicalUrl));
+    }
+    if (rows.isEmpty) {
+      return Text('No resources', style: TextStyle(color: Colors.grey.shade600));
+    }
+    return Column(children: rows);
+  }
+
+  Widget _buildResourceTile(dynamic doc) {
+    final m = _m(doc);
+    final url = _s(m['downloadUrl']) ?? _s(m['href']) ?? _s(m['url']) ?? '';
+    final name = _s(m['name']) ?? _s(m['text']) ?? _s(m['fileName']) ?? 'Document';
+    final category = (_s(m['type']) ?? '').toUpperCase();
+
+    String fileType = (_s(m['fileType']) ?? _s(m['fileExtension']) ?? '').toUpperCase();
+    if (fileType.isEmpty && url.isNotEmpty) {
+      final path = Uri.tryParse(url)?.path ?? url;
+      final dot = path.lastIndexOf('.');
+      if (dot >= 0 && dot < path.length - 1) {
+        fileType = path.substring(dot + 1).toUpperCase();
+      }
+    }
+
+    return InkWell(
+      onTap: url.isEmpty
+          ? null
+          : () async {
+              final uri = Uri.tryParse(url);
+              if (uri != null) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+      child: StandardTileLargeDart(
+        imageUrl: url,
+        firstLine: name,
+        firstLineIcon: category == 'SDS'
+            ? Icons.warning_amber_outlined
+            : Icons.description_outlined,
+        secondLine: category.isNotEmpty ? category : '',
+        secondLineIcon: category.isNotEmpty ? Icons.folder_outlined : null,
+        thirdLine: fileType.isNotEmpty ? fileType : null,
+        thirdLineIcon: fileType.isNotEmpty ? Icons.insert_drive_file_outlined : null,
+      ),
+    );
+  }
+
+  Widget _buildWebAddressTile(String url) {
+    return InkWell(
+      onTap: () async {
+        final uri = Uri.tryParse(url);
+        if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+      },
+      child: StandardTileLargeDart(
+        imageUrl: '',
+        firstLine: url,
+        firstLineIcon: Icons.link,
+        secondLine: 'Web Address',
+        secondLineIcon: Icons.folder_outlined,
+        thirdLine: 'URL',
+        thirdLineIcon: Icons.language,
+      ),
+    );
+  }
+
+  /// Bulk Packaging variant tile — same shape as the catalog detail's
+  /// `_buildVariantTile`. Tapping opens the existing modal preview sheet
+  /// (the staged product hasn't been transferred yet, so there's no child
+  /// object detail page to navigate to).
+  Widget _buildVariantTile(Map<String, dynamic> pd, String parentName, dynamic caseQty) {
+    final packQty = pd['packQuantity'];
+    final packType = (_s(pd['packagingType']) ?? 'pack');
+    final packName = _s(pd['packName']) ?? _s(pd['name']) ?? '';
+    final upc = _s(pd['objectBarcode']) ?? _s(pd['upc']) ?? '';
+    final displayName = packName.isNotEmpty
+        ? packName
+        : '$packQty-$packType of $parentName';
+    final secondLine = packQty != null
+        ? 'Qty: $packQty (${packType.toLowerCase()})'
+        : _formatKey(packType);
+
+    return InkWell(
+      onTap: () => _showPackagingPreviewSheet(context, pd, parentName, caseQty),
+      child: StandardTileLargeDart(
+        imageUrl: '',
+        firstLine: displayName,
+        firstLineIcon: Icons.category_outlined,
+        secondLine: secondLine,
+        secondLineIcon: Icons.inventory_2_outlined,
+        thirdLine: upc.isNotEmpty ? 'UPC: $upc' : null,
+        thirdLineIcon: upc.isNotEmpty ? Icons.qr_code : null,
+      ),
+    );
+  }
+
+  Widget _buildScalarSection() {
+    final od = _m(_data['objectData']);
+    return ContainerActionWidget(
+      title: 'Scalar',
+      actionText: '',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextInfoCheckbox(
+            text: 'Floor Covering',
+            value: od['floorCovering'] == true,
+            onChanged: (v) => _updateObjectDataField('floorCovering', v ?? false),
+          ),
+          const SizedBox(height: 6),
+          TextInfoCheckbox(
+            text: 'Wall Covering',
+            value: od['wallCovering'] == true,
+            onChanged: (v) => _updateObjectDataField('wallCovering', v ?? false),
+          ),
+          const SizedBox(height: 6),
+          TextInfoCheckbox(
+            text: 'Ceiling Covering',
+            value: od['ceilingCovering'] == true,
+            onChanged: (v) => _updateObjectDataField('ceilingCovering', v ?? false),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrackSafetySection() {
+    final od = _m(_data['objectData']);
+    return ContainerActionWidget(
+      title: '',
+      actionText: '',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextInfoCheckbox(
+            text: 'Track Object',
+            value: od['trackObject'] == true,
+            onChanged: (v) => _updateObjectDataField('trackObject', v ?? false),
+          ),
+          const SizedBox(height: 6),
+          TextInfoCheckbox(
+            text: 'Safety Response',
+            value: od['safetyResponse'] == true,
+            onChanged: (v) => _updateObjectDataField('safetyResponse', v ?? false),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Elements tab — Parts / Materials / Processes sub-tabs. Mirrors the
+  /// catalog detail's nested element tabs. Staged products don't have any
+  /// element data yet (it's created on transfer), so each sub-tab is a
+  /// placeholder.
+  Widget _buildElementsTab() {
+    final inner = <Widget>[];
+    switch (_elementsTabController.index) {
+      case 1:
+        inner.add(_placeholderTab('Materials'));
+        break;
+      case 2:
+        inner.add(_placeholderTab('Processes'));
+        break;
+      case 0:
+      default:
+        inner.add(_placeholderTab('Parts'));
+    }
+    return Column(
+      children: [
+        Container(
+          color: Colors.white,
+          child: StandardTabBar(
+            controller: _elementsTabController,
+            isScrollable: false,
+            dividerColor: Colors.grey.shade300,
+            indicatorColor: Theme.of(context).primaryColor,
+            indicatorWeight: 2.0,
+            labelColor: Colors.black,
+            unselectedLabelColor: Colors.grey.shade600,
+            tabs: const [
+              Tab(text: 'Parts'),
+              Tab(text: 'Materials'),
+              Tab(text: 'Processes'),
+            ],
+          ),
+        ),
+        ...inner,
+      ],
+    );
+  }
+
+  Widget _placeholderTab(String label) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Center(
+        child: Text(
+          '$label coming soon',
+          style: TextStyle(color: Colors.grey.shade500),
+        ),
+      ),
     );
   }
 
@@ -721,93 +897,6 @@ class _MarketplaceStagingReviewDetailsScreenState
             ),
           ),
       ],
-    );
-  }
-
-  Widget _buildDocTile(dynamic doc) {
-    final m = _m(doc);
-    final url = _s(m['downloadUrl']) ?? _s(m['href']) ?? _s(m['url']) ?? '';
-    final name = _s(m['name']) ?? _s(m['text']) ?? _s(m['fileName']) ?? 'Document';
-    final type = _s(m['type']) ?? '';
-    final isFromStorage = _s(m['storagePath'])?.isNotEmpty == true;
-    final isSds = type.toUpperCase() == 'SDS';
-
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(isSds ? Icons.warning_amber_outlined : Icons.description_outlined, color: isSds ? Colors.orange : Colors.blue),
-      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Row(children: [
-        if (type.isNotEmpty) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-            decoration: BoxDecoration(
-              color: (isSds ? Colors.orange : Colors.blue).withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: Text(type.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(width: 6),
-        ],
-        Icon(isFromStorage ? Icons.cloud_done : Icons.cloud_off, size: 14, color: isFromStorage ? Colors.green : Colors.orange),
-        const SizedBox(width: 4),
-        Text(isFromStorage ? 'In Storage' : 'Vendor URL', style: TextStyle(fontSize: 11, color: isFromStorage ? Colors.green : Colors.orange)),
-      ]),
-      trailing: url.isNotEmpty ? IconButton(icon: const Icon(Icons.open_in_new, size: 18), onPressed: () async {
-        final uri = Uri.tryParse(url);
-        if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }) : null,
-    );
-  }
-
-  // Category is now displayed as plain text (the LLM's suggestion treated
-  // as fact) in the "Categories" ContainerActionWidget. The previous
-  // _buildCategoryRow / _confirmSuggestedCategory / _openCategoryPicker /
-  // _writeConfirmedCategory methods have been removed.
-  //
-  // The LLM's suggested category + scalar are written to objectData at
-  // scrape time via suggestedCategoryId / suggestedScalarId. The transfer
-  // function copies objectData straight to the object collection.
-  Widget _buildPackagingPreviewTile(BuildContext context, Map<String, dynamic> pd, String parentName, dynamic caseQty) {
-    final packQty = pd['packQuantity'];
-    final packName = _s(pd['packName']) ?? _s(pd['name']) ?? '';
-    final packType = _s(pd['packagingType']) ?? 'pack';
-    final displayName = packName.isNotEmpty ? packName : '$packQty-$packType of $parentName';
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: () => _showPackagingPreviewSheet(context, pd, parentName, caseQty),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.inventory_2_outlined, color: Colors.blue, size: 22),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(displayName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Qty: ${packQty ?? '—'}  •  Type: ${_formatKey(packType)}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: Colors.grey.shade400),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1047,6 +1136,34 @@ class _MarketplaceStagingReviewDetailsScreenState
         ),
       ),
     );
+  }
+
+  /// Title-cases a whitespace-separated string (e.g. "AEROSOL CAN" → "Aerosol
+  /// Can"). The scraper now title-cases containerType at write time, but
+  /// older staged products still carry the all-caps Solenis original — this
+  /// keeps the display clean without requiring a re-scrape.
+  String _titleCase(String s) {
+    if (s.isEmpty) return s;
+    return s
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase())
+        .join(' ');
+  }
+
+  /// Writes a top-level boolean field on `objectData` so it transfers
+  /// straight to the object collection on approval. Mirrors the in-place
+  /// edit pattern used by the catalog detail's checkbox sections.
+  Future<void> _updateObjectDataField(String field, bool value) async {
+    try {
+      await CatalogFirebaseService.instance.firestore
+          .collection('stagedProduct')
+          .doc(widget.docId)
+          .update({'objectData.$field': value});
+      final od = _m(_data['objectData']);
+      od[field] = value;
+      if (mounted) setState(() => _data['objectData'] = od);
+    } catch (_) {}
   }
 
   String _formatKey(String key) {

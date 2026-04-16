@@ -436,6 +436,21 @@ class _ReviewTabState extends State<_ReviewTab> {
                   'suggestedCategoryKey': (data['suggestedCategoryKey'] ?? '').toString(),
                   'suggestedScalarKey': (data['suggestedScalarKey'] ?? '').toString(),
                   'suggestedCategoryId': data['suggestedCategoryId'],
+                  'objectProductCode': (objectData['objectProductCode'] ??
+                          objectData['productNumber'] ??
+                          rawData['productNumber'] ??
+                          '')
+                      .toString(),
+                  'upc': (objectData['objectBarcode'] ??
+                          objectData['upc'] ??
+                          rawData['upc'] ??
+                          '')
+                      .toString(),
+                  'brand': (objectData['brand'] ??
+                          normalized['brandName'] ??
+                          rawData['brandName'] ??
+                          '')
+                      .toString(),
                   'imageUrl': _resolveImageUrl(data),
                 };
               }).toList();
@@ -470,23 +485,29 @@ class _ReviewTabState extends State<_ReviewTab> {
                       itemBuilder: (item) {
                         final name = item['name'] as String;
                         final imageUrl = item['imageUrl'] as String;
-                        final suggestedCategory = item['suggestedCategoryKey'] as String;
-                        final suggestedScalar = item['suggestedScalarKey'] as String;
+                        final code = item['objectProductCode'] as String;
+                        final upc = item['upc'] as String;
+                        final brand = item['brand'] as String;
+
+                        // Mirrors the catalog list tile shape: code/UPC on
+                        // the second line, brand on the third.
+                        final secondLine = code.isNotEmpty
+                            ? 'Code: $code'
+                            : (upc.isNotEmpty ? 'UPC: $upc' : '');
+                        final thirdLine = brand.isNotEmpty ? brand : null;
 
                         return StandardTileLargeDart(
                           imageUrl: imageUrl,
                           firstLine: name,
                           firstLineIcon: Icons.category_outlined,
-                          secondLine: suggestedCategory.isNotEmpty
-                              ? suggestedCategory
-                              : 'No category',
-                          secondLineIcon: suggestedCategory.isNotEmpty
-                              ? Icons.category_outlined
-                              : Icons.help_outline,
-                          thirdLine: suggestedScalar.isNotEmpty
-                              ? 'Usage: $suggestedScalar'
-                              : 'Usage: Not set',
-                          thirdLineIcon: Icons.straighten,
+                          secondLine: secondLine,
+                          secondLineIcon: secondLine.isNotEmpty
+                              ? Icons.confirmation_number_outlined
+                              : null,
+                          thirdLine: thirdLine,
+                          thirdLineIcon: thirdLine != null
+                              ? Icons.branding_watermark_outlined
+                              : null,
                         );
                       },
                     ),
