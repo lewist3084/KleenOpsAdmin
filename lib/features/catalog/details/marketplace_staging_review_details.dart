@@ -110,16 +110,6 @@ class _MarketplaceStagingReviewDetailsScreenState
         '';
   }
 
-  /// Formats a `<value> <uom>` weight string. Returns 'Not set' when no
-  /// numeric value is present. Trusts that `value` and `uom` are stored as
-  /// separate fields by the scraper — does not parse mixed strings.
-  String _formatWeight(dynamic value, String uom) {
-    final v = _s(value);
-    if (v == null) return 'Not set';
-    if (uom.isEmpty) return v;
-    return '$v $uom';
-  }
-
   /// Walks `keys` in order and returns the first non-empty value found in
   /// `map` (or null). Used as a safety net when reading raw SF custom fields
   /// from `detailData.allFields` — we don't always know the exact field name
@@ -416,11 +406,19 @@ class _MarketplaceStagingReviewDetailsScreenState
         ? _scalarName
         : _s(_data['suggestedScalarKey']) ?? 'Not set';
 
+    // Covering-capable category set mirrors the catalog detail gate so
+    // the staging view only shows the Scalar (floor/wall/ceiling) toggles
+    // when they're actually meaningful.
+    final allowScalarContainer = _categoryName == 'Furnishings' ||
+        _categoryName == 'Grounds' ||
+        _suggestedCategoryName == 'Furnishings' ||
+        _suggestedCategoryName == 'Grounds';
+
     return Column(
       children: [
         // 1. Brand
         ContainerActionWidget(
-          title: 'Brand',
+          title: '',
           actionText: '',
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -442,7 +440,7 @@ class _MarketplaceStagingReviewDetailsScreenState
 
         // 2. Identifiers
         ContainerActionWidget(
-          title: 'Identifiers',
+          title: '',
           actionText: '',
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -464,7 +462,7 @@ class _MarketplaceStagingReviewDetailsScreenState
 
         // 3. Item Packaging — product weight + container/packing type
         ContainerActionWidget(
-          title: 'Item Packaging',
+          title: '',
           actionText: '',
           content: Builder(builder: (_) {
             final od = _m(_data['objectData']);
@@ -523,7 +521,7 @@ class _MarketplaceStagingReviewDetailsScreenState
                 ),
                 const SizedBox(height: 12),
                 HeaderInfoIconValue(
-                  header: 'Product Weight',
+                  header: 'Product Weight Value',
                   value: perUnitWeight != null
                       ? perUnitWeight.toStringAsFixed(2)
                       : 'Not set',
@@ -545,7 +543,7 @@ class _MarketplaceStagingReviewDetailsScreenState
         // 4. Categories — usage + object category as flat data (no
         // suggestion/confirm UX — the LLM's pick is displayed as fact).
         ContainerActionWidget(
-          title: 'Categories',
+          title: '',
           actionText: '',
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -576,7 +574,7 @@ class _MarketplaceStagingReviewDetailsScreenState
         // 6. Attributes — color, fragrance, and other product attributes.
         if (color.isNotEmpty || fragrance.isNotEmpty)
           ContainerActionWidget(
-            title: 'Attributes',
+            title: '',
             actionText: '',
             content: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -591,11 +589,10 @@ class _MarketplaceStagingReviewDetailsScreenState
             ),
           ),
 
-        // 6a. Scalar covering checkboxes — Floor / Wall / Ceiling. Mirrors
-        // the catalog detail's Scalar section. Writes go to
-        // stagedProduct.objectData so they transfer to the object on
-        // approval.
-        _buildScalarSection(),
+        // 6a. Scalar covering checkboxes — Floor / Wall / Ceiling.
+        // Only meaningful for Furnishings or Grounds category items, so
+        // suppressed entirely otherwise (matches catalog detail gating).
+        if (allowScalarContainer) _buildScalarSection(),
 
         // 6b. Track Object / Safety Response checkboxes.
         _buildTrackSafetySection(),
@@ -605,7 +602,7 @@ class _MarketplaceStagingReviewDetailsScreenState
         // StandardTileLargeDart for shape parity with the catalog detail.
         if (isMultiPack)
           ContainerActionWidget(
-            title: 'Bulk Packaging (1)',
+            title: 'Bulk Packaging',
             actionText: '',
             content: _buildVariantTile(packagingData, name, caseQty),
           ),
@@ -714,7 +711,15 @@ class _MarketplaceStagingReviewDetailsScreenState
         : _formatKey(packType);
 
     return InkWell(
-      onTap: () => _showPackagingPreviewSheet(context, pd, parentName, caseQty),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => _StagingPackagingDetailsScreen(
+            packagingData: pd,
+            detailData: _m(_data['detailData']),
+            parentName: parentName,
+          ),
+        ),
+      ),
       child: StandardTileLargeDart(
         imageUrl: '',
         firstLine: displayName,
@@ -900,243 +905,6 @@ class _MarketplaceStagingReviewDetailsScreenState
     );
   }
 
-  void _showPackagingPreviewSheet(BuildContext context, Map<String, dynamic> pd, String parentName, dynamic caseQty) {
-    final packQty = pd['packQuantity'];
-    final packName = _s(pd['packName']) ?? _s(pd['name']) ?? '';
-    final packType = _s(pd['packagingType']) ?? 'pack';
-    final upc = _s(pd['objectBarcode']) ?? _s(pd['upc']) ?? '';
-    final productCode = _s(pd['productNumber']) ?? _s(pd['objectProductCode']) ?? '';
-    final displayName = packName.isNotEmpty ? packName : '$packQty-$packType of $parentName';
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.55,
-        minChildSize: 0.3,
-        maxChildSize: 0.85,
-        expand: false,
-        builder: (_, scrollController) => ListView(
-          controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-          children: [
-            // Drag handle
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            // Header
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.inventory_2_outlined, color: Colors.blue, size: 28),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Packaging Variant', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                      const SizedBox(height: 2),
-                      Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Divider(),
-            const SizedBox(height: 8),
-            // Parent reference
-            ContainerActionWidget(
-              title: 'Parent Product',
-              actionText: '',
-              content: Row(
-                children: [
-                  const Icon(Icons.category_outlined, size: 18, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(parentName, style: const TextStyle(fontSize: 14))),
-                ],
-              ),
-            ),
-            // Packaging details
-            ContainerActionWidget(
-              title: 'Packaging Details',
-              actionText: '',
-              content: Builder(builder: (_) {
-                // Read the raw Solenis fields directly from `detailData.allFields`
-                // (the safety net we added when the named extracts in the
-                // scraper didn't match the real SF field names). The
-                // candidate lists below were derived from a real staged
-                // product dump:
-                //   - dimensions live as ItemLengthTUin__c / ItemWidthTUin__c
-                //     / ItemHeigthTUin__c  (note Solenis's "Heigth" typo)
-                //   - pallet counts live as ItemNumberSSKULayerGMAPallet__c
-                //     / ItemNumberSSKUGMAPallet__c
-                //
-                // For weights we prefer the `*LB__c` suffixed fields because
-                // Solenis exposes the same physical measurement twice — the
-                // unsuffixed version is the metric base (KG) and the LB
-                // version is already converted to the display unit
-                // (`ItemWeightUnitOfMeasure__c: "LB"`). Showing the metric
-                // value labeled as LB would be wrong (e.g. "2.84 LB" when
-                // the value is actually 2.84 KG / 6.261 LB).
-                final detail = _m(_data['detailData']);
-                final allSpecs = _m(detail['allSpecs']);
-                final allFields = _m(detail['allFields']);
-                final weightUom = _weightUom();
-
-                // Per-case weights, LB-first.
-                final packageWeightValue = _firstNonEmpty(allFields, const [
-                      'ItemPackageWeightSKULB__c',
-                      'ItemPackageWeightLB__c',
-                    ]) ??
-                    allSpecs['packageWeight'];
-                final grossWeightValue = _firstNonEmpty(allFields, const [
-                      'ItemGrossWeightSKULB__c',
-                      'ItemGrossWeightLB__c',
-                    ]) ??
-                    allSpecs['grossWeightSku'] ??
-                    allSpecs['grossWeight'];
-
-                // Case dimensions — always inches when read from the
-                // ItemXXXTUin__c / ItemXXXSKUin__c family (the `in` suffix
-                // is the unit). Solenis also exposes mm via ItemDimensionsUOM__c;
-                // we ignore that for the inch fields.
-                const dimensionsUom = 'in';
-                final lengthValue = _firstNonEmpty(allFields, const [
-                      'ItemLengthTUin__c',
-                      'ItemDepthSKUin__c',
-                    ]) ??
-                    allSpecs['length'];
-                final widthValue = _firstNonEmpty(allFields, const [
-                      'ItemWidthTUin__c',
-                      'ItemWidthSKUin__c',
-                    ]) ??
-                    allSpecs['width'];
-                // Solenis spells the field "Heigth" (sic). We try the
-                // misspelled name first, then the corrected one.
-                final heightValue = _firstNonEmpty(allFields, const [
-                      'ItemHeigthTUin__c',
-                      'ItemHeightSKUin__c',
-                    ]) ??
-                    allSpecs['height'];
-
-                // Pallet counts.
-                final tuPerLayer = _firstNonEmpty(allFields, const [
-                      'ItemNumberSSKULayerGMAPallet__c',
-                      'ItemNumberSSKULayerEUPallet__c',
-                    ]) ??
-                    allSpecs['tradedUnitsPerLayer'];
-                final tuPerPallet = _firstNonEmpty(allFields, const [
-                      'ItemNumberSSKUGMAPallet__c',
-                      'ItemNumberSSKUEUPallet__c',
-                    ]) ??
-                    allSpecs['tradedUnitsPerPallet'];
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    HeaderInfoIconValue(header: 'Packaging Type', value: _formatKey(packType), icon: Icons.style_outlined),
-                    const SizedBox(height: 12),
-                    HeaderInfoIconValue(header: 'Pack Quantity', value: '${packQty ?? '—'}', icon: Icons.inventory),
-                    if (caseQty != null) ...[
-                      const SizedBox(height: 12),
-                      HeaderInfoIconValue(header: 'Case Quantity', value: '$caseQty', icon: Icons.calculate_outlined),
-                    ],
-                    const SizedBox(height: 12),
-                    HeaderInfoIconValue(
-                      header: 'Package Weight',
-                      value: _formatWeight(packageWeightValue, weightUom),
-                      icon: Icons.scale_outlined,
-                    ),
-                    const SizedBox(height: 12),
-                    HeaderInfoIconValue(
-                      header: 'Gross Weight',
-                      value: _formatWeight(grossWeightValue, weightUom),
-                      icon: Icons.fitness_center_outlined,
-                    ),
-                    const SizedBox(height: 12),
-                    HeaderInfoIconValue(
-                      header: 'Length',
-                      value: _formatWeight(lengthValue, dimensionsUom),
-                      icon: Icons.straighten,
-                    ),
-                    const SizedBox(height: 12),
-                    HeaderInfoIconValue(
-                      header: 'Width',
-                      value: _formatWeight(widthValue, dimensionsUom),
-                      icon: Icons.straighten,
-                    ),
-                    const SizedBox(height: 12),
-                    HeaderInfoIconValue(
-                      header: 'Height',
-                      value: _formatWeight(heightValue, dimensionsUom),
-                      icon: Icons.height,
-                    ),
-                    const SizedBox(height: 12),
-                    HeaderInfoIconValue(
-                      header: 'Units per Layer',
-                      value: _s(tuPerLayer) ?? 'Not set',
-                      icon: Icons.layers_outlined,
-                    ),
-                    const SizedBox(height: 12),
-                    HeaderInfoIconValue(
-                      header: 'Units per Pallet',
-                      value: _s(tuPerPallet) ?? 'Not set',
-                      icon: Icons.dashboard_outlined,
-                    ),
-                  ],
-                );
-              }),
-            ),
-            // Identifiers
-            if (upc.isNotEmpty || productCode.isNotEmpty)
-              ContainerActionWidget(
-                title: 'Identifiers',
-                actionText: '',
-                content: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (productCode.isNotEmpty)
-                      HeaderInfoIconValue(header: 'Product Code', value: productCode, icon: Icons.confirmation_number_outlined),
-                    if (productCode.isNotEmpty && upc.isNotEmpty)
-                      const SizedBox(height: 12),
-                    if (upc.isNotEmpty)
-                      HeaderInfoIconValue(header: 'UPC', value: upc, icon: Icons.qr_code),
-                  ],
-                ),
-              ),
-            // Preview note
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, size: 14, color: Colors.grey.shade500),
-                  const SizedBox(width: 6),
-                  Text(
-                    'This packaging object will be created on transfer.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   /// Title-cases a whitespace-separated string (e.g. "AEROSOL CAN" → "Aerosol
   /// Can"). The scraper now title-cases containerType at write time, but
@@ -1172,5 +940,304 @@ class _MarketplaceStagingReviewDetailsScreenState
         .split(' ')
         .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}')
         .join(' ');
+  }
+}
+
+/// Full-page packaging-variant detail view for staged products.
+/// Mirrors the catalog detail's bulk-variant layout so reviewers see
+/// the exact post-transfer shape before approving. Data is read from
+/// the in-memory `packagingData` map (not a Firestore doc — the object
+/// hasn't been created yet) with `detailData.allFields` /
+/// `detailData.allSpecs` as fallbacks for older staged products that
+/// pre-date the `packagingWeight` / `packagingLength` scraper fields.
+class _StagingPackagingDetailsScreen extends StatefulWidget {
+  final Map<String, dynamic> packagingData;
+  final Map<String, dynamic> detailData;
+  final String parentName;
+
+  const _StagingPackagingDetailsScreen({
+    required this.packagingData,
+    required this.detailData,
+    required this.parentName,
+  });
+
+  @override
+  State<_StagingPackagingDetailsScreen> createState() =>
+      _StagingPackagingDetailsScreenState();
+}
+
+class _StagingPackagingDetailsScreenState
+    extends State<_StagingPackagingDetailsScreen> {
+  String _weightUnitName = '';
+  String _dimensionsUnitName = '';
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveRefs();
+  }
+
+  Future<void> _resolveRefs() async {
+    final pd = widget.packagingData;
+    final wRef = pd['packagingWeightUnitId'];
+    if (wRef is DocumentReference) {
+      try {
+        final s = await wRef.get();
+        if (s.exists) {
+          final m = (s.data() as Map?) ?? const {};
+          _weightUnitName = (m['abbreviatedName'] ??
+                  m['abbreviationName'] ??
+                  m['abbreviation'] ??
+                  m['name'] ??
+                  '')
+              .toString();
+        }
+      } catch (_) {}
+    }
+    final dRef = pd['packagingDimensionsUnitId'];
+    if (dRef is DocumentReference) {
+      try {
+        final s = await dRef.get();
+        if (s.exists) {
+          final m = (s.data() as Map?) ?? const {};
+          _dimensionsUnitName = (m['abbreviatedName'] ??
+                  m['abbreviationName'] ??
+                  m['abbreviation'] ??
+                  m['name'] ??
+                  '')
+              .toString();
+        }
+      } catch (_) {}
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  String? _s(dynamic v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    return s.isEmpty ? null : s;
+  }
+
+  double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString().trim());
+  }
+
+  String _titleCase(String s) {
+    if (s.isEmpty) return s;
+    return s
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase())
+        .join(' ');
+  }
+
+  /// Resolves the packaging weight unit. Prefers the scalarUnit ref name,
+  /// falls back to the raw `packagingWeightUnit` string, then to the
+  /// parent product's weight UoM stashed on detailData.
+  String _resolvedWeightUnit() {
+    if (_weightUnitName.isNotEmpty) return _weightUnitName;
+    final pd = widget.packagingData;
+    final raw = (pd['packagingWeightUnit'] ?? '').toString().trim();
+    if (raw.isNotEmpty) return raw;
+    final allSpecs = widget.detailData['allSpecs'];
+    if (allSpecs is Map) {
+      return (allSpecs['unitOfMeasure'] ?? '').toString().trim();
+    }
+    return '';
+  }
+
+  String _resolvedDimensionsUnit() {
+    if (_dimensionsUnitName.isNotEmpty) return _dimensionsUnitName;
+    final pd = widget.packagingData;
+    final raw = (pd['packagingDimensionsUnit'] ?? '').toString().trim();
+    if (raw.isNotEmpty) return raw;
+    final allSpecs = widget.detailData['allSpecs'];
+    if (allSpecs is Map) {
+      return (allSpecs['dimensionsUnit'] ?? '').toString().trim();
+    }
+    return '';
+  }
+
+  /// Reads a raw Solenis field from detailData.allFields, trying each
+  /// candidate key in order. Used as a fallback for packagingLength /
+  /// Width / Height when the staged doc pre-dates the new scraper fields.
+  dynamic _rawFromDetail(List<String> keys) {
+    final fields = widget.detailData['allFields'];
+    if (fields is! Map) return null;
+    for (final k in keys) {
+      final v = fields[k];
+      if (v == null) continue;
+      final s = v.toString().trim();
+      if (s.isNotEmpty) return v;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final pd = widget.packagingData;
+    final packQty = pd['packQuantity'];
+    final packType = _s(pd['packagingType']) ?? 'case';
+    final packName = _s(pd['name']) ?? _s(pd['packName']) ?? '';
+    final displayName =
+        packName.isNotEmpty ? packName : '$packQty-$packType of ${widget.parentName}';
+
+    final productCode =
+        _s(pd['objectProductCode']) ?? _s(pd['productNumber']) ?? '';
+    final upc = _s(pd['objectBarcode']) ?? _s(pd['upc']) ?? '';
+
+    // Packaging weight: prefer the new packagingWeight field, else compute
+    // from the per-case raw Solenis weight.
+    dynamic packagingWeight = pd['packagingWeight'];
+    if (packagingWeight == null) {
+      packagingWeight = _rawFromDetail(const [
+        'ItemNetWeightSKULB__c',
+        'ItemNetWeightLB__c',
+      ]);
+      final d = _toDouble(packagingWeight);
+      if (d != null) packagingWeight = (d * 100).roundToDouble() / 100;
+    }
+
+    // Dimensions: prefer the new packagingLength/Width/Height, fall back
+    // to raw Solenis fields (noting Solenis's "Heigth" typo).
+    final length = pd['packagingLength'] ??
+        _rawFromDetail(const ['ItemLengthTUin__c', 'ItemDepthSKUin__c']);
+    final width = pd['packagingWidth'] ??
+        _rawFromDetail(const ['ItemWidthTUin__c', 'ItemWidthSKUin__c']);
+    final height = pd['packagingHeight'] ??
+        _rawFromDetail(const ['ItemHeigthTUin__c', 'ItemHeightSKUin__c']);
+
+    return Scaffold(
+      appBar: null,
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: ListView(
+          children: [
+            ContainerHeader(
+              titleHeader: 'Product',
+              title: displayName,
+              descriptionHeader: '',
+              description: '',
+              textIcon: Icons.category_outlined,
+              showImage: false,
+            ),
+
+            // Identifiers — headerless, matches catalog bulk variant.
+            ContainerActionWidget(
+              title: '',
+              actionText: '',
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  HeaderInfoIconValue(
+                    header: 'Product Code',
+                    value: productCode.isNotEmpty ? productCode : 'Not set',
+                    icon: Icons.confirmation_number_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
+                    header: 'UPC',
+                    value: upc.isNotEmpty ? upc : 'Not set',
+                    icon: Icons.qr_code,
+                  ),
+                ],
+              ),
+            ),
+
+            // Item Packaging — packaging weight unit/value, packaging type.
+            ContainerActionWidget(
+              title: '',
+              actionText: '',
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  HeaderInfoIconValue(
+                    header: 'Packaging Weight Unit',
+                    value: _resolvedWeightUnit().isNotEmpty
+                        ? _resolvedWeightUnit()
+                        : 'Not set',
+                    icon: Icons.balance_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
+                    header: 'Packaging Weight Value',
+                    value: packagingWeight is num
+                        ? packagingWeight.toStringAsFixed(2)
+                        : (_s(packagingWeight) ?? 'Not set'),
+                    icon: Icons.scale_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
+                    header: 'Packaging Type',
+                    value:
+                        packType.isNotEmpty ? _titleCase(packType) : 'Not set',
+                    icon: Icons.inventory_2_outlined,
+                  ),
+                ],
+              ),
+            ),
+
+            // Packaging Dimensions — unit + L/W/H.
+            ContainerActionWidget(
+              title: '',
+              actionText: '',
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  HeaderInfoIconValue(
+                    header: 'Packaging Dimensions Unit',
+                    value: _resolvedDimensionsUnit().isNotEmpty
+                        ? _resolvedDimensionsUnit()
+                        : 'Not set',
+                    icon: Icons.straighten,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
+                    header: 'Length',
+                    value: length is num
+                        ? length.toStringAsFixed(2)
+                        : (_s(length) ?? 'Not set'),
+                    icon: Icons.height,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
+                    header: 'Width',
+                    value: width is num
+                        ? width.toStringAsFixed(2)
+                        : (_s(width) ?? 'Not set'),
+                    icon: Icons.swap_horiz,
+                  ),
+                  const SizedBox(height: 12),
+                  HeaderInfoIconValue(
+                    header: 'Height',
+                    value: height is num
+                        ? height.toStringAsFixed(2)
+                        : (_s(height) ?? 'Not set'),
+                    icon: Icons.vertical_align_top,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 80),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DetailsAppBar(title: displayName),
+          const HomeNavBarAdapter(),
+        ],
+      ),
+    );
   }
 }

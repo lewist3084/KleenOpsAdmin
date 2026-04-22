@@ -91,9 +91,6 @@ class _MarketplaceCatalogTabsState extends State<_MarketplaceCatalogTabs>
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = kBottomNavigationBarHeight + 16.0 +
-        MediaQuery.of(context).padding.bottom;
-
     return Column(
       children: [
         Container(
@@ -111,12 +108,11 @@ class _MarketplaceCatalogTabsState extends State<_MarketplaceCatalogTabs>
             ],
           ),
         ),
-        Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(bottom: bottomInset),
-            child: const CatalogContent(),
-          ),
-        ),
+        // No extra bottom padding — the Scaffold's bottomNavigationBar
+        // (DetailsAppBar + HomeNavBarAdapter) already reserves its own
+        // space, so doubling up here leaves a visible white gap beneath
+        // the list.
+        const Expanded(child: CatalogContent()),
       ],
     );
   }

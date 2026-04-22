@@ -46,6 +46,8 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
   String _scalarName = '';
   String _scalarUnitName = '';
   String _weightUnitName = '';
+  String _packagingWeightUnitName = '';
+  String _packagingDimensionsUnitName = '';
   String _brandName = '';
   String _brandOwnerName = '';
   bool _loading = true;
@@ -183,6 +185,45 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
         }
       } catch (_) {}
     }
+
+    // Packaging weight unit — populated on the bulk packaging variant
+    // (objectType: 'packaging') alongside the packaged case weight.
+    // Distinct from productWeightUnitId, which describes the per-unit
+    // product use weight.
+    final packagingWeightUnitRef = d['packagingWeightUnitId'];
+    if (packagingWeightUnitRef is DocumentReference) {
+      try {
+        final s = await packagingWeightUnitRef.get();
+        if (s.exists) {
+          final data = (s.data() as Map?) ?? const {};
+          _packagingWeightUnitName = (data['abbreviatedName'] ??
+                  data['abbreviationName'] ??
+                  data['abbreviation'] ??
+                  data['name'] ??
+                  '')
+              .toString();
+        }
+      } catch (_) {}
+    }
+
+    // Packaging dimensions unit — points at a doc under
+    // scalar/Length/scalarUnit/* (e.g. Inch, Centimeter). Kept as a ref
+    // so future math can dereference the unit instead of parsing strings.
+    final packagingDimRef = d['packagingDimensionsUnitId'];
+    if (packagingDimRef is DocumentReference) {
+      try {
+        final s = await packagingDimRef.get();
+        if (s.exists) {
+          final data = (s.data() as Map?) ?? const {};
+          _packagingDimensionsUnitName = (data['abbreviatedName'] ??
+                  data['abbreviationName'] ??
+                  data['abbreviation'] ??
+                  data['name'] ??
+                  '')
+              .toString();
+        }
+      } catch (_) {}
+    }
   }
 
   Future<void> _loadImages(DocumentReference<Map<String, dynamic>> ref) async {
@@ -282,6 +323,11 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
     final unitQty = d['scalarUnitQuantity'];
     final productWeight = d['productWeight'];
     final containerType = _s(d['containerType']) ?? '';
+    final packagingWeight = d['packagingWeight'];
+    final packagingType = _s(d['packagingType']) ?? '';
+    final packagingLength = d['packagingLength'];
+    final packagingWidth = d['packagingWidth'];
+    final packagingHeight = d['packagingHeight'];
     final productLine = _s(d['productLine']) ?? '';
     final color = _s(d['color']) ?? '';
     final fragrance = _s(d['fragrance']) ?? _s(d['scent']) ?? '';
@@ -302,6 +348,19 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
       }
     }
 
+    // Packaging variant objects carry a parentProductId reference pointing
+    // back at the base product; they also use objectType 'packaging'. Hide
+    // the sections that only make sense for the base SKU when the viewer
+    // navigates into one of these variants from the Bulk Packaging list.
+    final bool isBulkVariant =
+        d['parentProductId'] != null || d['objectType'] == 'packaging';
+    // The Scalar (floor/wall/ceiling covering) toggle set is only
+    // meaningful for catalog products categorized as Furnishings or Grounds.
+    // Everything else (consumables, equipment, systems) never acts as a
+    // covering, so the container is suppressed entirely.
+    final bool allowScalarContainer =
+        _categoryName == 'Furnishings' || _categoryName == 'Grounds';
+
     // Build the per-tab body up front so we can swap based on the
     // current top-level tab without nesting a giant switch inside the
     // ListView builder.
@@ -319,11 +378,18 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
           unitQty: unitQty,
           productWeight: productWeight,
           containerType: containerType,
+          packagingWeight: packagingWeight,
+          packagingType: packagingType,
+          packagingLength: packagingLength,
+          packagingWidth: packagingWidth,
+          packagingHeight: packagingHeight,
           productLine: productLine,
           color: color,
           fragrance: fragrance,
           documents: documents,
           canonicalUrl: canonicalUrl,
+          isBulkVariant: isBulkVariant,
+          allowScalarContainer: allowScalarContainer,
         );
     }
 
@@ -389,41 +455,50 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
     required dynamic unitQty,
     required dynamic productWeight,
     required String containerType,
+    required dynamic packagingWeight,
+    required String packagingType,
+    required dynamic packagingLength,
+    required dynamic packagingWidth,
+    required dynamic packagingHeight,
     required String productLine,
     required String color,
     required String fragrance,
     required List<Map<String, dynamic>> documents,
     required String canonicalUrl,
+    required bool isBulkVariant,
+    required bool allowScalarContainer,
   }) {
     return Column(
       children: [
-            // 1. Brand
-            ContainerActionWidget(
-              title: 'Brand',
-              actionText: '',
-              content: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  HeaderInfoIconValue(
-                    header: 'Brand',
-                    value: _brandName.isNotEmpty ? _brandName : 'Not set',
-                    icon: Icons.branding_watermark_outlined,
-                  ),
-                  const SizedBox(height: 12),
-                  HeaderInfoIconValue(
-                    header: 'Brand Owner',
-                    value: _brandOwnerName.isNotEmpty
-                        ? _brandOwnerName
-                        : 'Not set',
-                    icon: Icons.business_outlined,
-                  ),
-                ],
+            // 1. Brand — suppressed entirely for bulk packaging variants
+            // since their brand is inherited from the parent product.
+            if (!isBulkVariant)
+              ContainerActionWidget(
+                title: '',
+                actionText: '',
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    HeaderInfoIconValue(
+                      header: 'Brand',
+                      value: _brandName.isNotEmpty ? _brandName : 'Not set',
+                      icon: Icons.branding_watermark_outlined,
+                    ),
+                    const SizedBox(height: 12),
+                    HeaderInfoIconValue(
+                      header: 'Brand Owner',
+                      value: _brandOwnerName.isNotEmpty
+                          ? _brandOwnerName
+                          : 'Not set',
+                      icon: Icons.business_outlined,
+                    ),
+                  ],
+                ),
               ),
-            ),
 
             // 2. Identifiers
             ContainerActionWidget(
-              title: 'Identifiers',
+              title: '',
               actionText: '',
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -443,89 +518,169 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
               ),
             ),
 
-            // 3. Item Packaging
+            // 3. Item Packaging — field set depends on whether the
+            // current object is the base product or a bulk packaging
+            // variant. Variants describe the shipping case itself
+            // (packaging weight + packaging type), not the product inside.
             ContainerActionWidget(
-              title: 'Item Packaging',
+              title: '',
               actionText: '',
-              content: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  HeaderInfoIconValue(
-                    header: 'Content Unit',
-                    value: _scalarUnitName.isNotEmpty
-                        ? _scalarUnitName
-                        : 'Not set',
-                    icon: Icons.science_outlined,
-                  ),
-                  const SizedBox(height: 12),
-                  HeaderInfoIconValue(
-                    header: 'Content Value',
-                    value: unitQty != null ? '$unitQty' : 'Not set',
-                    icon: Icons.format_list_numbered,
-                  ),
-                  const SizedBox(height: 12),
-                  HeaderInfoIconValue(
-                    header: 'Product Weight Unit',
-                    value: _resolvedWeightUnit().isNotEmpty
-                        ? _resolvedWeightUnit()
-                        : 'Not set',
-                    icon: Icons.balance_outlined,
-                  ),
-                  const SizedBox(height: 12),
-                  HeaderInfoIconValue(
-                    header: 'Product Weight',
-                    value: productWeight is num
-                        ? productWeight.toStringAsFixed(2)
-                        : (_s(productWeight) ?? 'Not set'),
-                    icon: Icons.scale_outlined,
-                  ),
-                  const SizedBox(height: 12),
-                  HeaderInfoIconValue(
-                    header: 'Container Type',
-                    value: containerType.isNotEmpty
-                        ? _titleCase(containerType)
-                        : 'Not set',
-                    icon: Icons.takeout_dining_outlined,
-                  ),
-                ],
-              ),
+              content: isBulkVariant
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        HeaderInfoIconValue(
+                          header: 'Packaging Weight Unit',
+                          value: _resolvedPackagingWeightUnit().isNotEmpty
+                              ? _resolvedPackagingWeightUnit()
+                              : 'Not set',
+                          icon: Icons.balance_outlined,
+                        ),
+                        const SizedBox(height: 12),
+                        HeaderInfoIconValue(
+                          header: 'Packaging Weight Value',
+                          value: packagingWeight is num
+                              ? packagingWeight.toStringAsFixed(2)
+                              : (_s(packagingWeight) ?? 'Not set'),
+                          icon: Icons.scale_outlined,
+                        ),
+                        const SizedBox(height: 12),
+                        HeaderInfoIconValue(
+                          header: 'Packaging Type',
+                          value: packagingType.isNotEmpty
+                              ? _titleCase(packagingType)
+                              : 'Not set',
+                          icon: Icons.inventory_2_outlined,
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        HeaderInfoIconValue(
+                          header: 'Content Unit',
+                          value: _scalarUnitName.isNotEmpty
+                              ? _scalarUnitName
+                              : 'Not set',
+                          icon: Icons.science_outlined,
+                        ),
+                        const SizedBox(height: 12),
+                        HeaderInfoIconValue(
+                          header: 'Content Value',
+                          value: unitQty != null ? '$unitQty' : 'Not set',
+                          icon: Icons.format_list_numbered,
+                        ),
+                        const SizedBox(height: 12),
+                        HeaderInfoIconValue(
+                          header: 'Product Weight Unit',
+                          value: _resolvedWeightUnit().isNotEmpty
+                              ? _resolvedWeightUnit()
+                              : 'Not set',
+                          icon: Icons.balance_outlined,
+                        ),
+                        const SizedBox(height: 12),
+                        HeaderInfoIconValue(
+                          header: 'Product Weight Value',
+                          value: productWeight is num
+                              ? productWeight.toStringAsFixed(2)
+                              : (_s(productWeight) ?? 'Not set'),
+                          icon: Icons.scale_outlined,
+                        ),
+                        const SizedBox(height: 12),
+                        HeaderInfoIconValue(
+                          header: 'Container Type',
+                          value: containerType.isNotEmpty
+                              ? _titleCase(containerType)
+                              : 'Not set',
+                          icon: Icons.takeout_dining_outlined,
+                        ),
+                      ],
+                    ),
             ),
 
-            // 4. Categories
-            ContainerActionWidget(
-              title: 'Categories',
-              actionText: '',
-              content: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  HeaderInfoIconValue(
-                    header: 'Usage',
-                    value: _scalarName.isNotEmpty ? _scalarName : 'Not set',
-                    icon: Icons.straighten,
-                  ),
-                  const SizedBox(height: 12),
-                  HeaderInfoIconValue(
-                    header: 'Object Category',
-                    value:
-                        _categoryName.isNotEmpty ? _categoryName : 'Not set',
-                    icon: Icons.category,
-                  ),
-                  if (productLine.isNotEmpty) ...[
+            // 3a. Packaging Dimensions — bulk variants only. L/W/H plus
+            // the unit (resolved via packagingDimensionsUnitId ref under
+            // scalar/Length/scalarUnit/*, so cubic-footage / density math
+            // can dereference the unit instead of string-parsing).
+            if (isBulkVariant)
+              ContainerActionWidget(
+                title: '',
+                actionText: '',
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    HeaderInfoIconValue(
+                      header: 'Packaging Dimensions Unit',
+                      value: _resolvedPackagingDimensionsUnit().isNotEmpty
+                          ? _resolvedPackagingDimensionsUnit()
+                          : 'Not set',
+                      icon: Icons.straighten,
+                    ),
                     const SizedBox(height: 12),
                     HeaderInfoIconValue(
-                      header: 'Object Subcategory',
-                      value: productLine,
-                      icon: Icons.subdirectory_arrow_right,
+                      header: 'Length',
+                      value: packagingLength is num
+                          ? packagingLength.toStringAsFixed(2)
+                          : (_s(packagingLength) ?? 'Not set'),
+                      icon: Icons.height,
+                    ),
+                    const SizedBox(height: 12),
+                    HeaderInfoIconValue(
+                      header: 'Width',
+                      value: packagingWidth is num
+                          ? packagingWidth.toStringAsFixed(2)
+                          : (_s(packagingWidth) ?? 'Not set'),
+                      icon: Icons.swap_horiz,
+                    ),
+                    const SizedBox(height: 12),
+                    HeaderInfoIconValue(
+                      header: 'Height',
+                      value: packagingHeight is num
+                          ? packagingHeight.toStringAsFixed(2)
+                          : (_s(packagingHeight) ?? 'Not set'),
+                      icon: Icons.vertical_align_top,
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
+
+            // 4. Categories — suppressed on packaging variants (they
+            // inherit their category from the parent product).
+            if (!isBulkVariant)
+              ContainerActionWidget(
+                title: '',
+                actionText: '',
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    HeaderInfoIconValue(
+                      header: 'Usage',
+                      value: _scalarName.isNotEmpty ? _scalarName : 'Not set',
+                      icon: Icons.straighten,
+                    ),
+                    const SizedBox(height: 12),
+                    HeaderInfoIconValue(
+                      header: 'Object Category',
+                      value:
+                          _categoryName.isNotEmpty ? _categoryName : 'Not set',
+                      icon: Icons.category,
+                    ),
+                    if (productLine.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      HeaderInfoIconValue(
+                        header: 'Object Subcategory',
+                        value: productLine,
+                        icon: Icons.subdirectory_arrow_right,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
 
             // 6. Attributes
             if (color.isNotEmpty || fragrance.isNotEmpty)
               ContainerActionWidget(
-                title: 'Attributes',
+                title: '',
                 actionText: '',
                 content: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -549,24 +704,21 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
               ),
 
             // 6a. Scalar — Floor / Wall / Ceiling Covering checkboxes.
-            // Mirrors the regular CleanOps app's Scaler section. Writes
-            // to the global `object` doc (catalog-level capability flags
-            // describing what the product can cover).
-            _buildScalarSection(),
+            // Only meaningful for Furnishings or Grounds category items;
+            // also suppressed on packaging variants.
+            if (!isBulkVariant && allowScalarContainer)
+              _buildScalarSection(),
 
-            // 6b. Track Object / Safety Response — checkbox toggles
-            // describing whether the product is tracked individually
-            // and whether it has safety-response significance.
-            _buildTrackSafetySection(),
+            // 6b. Track Object / Safety Response — suppressed on
+            // packaging variants (the parent product carries these flags).
+            if (!isBulkVariant) _buildTrackSafetySection(),
 
             // 6c. Bulk Packaging — child objects whose parentProductId
-            // references this product. Only rendered when the product
-            // has at least one variant (single-unit items don't get this
-            // section at all). Uses StandardTileLargeDart so each row
-            // matches the shape of the catalog list itself.
-            if (_packagingVariants.isNotEmpty)
+            // references this product. Only rendered on the parent object
+            // and only when at least one variant exists.
+            if (!isBulkVariant && _packagingVariants.isNotEmpty)
               ContainerActionWidget(
-                title: 'Bulk Packaging (${_packagingVariants.length})',
+                title: 'Bulk Packaging',
                 actionText: '',
                 content: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -576,18 +728,14 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
                 ),
               ),
 
-            // 7. Resources — documents + web-address row. Uses
-            // StandardTileLargeDart so PDF rows show a thumbnail of the
-            // first page automatically (the tile internally renders PDFs
-            // via SfPdfViewer when the url extension is `.pdf`). The
-            // dedicated Images container and Source container were
-            // removed; the canonical URL now lives here as a "Web
-            // Address" row alongside the PDFs.
-            ContainerActionWidget(
-              title: 'Resources',
-              actionText: '',
-              content: _buildResourcesContent(documents, canonicalUrl),
-            ),
+            // 7. Resources — suppressed on packaging variants; the
+            // parent product carries the SDS/TDS/etc. for the whole line.
+            if (!isBulkVariant)
+              ContainerActionWidget(
+                title: 'Resources',
+                actionText: '',
+                content: _buildResourcesContent(documents, canonicalUrl),
+              ),
       ],
     );
   }
@@ -807,6 +955,34 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
     return raw;
   }
 
+  /// Packaging weight unit resolution — mirrors _resolvedWeightUnit but
+  /// for the packaged-case shipping weight (stored on objectType:
+  /// 'packaging' variants). Falls back to packagingWeightUnit string,
+  /// then to productWeightUnit (legacy packaging variants written before
+  /// the split reused the product fields).
+  String _resolvedPackagingWeightUnit() {
+    if (_packagingWeightUnitName.isNotEmpty) return _packagingWeightUnitName;
+    final d = _data ?? const <String, dynamic>{};
+    final raw = (d['packagingWeightUnit'] ??
+            d['productWeightUnit'] ??
+            d['productWeightUom'] ??
+            '')
+        .toString()
+        .trim();
+    return raw;
+  }
+
+  /// Packaging dimensions unit resolution — prefers the scalarUnit ref
+  /// name, falls back to the raw packagingDimensionsUnit string for
+  /// variants written before the ref was wired up.
+  String _resolvedPackagingDimensionsUnit() {
+    if (_packagingDimensionsUnitName.isNotEmpty) {
+      return _packagingDimensionsUnitName;
+    }
+    final d = _data ?? const <String, dynamic>{};
+    return (d['packagingDimensionsUnit'] ?? '').toString().trim();
+  }
+
   /// Renders one resource row (SDS / TDS / etc.) using the same
   /// StandardTileLargeDart shape the rest of the catalog uses. Passes
   /// the PDF URL through as the tile's imageUrl — StandardTileLargeDart
@@ -861,9 +1037,17 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
 
   /// Web Address row — the canonical source URL for the product, shown
   /// in the Resources container alongside the PDF resources. Tapping
-  /// opens the URL externally. Previously lived in its own "Source"
-  /// container; now consolidated here.
+  /// opens the URL externally.
+  ///
+  /// The thumbnail is a live screenshot rendered by Microlink's free
+  /// screenshot API (embed=screenshot.url returns the raw PNG), so the
+  /// reviewer sees a small preview of the vendor page instead of just a
+  /// generic link icon.
   Widget _buildWebAddressTile(String url) {
+    final screenshotUrl =
+        'https://api.microlink.io/?url=${Uri.encodeComponent(url)}'
+        '&screenshot=true&embed=screenshot.url&meta=false&viewport.width=800'
+        '&viewport.height=600';
     return InkWell(
       onTap: () async {
         final uri = Uri.tryParse(url);
@@ -872,7 +1056,8 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
         }
       },
       child: StandardTileLargeDart(
-        imageUrl: '',
+        imageUrl: screenshotUrl,
+        fit: BoxFit.cover,
         firstLine: url,
         firstLineIcon: Icons.link,
         secondLine: 'Web Address',
