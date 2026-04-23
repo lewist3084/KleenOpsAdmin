@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_widgets/utils/process_localization_utils.dart';
 
 import 'package:kleenops_admin/features/finances/services/finance_invoice_service.dart';
 
@@ -151,10 +152,22 @@ class QuoteGeneratorService {
       final processes = processesByObjectId[doc.id];
       if (processes == null || processes.isEmpty) continue;
 
+      // companyObject.localName + description may now be localized
+      // maps. resolveLocalizedText is safe for String or Map and
+      // prefers `en` → `source` → any value when no locale is in
+      // scope (this service has no BuildContext).
+      final resolvedName = ProcessLocalizationUtils.resolveLocalizedText(
+        data['localName'],
+        localeCode: ProcessLocalizationUtils.defaultLocaleCode,
+      ).trim();
+      final resolvedDescription = ProcessLocalizationUtils.resolveLocalizedText(
+        data['description'],
+        localeCode: ProcessLocalizationUtils.defaultLocaleCode,
+      );
       objectEntries.add(QuoteObjectEntry(
         objectId: doc.id,
-        objectName: (data['localName'] as String?) ?? 'Unnamed',
-        description: (data['description'] as String?) ?? '',
+        objectName: resolvedName.isEmpty ? 'Unnamed' : resolvedName,
+        description: resolvedDescription,
         processes: processes,
       ));
     }

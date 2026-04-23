@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:kleenops_admin/l10n/app_localizations.dart';
 import 'package:shared_widgets/services/catalog_firebase_service.dart';
+import 'package:shared_widgets/utils/process_localization_utils.dart';
 import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/containers/container_header.dart';
 import 'package:shared_widgets/viewers/file_carousel_viewer.dart';
@@ -701,7 +702,11 @@ class _MarketplaceStagingReviewDetailsScreenState
   Widget _buildVariantTile(Map<String, dynamic> pd, String parentName, dynamic caseQty) {
     final packQty = pd['packQuantity'];
     final packType = (_s(pd['packagingType']) ?? 'pack');
-    final packName = _s(pd['packName']) ?? _s(pd['name']) ?? '';
+    final localeCode = Localizations.localeOf(context).toString();
+    String resolveLocalized(dynamic v) =>
+        ProcessLocalizationUtils.resolveLocalizedText(v, localeCode: localeCode).trim();
+    final packNameRaw = resolveLocalized(pd['packName']);
+    final packName = packNameRaw.isNotEmpty ? packNameRaw : resolveLocalized(pd['name']);
     final upc = _s(pd['objectBarcode']) ?? _s(pd['upc']) ?? '';
     final displayName = packName.isNotEmpty
         ? packName

@@ -5,6 +5,7 @@ import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/utils/process_localization_utils.dart';
 
 class PurchasingOrderLineItemForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> purchaseOrderRef;
@@ -158,16 +159,31 @@ class _PurchasingOrderLineItemFormState extends State<PurchasingOrderLineItemFor
                   ),
                   const SizedBox(height: 16),
                   StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    // localName/name may be localized maps; server-side
+                    // orderBy would sort by map key order. Sort client-
+                    // side on resolved current-locale text.
                     stream: FirebaseFirestore.instance
                         .collection('companyObject')
-                        .orderBy('name')
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) {
                         return const Center(child: CircularProgressIndicator());
                       }
 
-                      final docs = snapshot.data!.docs;
+                      final dropdownLocaleCode =
+                          Localizations.localeOf(context).toString();
+                      final docs = snapshot.data!.docs.toList()
+                        ..sort((a, b) {
+                          final an = ProcessLocalizationUtils.resolveLocalizedText(
+                            a.data()['localName'] ?? a.data()['name'],
+                            localeCode: dropdownLocaleCode,
+                          ).toLowerCase();
+                          final bn = ProcessLocalizationUtils.resolveLocalizedText(
+                            b.data()['localName'] ?? b.data()['name'],
+                            localeCode: dropdownLocaleCode,
+                          ).toLowerCase();
+                          return an.compareTo(bn);
+                        });
                       final items = docs.map((doc) => doc.reference).toList();
                       return SearchAddSelectDropdown<DocumentReference<Map<String, dynamic>>>(
                         label: 'Object (optional)',
@@ -177,9 +193,12 @@ class _PurchasingOrderLineItemFormState extends State<PurchasingOrderLineItemFor
                           final match = docs.where((doc) => doc.reference == ref);
                           if (match.isEmpty) return ref.id;
                           final data = match.first.data();
-                          final name = (data['name'] ?? data['localName'] ?? ref.id)
-                              .toString();
-                          return name;
+                          final resolved =
+                              ProcessLocalizationUtils.resolveLocalizedText(
+                            data['localName'] ?? data['name'],
+                            localeCode: dropdownLocaleCode,
+                          ).trim();
+                          return resolved.isEmpty ? ref.id : resolved;
                         },
                         onChanged: (value) => setState(() => _selectedObjectRef = value),
                       );

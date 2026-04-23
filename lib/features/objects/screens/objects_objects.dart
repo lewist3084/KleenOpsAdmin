@@ -12,6 +12,7 @@ import 'package:shared_widgets/dialogs/dialog_action.dart';
 import 'package:shared_widgets/lists/standardView.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
+import 'package:shared_widgets/utils/process_localization_utils.dart';
 
 import '../../auth/providers/auth_provider.dart';
 import '../forms/objects_inventory_form.dart';
@@ -31,8 +32,9 @@ class ObjectsObjectsContentState
   final TextEditingController _searchController = TextEditingController();
   final ValueNotifier<bool> _fabVisibleNotifier = ValueNotifier<bool>(true);
   Set<String> _selectedCategoryIds = {};
-  final Map<String, String> _categoryNames = {};
-  final Map<String, String> _subcategoryNamesByPath = {};
+  // Raw (String OR localized map) values — resolved at render time.
+  final Map<String, dynamic> _categoryNames = {};
+  final Map<String, dynamic> _subcategoryNamesByPath = {};
   String? _loadedCompanyPath;
 
   // Cache: objectId -> primary header image url.
@@ -55,18 +57,15 @@ class ObjectsObjectsContentState
         .collection('objectCategory')
         .limit(200)
         .get();
-    final catMap = <String, String>{
-      for (final d in catSnap.docs)
-        d.id: ((d.data()['name'] as String?) ?? 'Unnamed').toString(),
+    final catMap = <String, dynamic>{
+      for (final d in catSnap.docs) d.id: d.data()['name'],
     };
 
     final subSnap =
         await companyRef.collection('objectSubcategory').limit(200).get();
-    final subMap = <String, String>{};
+    final subMap = <String, dynamic>{};
     for (final doc in subSnap.docs) {
-      final raw = (doc.data()['name'] as String?)?.trim();
-      subMap[doc.reference.path] =
-          (raw == null || raw.isEmpty) ? 'Unnamed' : raw;
+      subMap[doc.reference.path] = doc.data()['name'];
     }
 
     if (!mounted) return;
@@ -80,10 +79,27 @@ class ObjectsObjectsContentState
     });
   }
 
-  String _subcategoryLabel(DocumentReference? ref) {
+  String _categoryLabelFor(String? id, String localeCode) {
+    if (id == null || id.isEmpty) return 'Unknown';
+    final raw = _categoryNames[id];
+    if (raw == null) return 'Unknown';
+    final resolved = ProcessLocalizationUtils.resolveLocalizedText(
+      raw,
+      localeCode: localeCode,
+    ).trim();
+    return resolved.isEmpty ? 'Unknown' : resolved;
+  }
+
+  String _subcategoryLabel(DocumentReference? ref, String localeCode) {
     if (ref == null) return 'Uncategorized';
-    final byPath = _subcategoryNamesByPath[ref.path];
-    if (byPath != null && byPath.trim().isNotEmpty) return byPath;
+    final raw = _subcategoryNamesByPath[ref.path];
+    if (raw != null) {
+      final resolved = ProcessLocalizationUtils.resolveLocalizedText(
+        raw,
+        localeCode: localeCode,
+      ).trim();
+      if (resolved.isNotEmpty) return resolved;
+    }
     return ref.id.isNotEmpty ? ref.id : 'Uncategorized';
   }
 
@@ -141,12 +157,15 @@ class ObjectsObjectsContentState
         }
         _preloadCategoryNames(companyRef);
 
+        // localName is now a localized map — server-side orderBy on it
+        // would sort by map key order, not alphabetically. Sort client-
+        // side on the resolved current-locale string instead.
         final objectsStream = companyRef
             .collection('companyObject')
             .orderBy('objectCategoryId')
-            .orderBy('localName')
             .limit(500)
             .snapshots();
+        final listLocaleCode = Localizations.localeOf(context).toString();
 
         final searchField = SearchFieldAction(
           controller: _searchController,
@@ -180,9 +199,10 @@ class ObjectsObjectsContentState
               }
 
               var filtered = docs.where((doc) {
-                final name = (doc.data()['localName'] ?? '')
-                    .toString()
-                    .toLowerCase();
+                final name = ProcessLocalizationUtils.resolveLocalizedText(
+                  doc.data()['localName'],
+                  localeCode: listLocaleCode,
+                ).toLowerCase();
                 return name.contains(_searchQuery.toLowerCase());
               });
 
@@ -201,12 +221,18 @@ class ObjectsObjectsContentState
                   'docId': doc.id,
                   'objectCategoryId': d['objectCategoryId'],
                   'objectSubcategoryId': d['objectSubcategoryId'],
-                  'localName': (d['localName'] ?? '').toString(),
+                  'localName': ProcessLocalizationUtils.resolveLocalizedText(
+                    d['localName'],
+                    localeCode: listLocaleCode,
+                  ),
                   'inventoryTotalQuantity': d['inventoryTotalQuantity'],
                   'inventoryBuildingAbbreviations':
                       d['inventoryBuildingAbbreviations'],
                 };
-              }).toList();
+              }).toList()
+                ..sort((a, b) => (a['localName'] as String)
+                    .toLowerCase()
+                    .compareTo((b['localName'] as String).toLowerCase()));
 
               if (items.isEmpty) {
                 return const Center(child: Text('No objects match.'));
@@ -217,12 +243,12 @@ class ObjectsObjectsContentState
                 groupBy: (item) {
                   final ref =
                       item['objectCategoryId'] as DocumentReference?;
-                  return _categoryNames[ref?.id] ?? 'Unknown';
+                  return _categoryLabelFor(ref?.id, listLocaleCode);
                 },
                 subgroupBy: (item) {
                   final ref =
                       item['objectSubcategoryId'] as DocumentReference?;
-                  return _subcategoryLabel(ref);
+                  return _subcategoryLabel(ref, listLocaleCode);
                 },
                 groupCollapsible: true,
                 initialGroupExpanded: true,
@@ -334,7 +360,17 @@ class ObjectsObjectsContentState
             if (_categoryNames.isEmpty) {
               return const Center(child: CircularProgressIndicator());
             }
-            final sorted = _categoryNames.entries.toList()
+            final dialogLocaleCode =
+                Localizations.localeOf(ctx2).toString();
+            final sorted = _categoryNames.entries
+                .map((e) => MapEntry(
+                      e.key,
+                      ProcessLocalizationUtils.resolveLocalizedText(
+                        e.value,
+                        localeCode: dialogLocaleCode,
+                      ),
+                    ))
+                .toList()
               ..sort((a, b) =>
                   a.value.toLowerCase().compareTo(b.value.toLowerCase()));
             return SingleChildScrollView(

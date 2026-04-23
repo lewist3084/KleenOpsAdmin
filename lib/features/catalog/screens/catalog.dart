@@ -19,6 +19,7 @@ import 'package:shared_widgets/lists/standardView.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
 import 'package:shared_widgets/services/catalog_firebase_service.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
+import 'package:shared_widgets/utils/process_localization_utils.dart';
 
 import 'package:kleenops_admin/features/catalog/details/catalog_details.dart';
 import 'package:kleenops_admin/l10n/app_localizations.dart';
@@ -34,10 +35,10 @@ class _CatalogContentState extends State<CatalogContent> {
   String _search = '';
   final _searchController = TextEditingController();
 
-  /// Cache: objectCategoryId → category name (e.g. "Consumables - Liquid").
-  /// Loaded once on first build; refreshed only if a doc references an
-  /// unknown id.
-  final Map<String, String> _categoryNames = {};
+  /// Cache: objectCategoryId → raw `name` value (String OR localized map).
+  /// Resolved to the user's current locale at display time so switching
+  /// languages updates grouping without a re-fetch.
+  final Map<String, dynamic> _categoryNameValues = {};
   bool _categoriesLoaded = false;
 
   /// Cache: object doc id → primary header image URL. Populated on demand
@@ -63,8 +64,7 @@ class _CatalogContentState extends State<CatalogContent> {
           .collection('objectCategory')
           .get();
       for (final doc in snap.docs) {
-        _categoryNames[doc.id] =
-            (doc.data()['name'] ?? 'Unknown').toString();
+        _categoryNameValues[doc.id] = doc.data()['name'];
       }
     } catch (_) {}
     if (mounted) setState(() => _categoriesLoaded = true);
@@ -104,20 +104,26 @@ class _CatalogContentState extends State<CatalogContent> {
     return '';
   }
 
-  String _categoryNameFor(dynamic ref) {
+  String _categoryNameFor(dynamic ref, String localeCode) {
+    dynamic raw;
     if (ref is DocumentReference) {
-      return _categoryNames[ref.id] ?? 'Uncategorized';
+      raw = _categoryNameValues[ref.id];
+    } else if (ref is String && ref.isNotEmpty) {
+      raw = _categoryNameValues[ref];
     }
-    if (ref is String && ref.isNotEmpty) {
-      return _categoryNames[ref] ?? 'Uncategorized';
-    }
-    return 'Uncategorized';
+    if (raw == null) return 'Uncategorized';
+    final resolved = ProcessLocalizationUtils.resolveLocalizedText(
+      raw,
+      localeCode: localeCode,
+    ).trim();
+    return resolved.isEmpty ? 'Uncategorized' : resolved;
   }
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     final db = CatalogFirebaseService.instance.firestore;
+    final localeCode = Localizations.localeOf(context).toString();
 
     return Column(
       children: [
@@ -137,7 +143,7 @@ class _CatalogContentState extends State<CatalogContent> {
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: db
                   .collection('object')
-                  .orderBy('name')
+                  .orderBy('nameLower')
                   .limit(200)
                   .snapshots(),
               builder: (context, snapshot) {
@@ -172,7 +178,10 @@ class _CatalogContentState extends State<CatalogContent> {
                     : docs.where((doc) {
                         final data = doc.data();
                         final name =
-                            (data['name'] ?? '').toString().toLowerCase();
+                            ProcessLocalizationUtils.resolveLocalizedText(
+                          data['name'],
+                          localeCode: localeCode,
+                        ).toLowerCase();
                         final code = (data['objectProductCode'] ?? '')
                             .toString()
                             .toLowerCase();
@@ -197,9 +206,16 @@ class _CatalogContentState extends State<CatalogContent> {
 
                 final items = filtered.map((doc) {
                   final data = doc.data();
+                  final resolvedName =
+                      ProcessLocalizationUtils.resolveLocalizedText(
+                    data['name'],
+                    localeCode: localeCode,
+                  ).trim();
                   return {
                     'docId': doc.id,
-                    'name': (data['name'] ?? loc.commonUnnamed).toString(),
+                    'name': resolvedName.isEmpty
+                        ? loc.commonUnnamed
+                        : resolvedName,
                     'objectCategoryId': data['objectCategoryId'],
                     'objectProductCode':
                         (data['objectProductCode'] ?? '').toString(),
@@ -212,7 +228,7 @@ class _CatalogContentState extends State<CatalogContent> {
                 return StandardView<Map<String, dynamic>>(
                   items: items,
                   groupBy: (item) =>
-                      _categoryNameFor(item['objectCategoryId']),
+                      _categoryNameFor(item['objectCategoryId'], localeCode),
                   groupCollapsible: true,
                   initialGroupExpanded: true,
                   headerIcon: null,

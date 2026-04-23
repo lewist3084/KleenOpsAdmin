@@ -227,9 +227,31 @@ class _ScrapingTab extends StatelessWidget {
             final progress = data['progress'] is Map
                 ? Map<String, dynamic>.from(data['progress'] as Map)
                 : <String, dynamic>{};
-            final stagedCount = results['stagedProducts'] ?? progress['staged'] ?? 0;
-            final totalFound = results['totalFound'] ?? results['totalProducts'] ?? 0;
-            final failedCount = results['failed'] ?? 0;
+            // While the job is running, the live count lives on
+            // `progress.staged`. After completion the worker also writes
+            // `results.stagedProducts`. Pick whichever is greater so we
+            // never regress to the createScrapeJob-initialized 0.
+            final stagedLive = (progress['staged'] as num?)?.toInt() ?? 0;
+            final stagedFinal =
+                (results['stagedProducts'] as num?)?.toInt() ?? 0;
+            final stagedCount =
+                stagedLive > stagedFinal ? stagedLive : stagedFinal;
+
+            // Prefer the live progress.totalFound that the worker writes
+            // immediately after the category listing is collected, so
+            // the tile shows "Found: 62" while items are still being
+            // staged. Same zero-init hazard as above.
+            final totalLive = (progress['totalFound'] as num?)?.toInt() ?? 0;
+            final totalFinal = (results['totalFound'] as num?)?.toInt() ??
+                (results['totalProducts'] as num?)?.toInt() ??
+                0;
+            final totalFound =
+                totalLive > totalFinal ? totalLive : totalFinal;
+
+            final failedLive = (progress['failed'] as num?)?.toInt() ?? 0;
+            final failedFinal = (results['failed'] as num?)?.toInt() ?? 0;
+            final failedCount =
+                failedLive > failedFinal ? failedLive : failedFinal;
 
             final statusColor = switch (status) {
               'completed' => Colors.green,
@@ -272,11 +294,17 @@ class _ScrapingTab extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        if (totalFound > 0) Text('Found: $totalFound', style: const TextStyle(fontSize: 12)),
-                        if (stagedCount > 0) ...[
-                          const SizedBox(width: 8),
-                          Text('Staged: $stagedCount', style: const TextStyle(fontSize: 12, color: Colors.green)),
-                        ],
+                        // While running, show "staged / totalFound" so the
+                        // reviewer can see live progress. When the job
+                        // reaches a terminal state, fall back to the
+                        // summary totals written to `results`.
+                        if ((totalFound as num) > 0)
+                          Text(
+                            status == 'running'
+                                ? '$stagedCount / $totalFound'
+                                : 'Found: $totalFound  Staged: $stagedCount',
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         if ((failedCount as num) > 0) ...[
                           const SizedBox(width: 8),
                           Text('Failed: $failedCount', style: const TextStyle(fontSize: 12, color: Colors.red)),
@@ -485,16 +513,15 @@ class _ReviewTabState extends State<_ReviewTab> {
                       itemBuilder: (item) {
                         final name = item['name'] as String;
                         final imageUrl = item['imageUrl'] as String;
-                        final code = item['objectProductCode'] as String;
-                        final upc = item['upc'] as String;
                         final brand = item['brand'] as String;
+                        final usage =
+                            (item['suggestedScalarKey'] as String? ?? '');
 
-                        // Mirrors the catalog list tile shape: code/UPC on
-                        // the second line, brand on the third.
-                        final secondLine = code.isNotEmpty
-                            ? 'Code: $code'
-                            : (upc.isNotEmpty ? 'UPC: $upc' : '');
-                        final thirdLine = brand.isNotEmpty ? brand : null;
+                        // Row 1 = name, row 2 = brand, row 3 = usage
+                        // (suggestedScalarKey — e.g. Volume, Time, Count).
+                        final secondLine = brand.isNotEmpty ? brand : '';
+                        final thirdLine =
+                            usage.isNotEmpty ? usage : null;
 
                         return StandardTileLargeDart(
                           imageUrl: imageUrl,
@@ -502,12 +529,11 @@ class _ReviewTabState extends State<_ReviewTab> {
                           firstLineIcon: Icons.category_outlined,
                           secondLine: secondLine,
                           secondLineIcon: secondLine.isNotEmpty
-                              ? Icons.confirmation_number_outlined
-                              : null,
-                          thirdLine: thirdLine,
-                          thirdLineIcon: thirdLine != null
                               ? Icons.branding_watermark_outlined
                               : null,
+                          thirdLine: thirdLine,
+                          thirdLineIcon:
+                              thirdLine != null ? Icons.straighten : null,
                         );
                       },
                     ),
@@ -906,6 +932,61 @@ class _CombinedScrapeDialogState extends State<_CombinedScrapeDialog> {
     }
   }
 
+  Future<void> _openBrandPicker() async {
+    FocusScope.of(context).unfocus();
+    final selected = await showDialog<_BrandOption?>(
+      context: context,
+      builder: (dialogCtx) => DialogSelect<_BrandOption>(
+        title: 'Brand',
+        items: _brands,
+        itemLabel: (b) => b.name.isEmpty ? b.id : b.name,
+        itemSearchString: (b) => b.name.isEmpty ? b.id : b.name,
+        initialSelection: _selectedBrandId == null
+            ? null
+            : _brands.firstWhere(
+                (b) => b.id == _selectedBrandId,
+                orElse: () => const _BrandOption(id: '', name: ''),
+              ),
+        tileType: DialogSelectTileType.radio,
+        searchLabelText: 'Search',
+        emptyStateText: 'No brands yet',
+        onCancel: () => Navigator.of(dialogCtx).pop(),
+        onSubmit: (result) => Navigator.of(dialogCtx).pop(result.firstOrNull),
+      ),
+    );
+    if (!mounted || selected == null || selected.id.isEmpty) return;
+    setState(() {
+      _selectedBrandId = selected.id;
+      _selectedBrandName = selected.name;
+    });
+  }
+
+  Future<void> _openBrandOwnerPicker() async {
+    FocusScope.of(context).unfocus();
+    final selected = await showDialog<_BrandOption?>(
+      context: context,
+      builder: (dialogCtx) => DialogSelect<_BrandOption>(
+        title: 'Brand Owner',
+        items: _brandOwners,
+        itemLabel: (bo) => bo.name.isEmpty ? bo.id : bo.name,
+        itemSearchString: (bo) => bo.name.isEmpty ? bo.id : bo.name,
+        initialSelection: _selectedBrandOwnerId == null
+            ? null
+            : _brandOwners.firstWhere(
+                (bo) => bo.id == _selectedBrandOwnerId,
+                orElse: () => const _BrandOption(id: '', name: ''),
+              ),
+        tileType: DialogSelectTileType.radio,
+        searchLabelText: 'Search',
+        emptyStateText: 'No brand owners yet',
+        onCancel: () => Navigator.of(dialogCtx).pop(),
+        onSubmit: (result) => Navigator.of(dialogCtx).pop(result.firstOrNull),
+      ),
+    );
+    if (!mounted || selected == null || selected.id.isEmpty) return;
+    setState(() => _selectedBrandOwnerId = selected.id);
+  }
+
   Future<void> _create() async {
     final url = _urlController.text.trim();
     final name = _nameController.text.trim();
@@ -1018,35 +1099,25 @@ class _CombinedScrapeDialogState extends State<_CombinedScrapeDialog> {
             ],
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _selectedBrandId,
-            decoration: const InputDecoration(
-              labelText: 'Brand',
-              border: OutlineInputBorder(),
-            ),
-            items: _brands.map((b) => DropdownMenuItem(
-              value: b.id,
-              child: Text(b.name.isEmpty ? b.id : b.name),
-            )).toList(),
-            onChanged: _loadingBrands ? null : (v) {
-              final brand = _brands.firstWhere((b) => b.id == v);
-              setState(() { _selectedBrandId = v; _selectedBrandName = brand.name; });
-            },
+          _BrandPickerField(
+            label: 'Brand',
+            selectedName: _selectedBrandName,
+            loading: _loadingBrands,
+            onTap: _loadingBrands ? null : _openBrandPicker,
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _selectedBrandOwnerId,
-            decoration: const InputDecoration(
-              labelText: 'Brand Owner',
-              border: OutlineInputBorder(),
-            ),
-            items: _brandOwners.map((bo) => DropdownMenuItem(
-              value: bo.id,
-              child: Text(bo.name.isEmpty ? bo.id : bo.name),
-            )).toList(),
-            onChanged: _loadingBrandOwners ? null : (v) {
-              setState(() => _selectedBrandOwnerId = v);
-            },
+          _BrandPickerField(
+            label: 'Brand Owner',
+            selectedName: _selectedBrandOwnerId == null
+                ? null
+                : _brandOwners
+                    .firstWhere(
+                      (bo) => bo.id == _selectedBrandOwnerId,
+                      orElse: () => const _BrandOption(id: '', name: ''),
+                    )
+                    .name,
+            loading: _loadingBrandOwners,
+            onTap: _loadingBrandOwners ? null : _openBrandOwnerPicker,
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
@@ -4487,6 +4558,55 @@ class _CreateDetailJobDialogState extends State<_CreateDetailJobDialog> {
                     ),
                   ],
                 ),
+    );
+  }
+}
+
+/// Tap-to-open read-only field used in place of a DropdownButtonFormField
+/// for single-select brand / brand owner pickers. Renders like a standard
+/// form field so the layout matches the surrounding inputs, but tapping
+/// launches a DialogSelect (radio mode) instead of a native dropdown.
+class _BrandPickerField extends StatelessWidget {
+  final String label;
+  final String? selectedName;
+  final bool loading;
+  final VoidCallback? onTap;
+
+  const _BrandPickerField({
+    required this.label,
+    required this.selectedName,
+    required this.loading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final display =
+        (selectedName == null || selectedName!.trim().isEmpty)
+            ? (loading ? 'Loading…' : 'Select $label')
+            : selectedName!.trim();
+    final isPlaceholder =
+        (selectedName == null || selectedName!.trim().isEmpty);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          suffixIcon:
+              loading ? null : const Icon(Icons.arrow_drop_down),
+        ),
+        child: Text(
+          display,
+          style: TextStyle(
+            color: isPlaceholder
+                ? Theme.of(context).hintColor
+                : Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+        ),
+      ),
     );
   }
 }

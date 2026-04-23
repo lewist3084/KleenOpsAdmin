@@ -23,6 +23,7 @@ import 'package:shared_widgets/labels/text_info_checkbox.dart';
 import 'package:shared_widgets/services/catalog_firebase_service.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
+import 'package:shared_widgets/utils/process_localization_utils.dart';
 import 'package:shared_widgets/viewers/file_carousel_viewer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -42,7 +43,9 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
   /// raw objectData of a child `object` doc whose `parentProductId`
   /// references this product. Populated by _loadPackagingVariants.
   List<Map<String, dynamic>> _packagingVariants = [];
-  String _categoryName = '';
+  // Raw `name` field from the resolved objectCategory doc — kept raw
+  // so we can resolve to the current locale at render time.
+  dynamic _categoryNameRaw;
   String _scalarName = '';
   String _scalarUnitName = '';
   String _weightUnitName = '';
@@ -144,7 +147,7 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
       try {
         final s = await catRef.get();
         if (s.exists) {
-          _categoryName = ((s.data() as Map?)?['name'] ?? '').toString();
+          _categoryNameRaw = (s.data() as Map?)?['name'];
         }
       } catch (_) {}
     }
@@ -314,9 +317,28 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
       return const Scaffold(body: Center(child: Text('Product not found')));
     }
     final d = _data!;
+    final localeCode = Localizations.localeOf(context).toString();
 
-    final name = _s(d['name']) ?? 'Unnamed';
-    final description = _s(d['description']) ?? '';
+    final resolvedName = ProcessLocalizationUtils.resolveLocalizedText(
+      d['name'],
+      localeCode: localeCode,
+    ).trim();
+    final name = resolvedName.isEmpty ? 'Unnamed' : resolvedName;
+    final description = ProcessLocalizationUtils.resolveLocalizedText(
+      d['description'],
+      localeCode: localeCode,
+    );
+    final categoryName = ProcessLocalizationUtils.resolveLocalizedText(
+      _categoryNameRaw,
+      localeCode: localeCode,
+    );
+    // English-source value of the category name, used only for the
+    // scalar-container feature-flag match below. The user-facing
+    // display uses `categoryName` above.
+    final categoryNameEn = ProcessLocalizationUtils.resolveLocalizedText(
+      _categoryNameRaw,
+      localeCode: 'en',
+    );
     final productCode =
         _s(d['objectProductCode']) ?? _s(d['productNumber']) ?? '';
     final upc = _s(d['objectBarcode']) ?? _s(d['upc']) ?? '';
@@ -359,7 +381,7 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
     // Everything else (consumables, equipment, systems) never acts as a
     // covering, so the container is suppressed entirely.
     final bool allowScalarContainer =
-        _categoryName == 'Furnishings' || _categoryName == 'Grounds';
+        categoryNameEn == 'Furnishings' || categoryNameEn == 'Grounds';
 
     // Build the per-tab body up front so we can swap based on the
     // current top-level tab without nesting a giant switch inside the
@@ -390,6 +412,7 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
           canonicalUrl: canonicalUrl,
           isBulkVariant: isBulkVariant,
           allowScalarContainer: allowScalarContainer,
+          categoryName: categoryName,
         );
     }
 
@@ -467,6 +490,7 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
     required String canonicalUrl,
     required bool isBulkVariant,
     required bool allowScalarContainer,
+    required String categoryName,
   }) {
     return Column(
       children: [
@@ -662,7 +686,7 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
                     HeaderInfoIconValue(
                       header: 'Object Category',
                       value:
-                          _categoryName.isNotEmpty ? _categoryName : 'Not set',
+                          categoryName.isNotEmpty ? categoryName : 'Not set',
                       icon: Icons.category,
                     ),
                     if (productLine.isNotEmpty) ...[
@@ -896,7 +920,10 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
   ///   2. Pack quantity (e.g. "Qty: 6 (case)")
   ///   3. UPC (the bulk packaging barcode)
   Widget _buildVariantTile(Map<String, dynamic> v) {
-    final name = (v['name'] as String).trim();
+    final name = ProcessLocalizationUtils.resolveLocalizedText(
+      v['name'],
+      localeCode: Localizations.localeOf(context).toString(),
+    ).trim();
     final packQty = v['packQuantity'];
     final packType = (v['packagingType'] as String);
     final upc = (v['upc'] as String);

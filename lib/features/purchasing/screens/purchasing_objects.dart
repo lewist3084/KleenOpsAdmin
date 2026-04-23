@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
 import 'package:shared_widgets/lists/standardView.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/utils/process_localization_utils.dart';
 import 'package:kleenops_admin/app/routes.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart'; // <-- import for companyIdProvider
 import '../../objects/utils/company_object_file_images.dart';
@@ -47,14 +48,17 @@ class _PurchasingObjectsContentState
     // 3) Convert our DocumentReference to a string ID:
     final companyId = companyRef.id;
 
-    // 4) Build the Firestore query from that company ID
+    // 4) Build the Firestore query. localName is now a localized map,
+    //    so we can't server-side orderBy on it — sort client-side on
+    //    the resolved current-locale string.
     final query = FirebaseFirestore.instance
         .collection('company')
         .doc(companyId)
         .collection('companyObject')
         .orderBy('objectCategoryId')
-        .orderBy('localName', descending: false)
         .snapshots();
+
+    final listLocaleCode = Localizations.localeOf(context).toString();
 
     final list = StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: query,
@@ -63,11 +67,23 @@ class _PurchasingObjectsContentState
           return const Center(child: CircularProgressIndicator());
         }
         final docs = snapshot.data!.docs.where((doc) {
-          final name = (doc.data()['localName'] ?? '')
-              .toString()
-              .toLowerCase();
+          final name = ProcessLocalizationUtils.resolveLocalizedText(
+            doc.data()['localName'],
+            localeCode: listLocaleCode,
+          ).toLowerCase();
           return name.contains(_search.toLowerCase());
-        }).toList();
+        }).toList()
+          ..sort((a, b) {
+            final an = ProcessLocalizationUtils.resolveLocalizedText(
+              a.data()['localName'],
+              localeCode: listLocaleCode,
+            ).toLowerCase();
+            final bn = ProcessLocalizationUtils.resolveLocalizedText(
+              b.data()['localName'],
+              localeCode: listLocaleCode,
+            ).toLowerCase();
+            return an.compareTo(bn);
+          });
 
         if (docs.isEmpty) {
           return const Center(child: Text('No objects found.'));
@@ -93,7 +109,10 @@ class _PurchasingObjectsContentState
                 final imageUrl = imageSnap.data ?? '';
                 return StandardTileLargeDart(
                   imageUrl: imageUrl,
-                  firstLine: data['localName'] ?? '',
+                  firstLine: ProcessLocalizationUtils.resolveLocalizedText(
+                    data['localName'],
+                    localeCode: listLocaleCode,
+                  ),
                   secondLine: '',
                 );
               },
