@@ -16,7 +16,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_widgets/lists/standardView.dart';
-import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/search/search_control_strip.dart';
 import 'package:shared_widgets/services/catalog_firebase_service.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
 import 'package:shared_widgets/utils/process_localization_utils.dart';
@@ -25,7 +25,9 @@ import 'package:kleenops_admin/features/catalog/details/catalog_details.dart';
 import 'package:kleenops_admin/l10n/app_localizations.dart';
 
 class CatalogContent extends StatefulWidget {
-  const CatalogContent({super.key});
+  const CatalogContent({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   State<CatalogContent> createState() => _CatalogContentState();
@@ -127,14 +129,12 @@ class _CatalogContentState extends State<CatalogContent> {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: SearchFieldAction(
+        if (widget.searchVisible)
+          SearchControlStrip(
             controller: _searchController,
-            labelText: loc.objectsSearchProducts,
+            hintText: loc.objectsSearchProducts,
             onChanged: (v) => setState(() => _search = v.toLowerCase()),
           ),
-        ),
         Expanded(
           // The parent Scaffold's bottomNavigationBar (DetailsAppBar +
           // HomeNavBarAdapter) already reserves space at the bottom.

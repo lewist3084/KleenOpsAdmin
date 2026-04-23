@@ -4,14 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/search/search_control_strip.dart';
 import 'package:shared_widgets/lists/standardView.dart';
 import 'package:kleenops_admin/widgets/tiles/ledger_item.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import '../forms/finance_ledger_form.dart';
 
 class FinanceLedgerContent extends ConsumerStatefulWidget {
-  const FinanceLedgerContent({super.key});
+  const FinanceLedgerContent({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   _FinanceLedgerContentState createState() => _FinanceLedgerContentState();
@@ -53,17 +55,16 @@ class _FinanceLedgerContentState extends ConsumerState<FinanceLedgerContent> {
             .orderBy('createdAt', descending: true)
             .snapshots();
 
-        final searchField = SearchFieldAction(
-          controller: _searchCtrl,
-          labelText: 'Search Ledger',
-          onChanged: (t) => setState(() => _search = t.trim()),
-        );
-
         return Stack(
           children: [
             Column(
               children: [
-                searchField,
+                if (widget.searchVisible)
+                  SearchControlStrip(
+                    controller: _searchCtrl,
+                    hintText: 'Search Ledger',
+                    onChanged: (t) => setState(() => _search = t.trim()),
+                  ),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(bottom: bottomInset),

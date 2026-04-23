@@ -19,8 +19,18 @@ import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
 
 /// Top-level screen with its own Scaffold (app bar + content + bottom nav)
-class SalesMarketingTabsScreen extends StatelessWidget {
+class SalesMarketingTabsScreen extends StatefulWidget {
   const SalesMarketingTabsScreen({super.key});
+
+  @override
+  State<SalesMarketingTabsScreen> createState() =>
+      _SalesMarketingTabsScreenState();
+}
+
+class _SalesMarketingTabsScreenState extends State<SalesMarketingTabsScreen> {
+  bool _searchVisible = false;
+
+  void _toggleSearch() => setState(() => _searchVisible = !_searchVisible);
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -58,6 +68,8 @@ class SalesMarketingTabsScreen extends StatelessWidget {
             title: 'Sales Marketing',
             onAiPressed: onAiPressed,
             menuSections: menuSections,
+            onSearchToggle: _toggleSearch,
+            searchActive: _searchVisible,
           ),
           const HomeNavBarAdapter(),
         ],
@@ -68,7 +80,7 @@ class SalesMarketingTabsScreen extends StatelessWidget {
       appBar: null,
       drawer: const UserDrawer(),
       body: _wrapCanvas(
-          const SalesMarketingTabs(),
+          SalesMarketingTabs(searchVisible: _searchVisible),
         ),
       bottomNavigationBar: Consumer(
         builder: (context, ref, _) {
@@ -101,7 +113,9 @@ class SalesMarketingTabsScreen extends StatelessWidget {
 }
 
 class SalesMarketingTabs extends ConsumerStatefulWidget {
-  const SalesMarketingTabs({super.key});
+  const SalesMarketingTabs({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   ConsumerState<SalesMarketingTabs> createState() => _SalesMarketingTabsState();
@@ -165,12 +179,14 @@ class _SalesMarketingTabsState extends ConsumerState<SalesMarketingTabs>
               child: TabBarView(
                 physics: const NeverScrollableScrollPhysics(),
                 controller: _tabController,
-                children: const [
-                  MarketingCampaignContent(),
-                  MarketingAdsContent(),
-                  MarketingTargetGroupContent(),
-                  MarketingScheduleContent(),
-                  MarketingDataContent(),
+                children: [
+                  MarketingCampaignContent(searchVisible: widget.searchVisible),
+                  MarketingAdsContent(searchVisible: widget.searchVisible),
+                  MarketingTargetGroupContent(
+                      searchVisible: widget.searchVisible),
+                  MarketingScheduleContent(
+                      searchVisible: widget.searchVisible),
+                  const MarketingDataContent(),
                 ],
               ),
             ),

@@ -21,6 +21,8 @@ class DetailsAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final List<ContentMenuItem>? communicationItems;
   final VoidCallback? onMenuPressed;
   final bool showMenu;
+  final VoidCallback? onSearchToggle;
+  final bool searchActive;
 
   const DetailsAppBar({
     super.key,
@@ -39,6 +41,8 @@ class DetailsAppBar extends ConsumerWidget implements PreferredSizeWidget {
     this.communicationItems,
     this.onMenuPressed,
     this.showMenu = false,
+    this.onSearchToggle,
+    this.searchActive = false,
   });
 
   @override
@@ -68,6 +72,8 @@ class DetailsAppBar extends ConsumerWidget implements PreferredSizeWidget {
       communicationItems: communicationItems,
       onMenuPressed: onMenuPressed,
       showMenu: effectiveShowMenu,
+      onSearchToggle: onSearchToggle,
+      searchActive: searchActive,
     );
   }
 }

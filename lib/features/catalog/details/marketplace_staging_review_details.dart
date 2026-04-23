@@ -42,8 +42,11 @@ class _MarketplaceStagingReviewDetailsScreenState
   late TabController _elementsTabController;
   bool _loading = true;
 
-  String _categoryName = '';
-  String _suggestedCategoryName = '';
+  // Raw `name` field from the resolved objectCategory doc — may be a
+  // localized map ({en: 'Consumables - Liquid', es: 'Consumibles - ...'})
+  // so we keep it raw and resolve per-locale at render time.
+  dynamic _categoryNameRaw;
+  dynamic _suggestedCategoryNameRaw;
   String _scalarName = '';
   String _scalarUnitName = '';
   String _brandName = '';
@@ -155,7 +158,10 @@ class _MarketplaceStagingReviewDetailsScreenState
 
     final catRef = od['objectCategoryId'];
     if (catRef is DocumentReference) {
-      try { final s = await catRef.get(); if (s.exists) _categoryName = ((s.data() as Map?)?['name'] ?? '').toString(); } catch (_) {}
+      try {
+        final s = await catRef.get();
+        if (s.exists) _categoryNameRaw = (s.data() as Map?)?['name'];
+      } catch (_) {}
     }
 
     // Suggested category — written by the scraper to a top-level
@@ -165,10 +171,7 @@ class _MarketplaceStagingReviewDetailsScreenState
     if (suggestedRef is DocumentReference) {
       try {
         final s = await suggestedRef.get();
-        if (s.exists) {
-          _suggestedCategoryName =
-              ((s.data() as Map?)?['name'] ?? '').toString();
-        }
+        if (s.exists) _suggestedCategoryNameRaw = (s.data() as Map?)?['name'];
       } catch (_) {}
     }
     final scRef = od['scalarId'];
@@ -307,7 +310,14 @@ class _MarketplaceStagingReviewDetailsScreenState
     final productLine = _s(od['productLine']) ?? '';
     final canonicalUrl = _s(od['canonicalUrl']) ?? '';
     final materialNumber = _s(od['materialNumber']) ?? '';
-    final isConsumable = _categoryName.toLowerCase().contains('consumable');
+    // Consumable gating keys off the English-source category name so the
+    // flag stays stable across locales (a Spanish-locale user seeing
+    // "Consumibles - Líquido" still gets consumable treatment).
+    final categoryNameEn = ProcessLocalizationUtils.resolveLocalizedText(
+      _categoryNameRaw,
+      localeCode: 'en',
+    );
+    final isConsumable = categoryNameEn.toLowerCase().contains('consumable');
 
     // Images
     final storageImages = _l(dd['storageImages']);
@@ -397,11 +407,23 @@ class _MarketplaceStagingReviewDetailsScreenState
     String color, String fragrance, String containerType, String productLine,
     bool isConsumable, List<dynamic> allDocs, String canonicalUrl, List<dynamic> storageImages,
   ) {
-    // Resolve the suggested/confirmed category name for flat display.
-    final displayCategory = _categoryName.isNotEmpty
-        ? _categoryName
-        : _suggestedCategoryName.isNotEmpty
-            ? _suggestedCategoryName
+    // Resolve the suggested/confirmed category name for flat display. The
+    // raw `name` value may be a localized map, so resolve via
+    // ProcessLocalizationUtils before showing it to the user.
+    final localeCode = Localizations.localeOf(context).toString();
+    final categoryNameLocal = ProcessLocalizationUtils.resolveLocalizedText(
+      _categoryNameRaw,
+      localeCode: localeCode,
+    );
+    final suggestedCategoryNameLocal =
+        ProcessLocalizationUtils.resolveLocalizedText(
+      _suggestedCategoryNameRaw,
+      localeCode: localeCode,
+    );
+    final displayCategory = categoryNameLocal.isNotEmpty
+        ? categoryNameLocal
+        : suggestedCategoryNameLocal.isNotEmpty
+            ? suggestedCategoryNameLocal
             : _s(_data['suggestedCategoryKey']) ?? 'Not set';
     final displayUsage = _scalarName.isNotEmpty
         ? _scalarName
@@ -409,11 +431,20 @@ class _MarketplaceStagingReviewDetailsScreenState
 
     // Covering-capable category set mirrors the catalog detail gate so
     // the staging view only shows the Scalar (floor/wall/ceiling) toggles
-    // when they're actually meaningful.
-    final allowScalarContainer = _categoryName == 'Furnishings' ||
-        _categoryName == 'Grounds' ||
-        _suggestedCategoryName == 'Furnishings' ||
-        _suggestedCategoryName == 'Grounds';
+    // when they're actually meaningful. Compared against English-source
+    // to stay stable across locales.
+    final categoryEn = ProcessLocalizationUtils.resolveLocalizedText(
+      _categoryNameRaw,
+      localeCode: 'en',
+    );
+    final suggestedCategoryEn = ProcessLocalizationUtils.resolveLocalizedText(
+      _suggestedCategoryNameRaw,
+      localeCode: 'en',
+    );
+    final allowScalarContainer = categoryEn == 'Furnishings' ||
+        categoryEn == 'Grounds' ||
+        suggestedCategoryEn == 'Furnishings' ||
+        suggestedCategoryEn == 'Grounds';
 
     return Column(
       children: [

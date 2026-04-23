@@ -19,8 +19,17 @@ import 'package:shared_widgets/tabs/standard_tab.dart';
 
 
 /// Top-level screen with its own Scaffold (app bar + content + bottom nav)
-class ObjectsTabsScreen extends StatelessWidget {
+class ObjectsTabsScreen extends StatefulWidget {
   const ObjectsTabsScreen({super.key});
+
+  @override
+  State<ObjectsTabsScreen> createState() => _ObjectsTabsScreenState();
+}
+
+class _ObjectsTabsScreenState extends State<ObjectsTabsScreen> {
+  bool _searchVisible = false;
+
+  void _toggleSearch() => setState(() => _searchVisible = !_searchVisible);
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -58,6 +67,8 @@ class ObjectsTabsScreen extends StatelessWidget {
             title: 'Purchasing Objects',
             onAiPressed: onAiPressed,
             menuSections: menuSections,
+            onSearchToggle: _toggleSearch,
+            searchActive: _searchVisible,
           ),
           const HomeNavBarAdapter(),
         ],
@@ -68,7 +79,7 @@ class ObjectsTabsScreen extends StatelessWidget {
       appBar: null,
       drawer: const UserDrawer(),
       body: _wrapCanvas(
-          const ObjectsTabs(),
+          ObjectsTabs(searchVisible: _searchVisible),
         ),
       bottomNavigationBar: Consumer(
         builder: (context, ref, _) {
@@ -107,7 +118,8 @@ class ObjectsTabsScreen extends StatelessWidget {
 
 class ObjectsTabs extends ConsumerStatefulWidget {
   final String? teamId;
-  const ObjectsTabs({super.key, this.teamId});
+  final bool searchVisible;
+  const ObjectsTabs({super.key, this.teamId, this.searchVisible = false});
 
   @override
   _ObjectsTabsState createState() => _ObjectsTabsState();
@@ -169,9 +181,11 @@ class _ObjectsTabsState extends ConsumerState<ObjectsTabs>
               child: TabBarView(
                 physics: const NeverScrollableScrollPhysics(),
                 controller: _tabController,
-                children: const [
-                  PurchasingObjectsContent(),
-                  PurchasingVendorsContent(),
+                children: [
+                  PurchasingObjectsContent(
+                      searchVisible: widget.searchVisible),
+                  PurchasingVendorsContent(
+                      searchVisible: widget.searchVisible),
                 ],
               ),
             ),

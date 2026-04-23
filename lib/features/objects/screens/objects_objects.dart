@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
 import 'package:shared_widgets/lists/standardView.dart';
-import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/search/search_control_strip.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
 import 'package:shared_widgets/utils/process_localization_utils.dart';
 
@@ -19,7 +19,9 @@ import '../forms/objects_inventory_form.dart';
 import '../utils/company_object_file_images.dart';
 
 class ObjectsObjectsContent extends ConsumerStatefulWidget {
-  const ObjectsObjectsContent({super.key});
+  const ObjectsObjectsContent({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   ConsumerState<ObjectsObjectsContent> createState() =>
@@ -167,14 +169,20 @@ class ObjectsObjectsContentState
             .snapshots();
         final listLocaleCode = Localizations.localeOf(context).toString();
 
-        final searchField = SearchFieldAction(
-          controller: _searchController,
-          labelText: 'Search objects',
-          onChanged: (val) => setState(() => _searchQuery = val),
-          actionIcon: const Icon(Icons.filter_list),
-          actionTooltip: 'Filter by category',
-          onAction: _openFilterDialog,
-        );
+        final Widget searchField = widget.searchVisible
+            ? SearchControlStrip(
+                controller: _searchController,
+                hintText: 'Search objects',
+                onChanged: (val) => setState(() => _searchQuery = val),
+                trailingActions: [
+                  SearchStripAction(
+                    icon: Icons.filter_list,
+                    tooltip: 'Filter by category',
+                    onTap: _openFilterDialog,
+                  ),
+                ],
+              )
+            : const SizedBox.shrink();
 
         final listView = NotificationListener<ScrollNotification>(
           onNotification: (sn) {

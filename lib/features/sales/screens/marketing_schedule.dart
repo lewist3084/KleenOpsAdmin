@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
-import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/search/search_control_strip.dart';
 import 'package:kleenops_admin/widgets/fields/multi_select/day_multi_select.dart';
 import 'package:kleenops_admin/widgets/fields/multi_select/week_multi_select.dart';
 import 'package:kleenops_admin/widgets/fields/multi_select/month_multi_select.dart';
@@ -162,7 +162,9 @@ Future<void> showDeliveryScheduleDialog({
 }
 
 class MarketingScheduleContent extends ConsumerStatefulWidget {
-  const MarketingScheduleContent({super.key});
+  const MarketingScheduleContent({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   ConsumerState<MarketingScheduleContent> createState() =>
@@ -242,11 +244,12 @@ class _MarketingScheduleContentState
           children: [
             Column(
               children: [
-                SearchFieldAction(
-                  controller: _searchCtl,
-                  labelText: 'Search Schedule',
-                  onChanged: (t) => setState(() => _search = t.trim()),
-                ),
+                if (widget.searchVisible)
+                  SearchControlStrip(
+                    controller: _searchCtl,
+                    hintText: 'Search Schedule',
+                    onChanged: (t) => setState(() => _search = t.trim()),
+                  ),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(bottom: bottomInset),

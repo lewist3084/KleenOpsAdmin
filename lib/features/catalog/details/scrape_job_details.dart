@@ -1,17 +1,97 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_widgets/containers/container_header.dart';
 import 'package:shared_widgets/containers/container_action.dart';
 
-class ScrapeJobDetails extends StatelessWidget {
+class ScrapeJobDetails extends StatefulWidget {
   final String docId;
 
   const ScrapeJobDetails({super.key, required this.docId});
 
   @override
+  State<ScrapeJobDetails> createState() => _ScrapeJobDetailsState();
+}
+
+class _ScrapeJobDetailsState extends State<ScrapeJobDetails> {
+  bool _resuming = false;
+
+  Future<void> _resume(BuildContext context, String jobType) async {
+    if (_resuming) return;
+    setState(() => _resuming = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('resumeScrapeJob');
+      await callable.call({'jobId': widget.docId});
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Resume requested — the worker will skip already-staged items.'),
+      ));
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text('Resume failed: ${e.message ?? e.code}'),
+        backgroundColor: Colors.red,
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text('Resume failed: $e'),
+        backgroundColor: Colors.red,
+      ));
+    } finally {
+      if (mounted) setState(() => _resuming = false);
+    }
+  }
+
+  Future<void> _markFailed(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mark job as failed?'),
+        content: const Text(
+          'Use this to unstick a job whose worker was killed. '
+          'The job doc will be set to status=failed so the UI unsticks. '
+          'You can then Resume to pick up any missing items.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Mark failed'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await FirebaseFirestore.instance.collection('scrapeJob').doc(widget.docId).set({
+        'status': 'failed',
+        'completedAt': FieldValue.serverTimestamp(),
+        'errors': FieldValue.arrayUnion([
+          {
+            'message': 'Manually marked failed from admin UI',
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+        ]),
+      }, SetOptions(merge: true));
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('Job marked failed.')));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text('Update failed: $e'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('scrapeJob').doc(docId).snapshots(),
+      stream: FirebaseFirestore.instance.collection('scrapeJob').doc(widget.docId).snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -32,7 +112,9 @@ class ScrapeJobDetails extends StatelessWidget {
 
         final totalFound = results['totalFound'] ?? results['totalProducts'] ?? 0;
         final stagedCount = results['stagedProducts'] ?? progress['staged'] ?? 0;
-        final failedCount = results['failed'] ?? 0;
+        final failedResults = (results['failed'] as num?)?.toInt() ?? 0;
+        final failedProgress = (progress['failed'] as num?)?.toInt() ?? 0;
+        final failedCount = failedResults > failedProgress ? failedResults : failedProgress;
         final categoryName = (results['categoryName'] ?? '').toString();
         final processed = results['processed'] ?? 0;
 
@@ -59,8 +141,41 @@ class ScrapeJobDetails extends StatelessWidget {
           _ => Colors.orange,
         };
 
+        final isCombined = jobType == 'combined';
+        final canResume = isCombined &&
+            (status == 'running' ||
+                status == 'failed' ||
+                status == 'cancelled' ||
+                (status == 'completed' && failedCount > 0));
+        final canMarkFailed = status == 'running';
+
         return Scaffold(
-          appBar: AppBar(title: Text(vendorName)),
+          appBar: AppBar(
+            title: Text(vendorName),
+            actions: [
+              if (canResume)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: TextButton.icon(
+                    onPressed: _resuming ? null : () => _resume(context, jobType),
+                    icon: _resuming
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.replay),
+                    label: const Text('Resume'),
+                  ),
+                ),
+              if (canMarkFailed)
+                IconButton(
+                  tooltip: 'Mark failed (unstick)',
+                  icon: const Icon(Icons.stop_circle_outlined),
+                  onPressed: () => _markFailed(context),
+                ),
+            ],
+          ),
           body: ListView(
             children: [
               ContainerHeader(
@@ -93,7 +208,7 @@ class ScrapeJobDetails extends StatelessWidget {
                     _metricRow(Icons.search, 'Products Found', '$totalFound', Colors.blue),
                     _metricRow(Icons.check_circle_outline, 'Staged', '$stagedCount', Colors.green),
                     _metricRow(Icons.published_with_changes, 'Processed', '$processed', Colors.teal),
-                    if ((failedCount as num) > 0)
+                    if (failedCount > 0)
                       _metricRow(Icons.error_outline, 'Failed', '$failedCount', Colors.red),
                   ],
                 ),

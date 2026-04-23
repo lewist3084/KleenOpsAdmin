@@ -16,6 +16,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/features/catalog/forms/catalog_form.dart';
 import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/containers/container_header.dart';
 import 'package:shared_widgets/labels/header_info_icon_value.dart';
@@ -457,6 +458,11 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openEditForm,
+        tooltip: 'Edit Product',
+        child: const Icon(Icons.edit),
+      ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -465,6 +471,17 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
         ],
       ),
     );
+  }
+
+  Future<void> _openEditForm() async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => CatalogForm(docId: widget.docId)),
+    );
+    if (!mounted) return;
+    if (saved == true) {
+      setState(() => _loading = true);
+      await _load();
+    }
   }
 
   /// Details tab body — all the existing sectioned content the catalog

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
-import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/search/search_control_strip.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:kleenops_admin/widgets/tiles/account_item.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
@@ -18,7 +18,9 @@ import '../dialogs/add_account_dialog.dart';
 ///   - `position` : int    (order in the statement)
 ///   - `active`   : bool   (only active sections are shown)
 class FinanceBalanceSheetContent extends ConsumerStatefulWidget {
-  const FinanceBalanceSheetContent({super.key});
+  const FinanceBalanceSheetContent({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   ConsumerState<FinanceBalanceSheetContent> createState() =>
@@ -174,11 +176,13 @@ class _FinanceBalanceSheetContentState
         return FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
           future: sectionsFuture,
           builder: (context, sectionSnap) {
-            final searchField = SearchFieldAction(
-              controller: _searchController,
-              labelText: 'Search Balance Sheet',
-              onChanged: (_) {},
-            );
+            final Widget searchField = widget.searchVisible
+                ? SearchControlStrip(
+                    controller: _searchController,
+                    hintText: 'Search Balance Sheet',
+                    onChanged: (_) {},
+                  )
+                : const SizedBox.shrink();
 
             Widget body;
             if (sectionSnap.connectionState == ConnectionState.waiting) {

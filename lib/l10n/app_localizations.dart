@@ -94,6 +94,7 @@ class AppLocalizations {
   String get marketplaceJobRequeued => 'Job requeued';
   String get marketplaceScrapeJobCreated => 'Scrape job created';
   String get marketplaceRetry => 'Retry';
+  String get marketplaceRerun => 'Rerun';
   String get marketplaceFullCatalog => 'Full Catalog';
   String get marketplaceJobTypeLabel => 'Job Type';
   String get marketplaceStartPageLabel => 'Start Page';

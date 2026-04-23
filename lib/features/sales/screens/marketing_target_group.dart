@@ -7,13 +7,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
-import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/search/search_control_strip.dart';
+import 'package:shared_widgets/search/search_field_action.dart'
+    show SearchAddSelectDropdown;
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import '../details/marketing_target_group_details.dart';
 
 class MarketingTargetGroupContent extends ConsumerStatefulWidget {
-  const MarketingTargetGroupContent({super.key});
+  const MarketingTargetGroupContent({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   ConsumerState<MarketingTargetGroupContent> createState() =>
@@ -162,11 +166,12 @@ class _MarketingTargetGroupContentState
           children: [
             Column(
               children: [
-                SearchFieldAction(
-                  controller: _searchCtl,
-                  labelText: 'Search Target Groups',
-                  onChanged: (t) => setState(() => _search = t.trim()),
-                ),
+                if (widget.searchVisible)
+                  SearchControlStrip(
+                    controller: _searchCtl,
+                    hintText: 'Search Target Groups',
+                    onChanged: (t) => setState(() => _search = t.trim()),
+                  ),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(bottom: bottomInset),

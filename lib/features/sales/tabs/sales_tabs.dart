@@ -16,8 +16,17 @@ import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
 
 /// Top-level screen with its own Scaffold (app bar + content + bottom nav)
-class SalesTabsScreen extends StatelessWidget {
+class SalesTabsScreen extends StatefulWidget {
   const SalesTabsScreen({super.key});
+
+  @override
+  State<SalesTabsScreen> createState() => _SalesTabsScreenState();
+}
+
+class _SalesTabsScreenState extends State<SalesTabsScreen> {
+  bool _searchVisible = false;
+
+  void _toggleSearch() => setState(() => _searchVisible = !_searchVisible);
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -55,6 +64,8 @@ class SalesTabsScreen extends StatelessWidget {
             title: 'Sales',
             onAiPressed: onAiPressed,
             menuSections: menuSections,
+            onSearchToggle: _toggleSearch,
+            searchActive: _searchVisible,
           ),
           const HomeNavBarAdapter(),
         ],
@@ -65,7 +76,7 @@ class SalesTabsScreen extends StatelessWidget {
       appBar: null,
       drawer: const UserDrawer(),
       body: _wrapCanvas(
-          const SalesTabs(),
+          SalesTabs(searchVisible: _searchVisible),
         ),
       bottomNavigationBar: Consumer(
         builder: (context, ref, _) {
@@ -98,7 +109,9 @@ class SalesTabsScreen extends StatelessWidget {
 }
 
 class SalesTabs extends ConsumerStatefulWidget {
-  const SalesTabs({super.key});
+  const SalesTabs({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   ConsumerState<SalesTabs> createState() => _SalesTabsState();
@@ -159,9 +172,9 @@ class _SalesTabsState extends ConsumerState<SalesTabs>
               child: TabBarView(
                 physics: const NeverScrollableScrollPhysics(),
                 controller: _tabController,
-                children: const [
-                  SalesSalesContent(),
-                  SalesProductContent(),
+                children: [
+                  SalesSalesContent(searchVisible: widget.searchVisible),
+                  const SalesProductContent(),
                 ],
               ),
             ),

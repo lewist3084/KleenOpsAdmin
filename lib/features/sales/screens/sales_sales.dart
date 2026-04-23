@@ -5,7 +5,7 @@ import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adap
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.dart';
-import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/search/search_control_strip.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
@@ -15,8 +15,17 @@ import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 
 /// Top-level screen with its own Scaffold (app bar + content + bottom nav)
-class SalesSalesScreen extends StatelessWidget {
+class SalesSalesScreen extends StatefulWidget {
   const SalesSalesScreen({super.key});
+
+  @override
+  State<SalesSalesScreen> createState() => _SalesSalesScreenState();
+}
+
+class _SalesSalesScreenState extends State<SalesSalesScreen> {
+  bool _searchVisible = false;
+
+  void _toggleSearch() => setState(() => _searchVisible = !_searchVisible);
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -50,6 +59,8 @@ class SalesSalesScreen extends StatelessWidget {
           DetailsAppBar(
             title: 'Sales',
             onAiPressed: onAiPressed,
+            onSearchToggle: _toggleSearch,
+            searchActive: _searchVisible,
           ),
           const HomeNavBarAdapter(),
         ],
@@ -61,7 +72,7 @@ class SalesSalesScreen extends StatelessWidget {
       appBar: null,
       drawer: const UserDrawer(),
       body: _wrapCanvas(
-          const SalesSalesContent(),
+          SalesSalesContent(searchVisible: _searchVisible),
         ),
       bottomNavigationBar: hideChrome
           ? null
@@ -71,7 +82,9 @@ class SalesSalesScreen extends StatelessWidget {
 }
 
 class SalesSalesContent extends ConsumerStatefulWidget {
-  const SalesSalesContent({super.key});
+  const SalesSalesContent({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   ConsumerState<SalesSalesContent> createState() => _SalesSalesContentState();
@@ -134,11 +147,12 @@ class _SalesSalesContentState extends ConsumerState<SalesSalesContent> {
           children: [
             Column(
               children: [
-                SearchFieldAction(
-                  controller: _searchCtl,
-                  labelText: 'Search Customers',
-                  onChanged: (t) => setState(() => _search = t.trim()),
-                ),
+                if (widget.searchVisible)
+                  SearchControlStrip(
+                    controller: _searchCtl,
+                    hintText: 'Search Customers',
+                    onChanged: (t) => setState(() => _search = t.trim()),
+                  ),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(bottom: bottomInset),

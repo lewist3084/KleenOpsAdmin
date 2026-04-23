@@ -25,8 +25,17 @@ import 'objects_objects.dart';
 /// can hide on tabs other than the Objects list.
 final objectsTabIndexProvider = StateProvider<int>((_) => 0);
 
-class ObjectsTabsScreen extends ConsumerWidget {
+class ObjectsTabsScreen extends ConsumerStatefulWidget {
   const ObjectsTabsScreen({super.key});
+
+  @override
+  ConsumerState<ObjectsTabsScreen> createState() => _ObjectsTabsScreenState();
+}
+
+class _ObjectsTabsScreenState extends ConsumerState<ObjectsTabsScreen> {
+  bool _searchVisible = false;
+
+  void _toggleSearch() => setState(() => _searchVisible = !_searchVisible);
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -70,7 +79,7 @@ class ObjectsTabsScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final activeTabIndex = ref.watch(objectsTabIndexProvider);
 
     final menuSections = MenuDrawerSections(
@@ -82,7 +91,7 @@ class ObjectsTabsScreen extends ConsumerWidget {
       backgroundColor: Colors.grey[100],
       appBar: null,
       drawer: const UserDrawer(),
-      body: _wrapCanvas(const _ObjectsTabs()),
+      body: _wrapCanvas(_ObjectsTabs(searchVisible: _searchVisible)),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -90,6 +99,8 @@ class ObjectsTabsScreen extends ConsumerWidget {
           DetailsAppBar(
             title: 'Objects',
             menuSections: menuSections,
+            onSearchToggle: _toggleSearch,
+            searchActive: _searchVisible,
           ),
           const HomeNavBarAdapter(),
         ],
@@ -99,7 +110,9 @@ class ObjectsTabsScreen extends ConsumerWidget {
 }
 
 class _ObjectsTabs extends ConsumerStatefulWidget {
-  const _ObjectsTabs();
+  const _ObjectsTabs({this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   ConsumerState<_ObjectsTabs> createState() => _ObjectsTabsState();
@@ -155,9 +168,9 @@ class _ObjectsTabsState extends ConsumerState<_ObjectsTabs>
           child: TabBarView(
             physics: const NeverScrollableScrollPhysics(),
             controller: _tabController,
-            children: const [
-              ObjectsObjectsContent(),
-              Center(
+            children: [
+              ObjectsObjectsContent(searchVisible: widget.searchVisible),
+              const Center(
                 key: PageStorageKey('objects-charts'),
                 child: Text('Charts coming soon'),
               ),

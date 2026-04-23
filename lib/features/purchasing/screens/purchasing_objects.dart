@@ -6,14 +6,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
 import 'package:shared_widgets/lists/standardView.dart';
-import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/search/search_control_strip.dart';
 import 'package:shared_widgets/utils/process_localization_utils.dart';
 import 'package:kleenops_admin/app/routes.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart'; // <-- import for companyIdProvider
 import '../../objects/utils/company_object_file_images.dart';
 
 class PurchasingObjectsContent extends ConsumerStatefulWidget {
-  const PurchasingObjectsContent({super.key});
+  const PurchasingObjectsContent({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   ConsumerState<PurchasingObjectsContent> createState() =>
@@ -124,11 +126,12 @@ class _PurchasingObjectsContentState
 
     return Column(
       children: [
-        SearchFieldAction(
-          controller: _searchCtl,
-          labelText: 'Search…',
-          onChanged: (t) => setState(() => _search = t.trim()),
-        ),
+        if (widget.searchVisible)
+          SearchControlStrip(
+            controller: _searchCtl,
+            hintText: 'Search…',
+            onChanged: (t) => setState(() => _search = t.trim()),
+          ),
         Expanded(child: list),
       ],
     );

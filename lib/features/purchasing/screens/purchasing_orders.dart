@@ -5,14 +5,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../forms/purchasing_orders_form.dart';
-import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/search/search_control_strip.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:kleenops_admin/widgets/tiles/purchase_order_tile.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:kleenops_admin/features/purchasing/details/purchasing_order_details.dart';
 
 class PurchasingOrdersContent extends ConsumerStatefulWidget {
-  const PurchasingOrdersContent({super.key});
+  const PurchasingOrdersContent({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   ConsumerState<PurchasingOrdersContent> createState() =>
@@ -180,11 +182,12 @@ class _PurchasingOrdersContentState
           children: [
             Column(
               children: [
-                SearchFieldAction(
-                  controller: _searchCtl,
-                  labelText: 'Search?I',
-                  onChanged: (t) => setState(() => _search = t.trim()),
-                ),
+                if (widget.searchVisible)
+                  SearchControlStrip(
+                    controller: _searchCtl,
+                    hintText: 'Search?I',
+                    onChanged: (t) => setState(() => _search = t.trim()),
+                  ),
                 Expanded(child: list),
               ],
             ),

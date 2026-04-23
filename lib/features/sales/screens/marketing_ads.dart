@@ -8,14 +8,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
-import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/search/search_control_strip.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:kleenops_admin/features/admin/utils/company_file_images.dart';
 import '../details/marketing_ads_details.dart';
 
 class MarketingAdsContent extends ConsumerStatefulWidget {
-  const MarketingAdsContent({super.key});
+  const MarketingAdsContent({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   ConsumerState<MarketingAdsContent> createState() =>
@@ -166,11 +168,12 @@ class _MarketingAdsContentState extends ConsumerState<MarketingAdsContent> {
           children: [
             Column(
               children: [
-                SearchFieldAction(
-                  controller: _searchCtl,
-                  labelText: 'Search Materials',
-                  onChanged: (t) => setState(() => _search = t.trim()),
-                ),
+                if (widget.searchVisible)
+                  SearchControlStrip(
+                    controller: _searchCtl,
+                    hintText: 'Search Materials',
+                    onChanged: (t) => setState(() => _search = t.trim()),
+                  ),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(bottom: bottomInset),

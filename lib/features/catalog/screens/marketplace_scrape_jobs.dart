@@ -415,8 +415,15 @@ class _ReviewTabState extends State<_ReviewTab> {
     if (confirmed != true || !mounted) return;
     setState(() => _processing = true);
     try {
+      // 9-minute client-side timeout to match the 540s Cloud Function
+      // cap. The httpsCallable default is 70s — short enough that large
+      // batches (20+ items) would show "internal" errors in the UI
+      // even though the server was still correctly processing the rest.
       final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
-          .httpsCallable('bulkApproveStaged');
+          .httpsCallable(
+        'bulkApproveStaged',
+        options: HttpsCallableOptions(timeout: const Duration(minutes: 9)),
+      );
       await callable.call({'stagedIds': _currentDocIds});
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_currentDocIds.length} products transferred')));
     } catch (e) {
@@ -1397,7 +1404,8 @@ class _ScrapeJobTileState extends State<_ScrapeJobTile> {
                 (_status == 'queued' ||
                     _status == 'running' ||
                     _status == 'failed' ||
-                    _status == 'cancelled')) ...[
+                    _status == 'cancelled' ||
+                    _status == 'completed')) ...[
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -1409,11 +1417,17 @@ class _ScrapeJobTileState extends State<_ScrapeJobTile> {
                       label: Text(loc.commonCancel),
                       style: TextButton.styleFrom(foregroundColor: Colors.red),
                     ),
-                  if (_status == 'failed' || _status == 'cancelled')
+                  if (_status == 'failed' ||
+                      _status == 'cancelled' ||
+                      _status == 'completed')
                     TextButton.icon(
                       onPressed: _retryJob,
                       icon: const Icon(Icons.refresh, size: 18),
-                      label: Text(loc.marketplaceRetry),
+                      label: Text(
+                        _status == 'completed'
+                            ? loc.marketplaceRerun
+                            : loc.marketplaceRetry,
+                      ),
                     ),
                 ],
               ),

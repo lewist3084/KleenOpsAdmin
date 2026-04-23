@@ -12,8 +12,19 @@ import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'catalog.dart';
 
 /// Admin catalog hub — standard layout with DetailsAppBar + HomeNavBar.
-class CatalogHome extends StatelessWidget {
+class CatalogHome extends StatefulWidget {
   const CatalogHome({super.key});
+
+  @override
+  State<CatalogHome> createState() => _CatalogHomeState();
+}
+
+class _CatalogHomeState extends State<CatalogHome> {
+  bool _searchVisible = false;
+
+  void _toggleSearch() {
+    setState(() => _searchVisible = !_searchVisible);
+  }
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -49,6 +60,8 @@ class CatalogHome extends StatelessWidget {
           DetailsAppBar(
             title: 'Catalog',
             menuSections: menuSections,
+            onSearchToggle: _toggleSearch,
+            searchActive: _searchVisible,
           ),
           const HomeNavBarAdapter(),
         ],
@@ -59,7 +72,7 @@ class CatalogHome extends StatelessWidget {
       appBar: null,
       drawer: const UserDrawer(),
       body: _wrapCanvas(
-        const CatalogContent(),
+        CatalogContent(searchVisible: _searchVisible),
       ),
       bottomNavigationBar: Consumer(
         builder: (context, ref, _) {

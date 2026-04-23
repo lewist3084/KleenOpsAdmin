@@ -11,7 +11,7 @@ import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adap
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.dart';
-import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/search/search_control_strip.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
@@ -23,8 +23,18 @@ import 'package:shared_widgets/drawers/menu_drawer.dart';
 import '../details/marketing_campaign_details.dart';
 
 /// Top-level screen with its own Scaffold (app bar + content + bottom nav)
-class MarketingCampaignScreen extends StatelessWidget {
+class MarketingCampaignScreen extends StatefulWidget {
   const MarketingCampaignScreen({super.key});
+
+  @override
+  State<MarketingCampaignScreen> createState() =>
+      _MarketingCampaignScreenState();
+}
+
+class _MarketingCampaignScreenState extends State<MarketingCampaignScreen> {
+  bool _searchVisible = false;
+
+  void _toggleSearch() => setState(() => _searchVisible = !_searchVisible);
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -62,6 +72,8 @@ class MarketingCampaignScreen extends StatelessWidget {
             title: 'Marketing Campaigns',
             onAiPressed: onAiPressed,
             menuSections: menuSections,
+            onSearchToggle: _toggleSearch,
+            searchActive: _searchVisible,
           ),
           const HomeNavBarAdapter(),
         ],
@@ -73,7 +85,7 @@ class MarketingCampaignScreen extends StatelessWidget {
       appBar: null,
       drawer: const UserDrawer(),
       body: _wrapCanvas(
-          const MarketingCampaignContent(),
+          MarketingCampaignContent(searchVisible: _searchVisible),
         ),
       bottomNavigationBar: Consumer(
         builder: (context, ref, _) {
@@ -106,7 +118,9 @@ class MarketingCampaignScreen extends StatelessWidget {
 }
 
 class MarketingCampaignContent extends ConsumerStatefulWidget {
-  const MarketingCampaignContent({super.key});
+  const MarketingCampaignContent({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   ConsumerState<MarketingCampaignContent> createState() =>
@@ -312,11 +326,12 @@ class _SalesMarketingContentState
           children: [
             Column(
               children: [
-                SearchFieldAction(
-                  controller: _searchCtl,
-                  labelText: 'Search Campaigns',
-                  onChanged: (t) => setState(() => _search = t.trim()),
-                ),
+                if (widget.searchVisible)
+                  SearchControlStrip(
+                    controller: _searchCtl,
+                    hintText: 'Search Campaigns',
+                    onChanged: (t) => setState(() => _search = t.trim()),
+                  ),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(bottom: bottomInset),

@@ -16,8 +16,18 @@ import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
 
 /// Top-level screen with its own Scaffold (app bar + content + bottom nav)
-class FinanceLedgerTabsScreen extends StatelessWidget {
+class FinanceLedgerTabsScreen extends StatefulWidget {
   const FinanceLedgerTabsScreen({super.key});
+
+  @override
+  State<FinanceLedgerTabsScreen> createState() =>
+      _FinanceLedgerTabsScreenState();
+}
+
+class _FinanceLedgerTabsScreenState extends State<FinanceLedgerTabsScreen> {
+  bool _searchVisible = false;
+
+  void _toggleSearch() => setState(() => _searchVisible = !_searchVisible);
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -55,6 +65,8 @@ class FinanceLedgerTabsScreen extends StatelessWidget {
             title: 'Ledger',
             onAiPressed: onAiPressed,
             menuSections: menuSections,
+            onSearchToggle: _toggleSearch,
+            searchActive: _searchVisible,
           ),
           const HomeNavBarAdapter(),
         ],
@@ -66,7 +78,7 @@ class FinanceLedgerTabsScreen extends StatelessWidget {
       appBar: null,
       drawer: const UserDrawer(),
       body: _wrapCanvas(
-          const FinanceLedgerTabs(),
+          FinanceLedgerTabs(searchVisible: _searchVisible),
       ),
       bottomNavigationBar: Consumer(
         builder: (context, ref, _) {
@@ -99,7 +111,9 @@ class FinanceLedgerTabsScreen extends StatelessWidget {
 }
 
 class FinanceLedgerTabs extends ConsumerStatefulWidget {
-  const FinanceLedgerTabs({super.key});
+  const FinanceLedgerTabs({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   _FinanceLedgerTabsState createState() => _FinanceLedgerTabsState();
@@ -153,10 +167,11 @@ class _FinanceLedgerTabsState extends ConsumerState<FinanceLedgerTabs>
             child: TabBarView(
               physics: const NeverScrollableScrollPhysics(),
               controller: _ctrl,
-              children: const [
-                FinanceLedgerContent(),
-                FinanceProfitLossContent(),
-                FinanceBalanceSheetContent(),
+              children: [
+                FinanceLedgerContent(searchVisible: widget.searchVisible),
+                FinanceProfitLossContent(searchVisible: widget.searchVisible),
+                FinanceBalanceSheetContent(
+                    searchVisible: widget.searchVisible),
               ],
             ),
           ),

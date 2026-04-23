@@ -7,7 +7,7 @@ import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adap
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.dart';
-import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:shared_widgets/search/search_control_strip.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
 import 'package:shared_widgets/lists/standardView.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
@@ -19,8 +19,18 @@ import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 
 /// Top-level screen with its own Scaffold (app bar + content + bottom nav)
-class PurchasingVendorsScreen extends StatelessWidget {
+class PurchasingVendorsScreen extends StatefulWidget {
   const PurchasingVendorsScreen({super.key});
+
+  @override
+  State<PurchasingVendorsScreen> createState() =>
+      _PurchasingVendorsScreenState();
+}
+
+class _PurchasingVendorsScreenState extends State<PurchasingVendorsScreen> {
+  bool _searchVisible = false;
+
+  void _toggleSearch() => setState(() => _searchVisible = !_searchVisible);
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -61,6 +71,8 @@ class PurchasingVendorsScreen extends StatelessWidget {
             title: 'Vendors',
             onAiPressed: onAiPressed,
             menuSections: menuSections,
+            onSearchToggle: _toggleSearch,
+            searchActive: _searchVisible,
           ),
           const HomeNavBarAdapter(),
         ],
@@ -74,7 +86,7 @@ class PurchasingVendorsScreen extends StatelessWidget {
       body: _wrapCanvas(
           Padding(
             padding: EdgeInsets.only(bottom: bottomInset),
-            child: const PurchasingVendorsContent(),
+            child: PurchasingVendorsContent(searchVisible: _searchVisible),
           ),
         ),
       bottomNavigationBar: Consumer(
@@ -113,7 +125,9 @@ class PurchasingVendorsScreen extends StatelessWidget {
 }
 
 class PurchasingVendorsContent extends ConsumerStatefulWidget {
-  const PurchasingVendorsContent({super.key});
+  const PurchasingVendorsContent({super.key, this.searchVisible = false});
+
+  final bool searchVisible;
 
   @override
   ConsumerState<PurchasingVendorsContent> createState() =>
@@ -230,11 +244,12 @@ class _PurchasingVendorsContentState
           children: [
             Column(
               children: [
-                SearchFieldAction(
-                  controller: _searchCtl,
-                  labelText: 'SearchÆ’?Ä°',
-                  onChanged: (t) => setState(() => _search = t.trim()),
-                ),
+                if (widget.searchVisible)
+                  SearchControlStrip(
+                    controller: _searchCtl,
+                    hintText: 'SearchÆ’?Ä°',
+                    onChanged: (t) => setState(() => _search = t.trim()),
+                  ),
                 Expanded(child: list),
               ],
             ),
