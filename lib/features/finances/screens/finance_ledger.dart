@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_widgets/search/search_control_strip.dart';
+import 'package:kleenops_admin/app/shared_widgets/search/search_control_strip_adapter.dart';
 import 'package:shared_widgets/lists/standardView.dart';
 import 'package:kleenops_admin/widgets/tiles/ledger_item.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';

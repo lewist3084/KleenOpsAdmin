@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_widgets/services/tenant_firebase_service.dart';
+import 'package:kleenops_admin/services/admin_firebase_service.dart';
 import 'package:intl/intl.dart';
 
 import 'package:shared_widgets/services/firestore_service.dart';
@@ -62,7 +62,7 @@ class _PurchasingOrderDetailsScreenState
   Future<void> _addPurchaseOrderItem(
       DocumentReference<Map<String, dynamic>> itemRef) async {
     final companyRef =
-        TenantFirebaseService.instance.companyDoc(widget.companyId);
+        AdminFirebaseService.instance.companyRef(widget.companyId);
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -271,7 +271,7 @@ class _PurchasingOrderDetailsScreenState
 
   Future<void> _showAddItemDialog(BuildContext context) async {
     final companyRef =
-        TenantFirebaseService.instance.companyDoc(widget.companyId);
+        AdminFirebaseService.instance.companyRef(widget.companyId);
 
     // Fetch company objects for the dropdown
     final snap =
@@ -985,8 +985,8 @@ class _PurchasingOrderDetailsScreenState
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) {
-                        final companyRef = TenantFirebaseService.instance
-                            .companyDoc(widget.companyId);
+                        final companyRef = AdminFirebaseService.instance
+                            .companyRef(widget.companyId);
                         return _CreateBillFromPO(
                           companyRef: companyRef,
                           poRef: poRef,
@@ -1020,7 +1020,7 @@ class _PurchasingOrderDetailsScreenState
   Widget build(BuildContext context) {
     final bool hideChrome = false;
     final companyRef =
-        TenantFirebaseService.instance.companyDoc(widget.companyId);
+        AdminFirebaseService.instance.companyRef(widget.companyId);
     final purchaseOrderRef =
         FirebaseFirestore.instance.collection('purchaseOrder').doc(widget.docId);
 

@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../forms/purchasing_orders_form.dart';
-import 'package:shared_widgets/search/search_control_strip.dart';
+import 'package:kleenops_admin/app/shared_widgets/search/search_control_strip_adapter.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:kleenops_admin/widgets/tiles/purchase_order_tile.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';

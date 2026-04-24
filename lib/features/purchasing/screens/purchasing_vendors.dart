@@ -7,7 +7,7 @@ import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adap
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.dart';
-import 'package:shared_widgets/search/search_control_strip.dart';
+import 'package:kleenops_admin/app/shared_widgets/search/search_control_strip_adapter.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
 import 'package:shared_widgets/lists/standardView.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';

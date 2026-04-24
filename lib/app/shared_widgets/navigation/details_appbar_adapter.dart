@@ -23,6 +23,10 @@ class DetailsAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final bool showMenu;
   final VoidCallback? onSearchToggle;
   final bool searchActive;
+  final bool showSearchToggle;
+  final VoidCallback? onFilterToggle;
+  final bool filterActive;
+  final bool showFilterToggle;
 
   const DetailsAppBar({
     super.key,
@@ -43,6 +47,10 @@ class DetailsAppBar extends ConsumerWidget implements PreferredSizeWidget {
     this.showMenu = false,
     this.onSearchToggle,
     this.searchActive = false,
+    this.showSearchToggle = true,
+    this.onFilterToggle,
+    this.filterActive = false,
+    this.showFilterToggle = true,
   });
 
   @override
@@ -74,6 +82,10 @@ class DetailsAppBar extends ConsumerWidget implements PreferredSizeWidget {
       showMenu: effectiveShowMenu,
       onSearchToggle: onSearchToggle,
       searchActive: searchActive,
+      showSearchToggle: showSearchToggle,
+      onFilterToggle: onFilterToggle,
+      filterActive: filterActive,
+      showFilterToggle: showFilterToggle,
     );
   }
 }

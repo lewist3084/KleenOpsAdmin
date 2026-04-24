@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:shared_widgets/search/search_control_strip.dart';
+import 'package:kleenops_admin/app/shared_widgets/search/search_control_strip_adapter.dart';
 import 'package:shared_widgets/services/catalog_firebase_service.dart';
 import 'package:kleenops_admin/features/catalog/details/marketplace_staging_review_details.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';

@@ -146,7 +146,7 @@ class _ScrapeJobDetailsState extends State<ScrapeJobDetails> {
             (status == 'running' ||
                 status == 'failed' ||
                 status == 'cancelled' ||
-                (status == 'completed' && failedCount > 0));
+                status == 'completed');
         final canMarkFailed = status == 'running';
 
         return Scaffold(

@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
-import 'package:shared_widgets/search/search_control_strip.dart';
+import 'package:kleenops_admin/app/shared_widgets/search/search_control_strip_adapter.dart';
 import 'package:kleenops_admin/widgets/fields/multi_select/day_multi_select.dart';
 import 'package:kleenops_admin/widgets/fields/multi_select/week_multi_select.dart';
 import 'package:kleenops_admin/widgets/fields/multi_select/month_multi_select.dart';

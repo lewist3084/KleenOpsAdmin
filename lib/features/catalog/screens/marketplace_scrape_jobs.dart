@@ -401,33 +401,76 @@ class _ReviewTabState extends State<_ReviewTab> {
 
   Future<void> _confirmTransfer(BuildContext context) async {
     if (_currentDocIds.isEmpty) return;
+    final initialBatch = _currentDocIds.length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Transfer All to Catalog'),
-        content: Text('Are you sure you want to transfer ${_currentDocIds.length} products to the object catalog?'),
+        content: Text(
+          'Transfer all pending products to the object catalog? '
+          'The Firestore query only shows $initialBatch at a time, so the '
+          'loop will keep calling until the queue is empty. Large queues '
+          'may take several minutes.',
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Transfer All')),
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true) return;
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _processing = true);
+
+    // 9-minute client-side timeout matches the 540s Cloud Function cap.
+    // The httpsCallable default is 70s — too short for ~100-item batches
+    // where each item runs a Gemini localization call.
+    final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+        .httpsCallable(
+      'bulkApproveStaged',
+      options: HttpsCallableOptions(timeout: const Duration(minutes: 9)),
+    );
+
+    int totalTransferred = 0;
     try {
-      // 9-minute client-side timeout to match the 540s Cloud Function
-      // cap. The httpsCallable default is 70s — short enough that large
-      // batches (20+ items) would show "internal" errors in the UI
-      // even though the server was still correctly processing the rest.
-      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
-          .httpsCallable(
-        'bulkApproveStaged',
-        options: HttpsCallableOptions(timeout: const Duration(minutes: 9)),
-      );
-      await callable.call({'stagedIds': _currentDocIds});
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_currentDocIds.length} products transferred')));
+      while (mounted) {
+        final batch = List<String>.from(_currentDocIds);
+        if (batch.isEmpty) break;
+
+        await callable.call({'stagedIds': batch});
+        totalTransferred += batch.length;
+
+        messenger.showSnackBar(SnackBar(
+          content: Text('$totalTransferred transferred, checking for more...'),
+          duration: const Duration(seconds: 2),
+        ));
+
+        // Wait for the Firestore stream to refresh — transferred IDs
+        // change status and drop from needs_review. Bail after 15s if
+        // nothing changes, otherwise a silently-failed batch would spin
+        // forever.
+        final batchIds = batch.toSet();
+        var waitedMs = 0;
+        while (mounted && waitedMs < 15000) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          waitedMs += 500;
+          if (batchIds.intersection(_currentDocIds.toSet()).isEmpty) break;
+        }
+        if (batchIds.intersection(_currentDocIds.toSet()).isNotEmpty) {
+          messenger.showSnackBar(const SnackBar(
+            content: Text('Stream did not refresh; stopping loop'),
+          ));
+          break;
+        }
+      }
+      messenger.showSnackBar(SnackBar(
+        content: Text('Done — transferred $totalTransferred products'),
+      ));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Transfer failed: $e')));
+      messenger.showSnackBar(SnackBar(
+        content: Text('Transfer failed after $totalTransferred: $e'),
+      ));
     } finally {
       if (mounted) setState(() => _processing = false);
     }
@@ -1022,7 +1065,7 @@ class _CombinedScrapeDialogState extends State<_CombinedScrapeDialog> {
           .httpsCallable('createScrapeJob');
       final startPage = int.tryParse(_startPageController.text.trim()) ?? 1;
       final endPage = int.tryParse(_endPageController.text.trim()) ?? 50;
-      final maxProducts = ((endPage - startPage + 1) * 25).clamp(1, 5000);
+      final maxProducts = ((endPage - startPage + 1) * 25).clamp(1, 6000);
 
       await jobCallable.call({
         'vendorConfigId': vendorConfigId,
