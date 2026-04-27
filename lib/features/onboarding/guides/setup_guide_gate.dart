@@ -38,14 +38,25 @@ class _SetupGuideGateState extends ConsumerState<SetupGuideGate> {
     super.didChangeDependencies();
     if (!_checked) {
       _checked = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final shouldShow =
-            ref.read(shouldShowGuideProvider(widget.guide.key));
-        if (shouldShow) {
-          showSetupGuide(context, ref, widget.guide);
-        }
-      });
+      _maybeShowGuide();
+    }
+  }
+
+  Future<void> _maybeShowGuide() async {
+    // Wait for the permanent-dismissals stream to load before checking.
+    // Without this, the StreamProvider is still in AsyncLoading on the
+    // first frame and asData?.value falls back to {} — which would re-show
+    // a guide the user previously tapped "Don't show again" on.
+    try {
+      await ref.read(permanentDismissedGuidesProvider.future);
+    } catch (_) {
+      // Stream errored; fall through to session-only check.
+    }
+    if (!mounted) return;
+
+    final shouldShow = ref.read(shouldShowGuideProvider(widget.guide.key));
+    if (shouldShow) {
+      showSetupGuide(context, ref, widget.guide);
     }
   }
 

@@ -16,7 +16,7 @@ import 'package:kleenops_admin/features/catalog/details/marketplace_staging_revi
 import 'package:kleenops_admin/features/catalog/details/website_details.dart';
 import 'package:kleenops_admin/features/catalog/details/scrape_job_details.dart';
 // Scrape workflow collections now live in the catalog Firebase project.
-import 'package:shared_widgets/dialogs/dialog_select.dart';
+import 'package:shared_widgets/dialogs/dialog_select.dart'; // re-exports DialogAction
 import 'package:shared_widgets/tabs/standard_tab.dart';
 
 import 'package:kleenops_admin/l10n/app_localizations.dart';
@@ -268,56 +268,148 @@ class _ScrapingTab extends StatelessWidget {
                   : targetUrl,
             ].join(' \u2014 ');
 
-            return Card(
-              child: ListTile(
-                leading: Icon(Icons.downloading, color: statusColor),
-                title: Text(
-                  vendorName.isNotEmpty ? vendorName : 'Scrape Job',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+            return Dismissible(
+              key: ValueKey('scrapeJob-${doc.id}'),
+              // Swipe right (start→end) to delete. We deliberately don't
+              // allow the reverse direction so an accidental left-swipe
+              // doesn't trigger destructive action.
+              direction: DismissDirection.startToEnd,
+              background: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                alignment: Alignment.centerLeft,
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (subtitle.isNotEmpty) Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            status.toUpperCase(),
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // While running, show "staged / totalFound" so the
-                        // reviewer can see live progress. When the job
-                        // reaches a terminal state, fall back to the
-                        // summary totals written to `results`.
-                        if ((totalFound as num) > 0)
-                          Text(
-                            status == 'running'
-                                ? '$stagedCount / $totalFound'
-                                : 'Found: $totalFound  Staged: $stagedCount',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        if ((failedCount as num) > 0) ...[
-                          const SizedBox(width: 8),
-                          Text('Failed: $failedCount', style: const TextStyle(fontSize: 12, color: Colors.red)),
-                        ],
-                      ],
-                    ),
+                    Icon(Icons.delete, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                   ],
                 ),
-                isThreeLine: true,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ScrapeJobDetails(docId: doc.id),
+              ),
+              confirmDismiss: (_) async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogCtx) => DialogAction(
+                    title: 'Delete scrape job?',
+                    cancelText: 'Cancel',
+                    onCancel: () => Navigator.of(dialogCtx).pop(false),
+                    actionText: 'Delete',
+                    onAction: () => Navigator.of(dialogCtx).pop(true),
+                    actionButtonColor: Colors.red,
+                    content: Text(
+                      'Delete "${vendorName.isNotEmpty ? vendorName : 'this scrape job'}"? '
+                      'You can undo for 5 seconds. Staged products from this job '
+                      'remain in the Review queue regardless.',
+                    ),
+                  ),
+                );
+                return confirmed == true;
+              },
+              onDismissed: (_) async {
+                // Snapshot the doc data BEFORE delete so we can restore on
+                // undo. Note: we restore the top-level doc only —
+                // categoryChunks subcollection (if present) isn't part of
+                // the snapshot and won't be re-seeded by undo. That's an
+                // accepted limit; pagination state would just resume from
+                // page 1 if the user later restarts the job.
+                final snapshotData = Map<String, dynamic>.from(data);
+
+                final messenger = ScaffoldMessenger.of(context);
+                bool restored = false;
+
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('scrapeJob')
+                      .doc(doc.id)
+                      .delete();
+                } catch (e) {
+                  messenger.showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+                  return;
+                }
+
+                messenger.clearSnackBars();
+                messenger.showSnackBar(
+                  SnackBar(
+                    duration: const Duration(seconds: 5),
+                    content: Text(
+                      vendorName.isNotEmpty ? '$vendorName deleted' : 'Scrape job deleted',
+                    ),
+                    action: SnackBarAction(
+                      label: 'Undo',
+                      onPressed: () async {
+                        if (restored) return;
+                        restored = true;
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('scrapeJob')
+                              .doc(doc.id)
+                              .set(snapshotData);
+                        } catch (e) {
+                          messenger.showSnackBar(
+                            SnackBar(content: Text('Undo failed: $e')),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                );
+              },
+              child: Card(
+                child: ListTile(
+                  leading: Icon(Icons.downloading, color: statusColor),
+                  title: Text(
+                    vendorName.isNotEmpty ? vendorName : 'Scrape Job',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (subtitle.isNotEmpty) Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              status.toUpperCase(),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // While running, show "staged / totalFound" so the
+                          // reviewer can see live progress. When the job
+                          // reaches a terminal state, fall back to the
+                          // summary totals written to `results`.
+                          if ((totalFound as num) > 0)
+                            Text(
+                              status == 'running'
+                                  ? '$stagedCount / $totalFound'
+                                  : 'Found: $totalFound  Staged: $stagedCount',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          if ((failedCount as num) > 0) ...[
+                            const SizedBox(width: 8),
+                            Text('Failed: $failedCount', style: const TextStyle(fontSize: 12, color: Colors.red)),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                  isThreeLine: true,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ScrapeJobDetails(docId: doc.id),
+                    ),
                   ),
                 ),
               ),
@@ -408,41 +500,75 @@ class _ReviewTabState extends State<_ReviewTab> {
   Future<void> _confirmTransfer(BuildContext context) async {
     if (_currentItems.isEmpty) return;
 
-    // Group the visible batch by sourceJobId so the user can pick which
-    // scrape jobs to transfer. The dialog only sees jobs present in the
-    // current 100-doc page; later pages may surface more jobs and the
-    // user can re-open Transfer for those.
-    final countsByJobId = <String, int>{};
-    for (final item in _currentItems) {
-      final key = item.sourceJobId.isEmpty ? '(no source job)' : item.sourceJobId;
-      countsByJobId.update(key, (v) => v + 1, ifAbsent: () => 1);
-    }
-
-    // Resolve scrapeJob/{id} → vendorName so the dialog shows human labels
-    // (e.g., "Spartan Chemical (24)") instead of opaque doc IDs.
+    // Pre-scan: enumerate scrape jobs (small collection ~tens of docs) and
+    // run a count() aggregation per job for needs_review items. Each
+    // count() returns a single number — total memory cost is a few KB
+    // regardless of queue size. Earlier versions fetched up to 5000
+    // stagedProduct docs into memory which OOM-crashed the app on
+    // Android (256MB heap, ~30KB per doc).
+    //
+    // Requires the (status, sourceJobId) composite index in
+    // firestore.indexes.json.
     final db = FirebaseFirestore.instance;
-    final labels = <String, String>{};
-    for (final entry in countsByJobId.entries) {
-      final raw = entry.key;
-      String label;
-      if (raw == '(no source job)') {
-        label = 'Items with no source job';
-      } else {
-        final jobDocId = raw.startsWith('scrapeJob/')
-            ? raw.substring('scrapeJob/'.length)
-            : raw;
-        try {
-          final s = await db.collection('scrapeJob').doc(jobDocId).get();
-          final vendor = (s.data()?['vendorName'] ?? '').toString().trim();
-          label = vendor.isNotEmpty ? vendor : jobDocId;
-        } catch (_) {
-          label = jobDocId;
-        }
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _processing = true);
+
+    final QuerySnapshot<Map<String, dynamic>> jobsSnap;
+    try {
+      jobsSnap = await db
+          .collection('scrapeJob')
+          .orderBy('createdAt', descending: true)
+          .limit(200)
+          .get();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _processing = false);
+        messenger.showSnackBar(SnackBar(content: Text('Scan failed: $e')));
       }
-      labels[raw] = '$label (${entry.value})';
+      return;
     }
 
-    if (!mounted) return;
+    // Run all per-job counts in parallel. Each is a single aggregation
+    // query — cheap and constant-size in memory.
+    final perJobResults = await Future.wait(jobsSnap.docs.map((jobDoc) async {
+      final key = 'scrapeJob/${jobDoc.id}';
+      final vendor = (jobDoc.data()['vendorName'] ?? '').toString().trim();
+      try {
+        final countSnap = await db
+            .collection('stagedProduct')
+            .where('status', isEqualTo: 'needs_review')
+            .where('sourceJobId', isEqualTo: key)
+            .count()
+            .get();
+        return (key: key, count: countSnap.count ?? 0, label: vendor.isNotEmpty ? vendor : jobDoc.id);
+      } catch (_) {
+        return (key: key, count: 0, label: vendor.isNotEmpty ? vendor : jobDoc.id);
+      }
+    }));
+
+    final countsByJobId = <String, int>{};
+    final labels = <String, String>{};
+    for (final r in perJobResults) {
+      if (r.count > 0) {
+        countsByJobId[r.key] = r.count;
+        labels[r.key] = '${r.label} (${r.count})';
+      }
+    }
+
+    if (countsByJobId.isEmpty) {
+      if (mounted) {
+        setState(() => _processing = false);
+        messenger.showSnackBar(const SnackBar(
+          content: Text('No items to transfer.'),
+        ));
+      }
+      return;
+    }
+
+    if (!mounted) {
+      setState(() => _processing = false);
+      return;
+    }
     final allJobIds = countsByJobId.keys.toList()
       ..sort((a, b) => (labels[a] ?? a).compareTo(labels[b] ?? b));
 
@@ -464,25 +590,20 @@ class _ReviewTabState extends State<_ReviewTab> {
       ),
     );
 
-    if (!mounted || selected == null || selected.isEmpty) return;
+    if (!mounted || selected == null || selected.isEmpty) {
+      if (mounted) setState(() => _processing = false);
+      return;
+    }
     final selectedSet = selected.toSet();
-
-    final initialBatch = _currentItems
-        .where((i) => selectedSet.contains(
-              i.sourceJobId.isEmpty ? '(no source job)' : i.sourceJobId,
-            ))
-        .length;
-    if (initialBatch == 0) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Transfer to Catalog'),
         content: Text(
-          'Transfer $initialBatch products from the selected scrape job'
+          'Transfer all pending products from the selected scrape job'
           '${selected.length == 1 ? '' : 's'} to the object catalog? '
-          'The Firestore query only shows up to 100 at a time, so the loop '
-          'will keep calling until the selected jobs’ queue is empty.',
+          'This may take several minutes for large queues.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -490,68 +611,50 @@ class _ReviewTabState extends State<_ReviewTab> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() => _processing = true);
+    if (confirmed != true || !mounted) {
+      if (mounted) setState(() => _processing = false);
+      return;
+    }
 
-    // Pick out only the docIds whose sourceJobId is in the selected set.
-    // Items from non-selected jobs stay in needs_review and are skipped
-    // by the loop's wait-for-refresh check.
-    List<String> filteredIds() => _currentItems
-        .where((i) => selectedSet.contains(
-              i.sourceJobId.isEmpty ? '(no source job)' : i.sourceJobId,
-            ))
-        .map((i) => i.docId)
-        .toList();
+    // Fire-and-forget the server-side drain. The cloud function creates a
+    // stagedDrainJob doc, enqueues a Cloud Tasks worker, and returns
+    // immediately. The worker self-chains via Cloud Tasks until the queue
+    // is drained, so the user can close the app safely.
+    //
+    // Items disappear from the Review tab live as they're approved, giving
+    // visual progress without an extra tracking widget.
+    final selectedJobIds =
+        selectedSet.where((k) => k != '(no source job)').toList();
+    if (selectedJobIds.isEmpty) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('No scrape-job-tagged items selected.'),
+      ));
+      if (mounted) setState(() => _processing = false);
+      return;
+    }
 
-    // 9-minute client-side timeout matches the 540s Cloud Function cap.
-    // The httpsCallable default is 70s — too short for ~100-item batches
-    // where each item runs a Gemini localization call.
-    final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
-        .httpsCallable(
-      'bulkApproveStaged',
-      options: HttpsCallableOptions(timeout: const Duration(minutes: 9)),
-    );
-
-    int totalTransferred = 0;
     try {
-      while (mounted) {
-        final batch = filteredIds();
-        if (batch.isEmpty) break;
+      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('startStagedDrain');
+      final result = await callable.call({'sourceJobIds': selectedJobIds});
+      final data = result.data is Map ? result.data as Map : {};
+      final drainJobId = (data['drainJobId'] ?? '').toString();
 
-        await callable.call({'stagedIds': batch});
-        totalTransferred += batch.length;
-
-        messenger.showSnackBar(SnackBar(
-          content: Text('$totalTransferred transferred, checking for more...'),
-          duration: const Duration(seconds: 2),
-        ));
-
-        // Wait for the Firestore stream to refresh — transferred IDs
-        // change status and drop from needs_review. Bail after 15s if
-        // nothing changes, otherwise a silently-failed batch would spin
-        // forever.
-        final batchIds = batch.toSet();
-        Set<String> visibleIds() => _currentItems.map((i) => i.docId).toSet();
-        var waitedMs = 0;
-        while (mounted && waitedMs < 15000) {
-          await Future.delayed(const Duration(milliseconds: 500));
-          waitedMs += 500;
-          if (batchIds.intersection(visibleIds()).isEmpty) break;
-        }
-        if (batchIds.intersection(visibleIds()).isNotEmpty) {
-          messenger.showSnackBar(const SnackBar(
-            content: Text('Stream did not refresh; stopping loop'),
-          ));
-          break;
-        }
-      }
       messenger.showSnackBar(SnackBar(
-        content: Text('Done — transferred $totalTransferred products'),
+        content: Text(
+          drainJobId.isNotEmpty
+              ? 'Transfer started in background. You can close the app.'
+              : 'Transfer queued.',
+        ),
+        duration: const Duration(seconds: 4),
+      ));
+    } on FirebaseFunctionsException catch (e) {
+      messenger.showSnackBar(SnackBar(
+        content: Text('Transfer failed to start: ${e.code} ${e.message ?? ''}'),
       ));
     } catch (e) {
       messenger.showSnackBar(SnackBar(
-        content: Text('Transfer failed after $totalTransferred: $e'),
+        content: Text('Transfer failed to start: $e'),
       ));
     } finally {
       if (mounted) setState(() => _processing = false);
@@ -787,58 +890,43 @@ class _AddWebsiteDialogState extends State<_AddWebsiteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 450),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text('Add Website', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _nameCtl,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Company Name',
-                  hintText: 'e.g., Solenis',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.business),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _urlCtl,
-                decoration: const InputDecoration(
-                  labelText: 'Website URL',
-                  hintText: 'https://products.solenis.com',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.language),
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
-              ],
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    onPressed: _saving ? null : _save,
-                    child: _saving
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('Add'),
-                  ),
-                ],
-              ),
-            ],
+    return DialogAction(
+      title: 'Add Website',
+      cancelText: 'Cancel',
+      onCancel: _saving ? () {} : () => Navigator.pop(context),
+      actionText: _saving ? 'Adding...' : 'Add',
+      onAction: _saving ? null : _save,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _nameCtl,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Company Name',
+              hintText: 'e.g., Spartan Chemical',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.business),
+            ),
           ),
-        ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _urlCtl,
+            decoration: const InputDecoration(
+              labelText: 'Website URL',
+              hintText: 'https://www.spartanchemical.com',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.language),
+            ),
+            keyboardType: TextInputType.url,
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!,
+                style: const TextStyle(color: Colors.red, fontSize: 13)),
+          ],
+        ],
       ),
     );
   }
