@@ -338,7 +338,13 @@ class _ReviewTab extends StatefulWidget {
 
 class _ReviewTabState extends State<_ReviewTab> {
   bool _processing = false;
-  List<String> _currentDocIds = [];
+  // Each item carries its sourceJobId so Transfer can filter by which
+  // scrape job produced it. The list is rebuilt on every stream snapshot
+  // and reflects the currently-visible review batch (up to 100 docs).
+  List<({String docId, String sourceJobId})> _currentItems = [];
+
+  List<String> get _currentDocIds =>
+      _currentItems.map((e) => e.docId).toList();
 
   String _resolveImageUrl(Map<String, dynamic> data) {
     final detailData = data['detailData'] is Map ? Map<String, dynamic>.from(data['detailData'] as Map) : <String, dynamic>{};
@@ -400,28 +406,103 @@ class _ReviewTabState extends State<_ReviewTab> {
   }
 
   Future<void> _confirmTransfer(BuildContext context) async {
-    if (_currentDocIds.isEmpty) return;
-    final initialBatch = _currentDocIds.length;
+    if (_currentItems.isEmpty) return;
+
+    // Group the visible batch by sourceJobId so the user can pick which
+    // scrape jobs to transfer. The dialog only sees jobs present in the
+    // current 100-doc page; later pages may surface more jobs and the
+    // user can re-open Transfer for those.
+    final countsByJobId = <String, int>{};
+    for (final item in _currentItems) {
+      final key = item.sourceJobId.isEmpty ? '(no source job)' : item.sourceJobId;
+      countsByJobId.update(key, (v) => v + 1, ifAbsent: () => 1);
+    }
+
+    // Resolve scrapeJob/{id} → vendorName so the dialog shows human labels
+    // (e.g., "Spartan Chemical (24)") instead of opaque doc IDs.
+    final db = FirebaseFirestore.instance;
+    final labels = <String, String>{};
+    for (final entry in countsByJobId.entries) {
+      final raw = entry.key;
+      String label;
+      if (raw == '(no source job)') {
+        label = 'Items with no source job';
+      } else {
+        final jobDocId = raw.startsWith('scrapeJob/')
+            ? raw.substring('scrapeJob/'.length)
+            : raw;
+        try {
+          final s = await db.collection('scrapeJob').doc(jobDocId).get();
+          final vendor = (s.data()?['vendorName'] ?? '').toString().trim();
+          label = vendor.isNotEmpty ? vendor : jobDocId;
+        } catch (_) {
+          label = jobDocId;
+        }
+      }
+      labels[raw] = '$label (${entry.value})';
+    }
+
+    if (!mounted) return;
+    final allJobIds = countsByJobId.keys.toList()
+      ..sort((a, b) => (labels[a] ?? a).compareTo(labels[b] ?? b));
+
+    // Multi-select scrape jobs. All preselected by default so the common
+    // case (transfer everything) is still one tap away after this dialog.
+    final selected = await showDialog<List<String>?>(
+      context: context,
+      builder: (dialogCtx) => DialogSelect<String>(
+        title: 'Select scrape jobs to transfer',
+        items: allJobIds,
+        itemLabel: (id) => labels[id] ?? id,
+        itemSearchString: (id) => labels[id] ?? id,
+        tileType: DialogSelectTileType.checkbox,
+        initialSelections: List<String>.from(allJobIds),
+        actionText: 'Continue',
+        onCancel: () => Navigator.of(dialogCtx).pop(null),
+        onSubmit: (result) =>
+            Navigator.of(dialogCtx).pop(List<String>.from(result.values)),
+      ),
+    );
+
+    if (!mounted || selected == null || selected.isEmpty) return;
+    final selectedSet = selected.toSet();
+
+    final initialBatch = _currentItems
+        .where((i) => selectedSet.contains(
+              i.sourceJobId.isEmpty ? '(no source job)' : i.sourceJobId,
+            ))
+        .length;
+    if (initialBatch == 0) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Transfer All to Catalog'),
+        title: const Text('Transfer to Catalog'),
         content: Text(
-          'Transfer all pending products to the object catalog? '
-          'The Firestore query only shows $initialBatch at a time, so the '
-          'loop will keep calling until the queue is empty. Large queues '
-          'may take several minutes.',
+          'Transfer $initialBatch products from the selected scrape job'
+          '${selected.length == 1 ? '' : 's'} to the object catalog? '
+          'The Firestore query only shows up to 100 at a time, so the loop '
+          'will keep calling until the selected jobs’ queue is empty.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Transfer All')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Transfer')),
         ],
       ),
     );
-    if (confirmed != true) return;
-    if (!mounted) return;
+    if (confirmed != true || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _processing = true);
+
+    // Pick out only the docIds whose sourceJobId is in the selected set.
+    // Items from non-selected jobs stay in needs_review and are skipped
+    // by the loop's wait-for-refresh check.
+    List<String> filteredIds() => _currentItems
+        .where((i) => selectedSet.contains(
+              i.sourceJobId.isEmpty ? '(no source job)' : i.sourceJobId,
+            ))
+        .map((i) => i.docId)
+        .toList();
 
     // 9-minute client-side timeout matches the 540s Cloud Function cap.
     // The httpsCallable default is 70s — too short for ~100-item batches
@@ -435,7 +516,7 @@ class _ReviewTabState extends State<_ReviewTab> {
     int totalTransferred = 0;
     try {
       while (mounted) {
-        final batch = List<String>.from(_currentDocIds);
+        final batch = filteredIds();
         if (batch.isEmpty) break;
 
         await callable.call({'stagedIds': batch});
@@ -451,13 +532,14 @@ class _ReviewTabState extends State<_ReviewTab> {
         // nothing changes, otherwise a silently-failed batch would spin
         // forever.
         final batchIds = batch.toSet();
+        Set<String> visibleIds() => _currentItems.map((i) => i.docId).toSet();
         var waitedMs = 0;
         while (mounted && waitedMs < 15000) {
           await Future.delayed(const Duration(milliseconds: 500));
           waitedMs += 500;
-          if (batchIds.intersection(_currentDocIds.toSet()).isEmpty) break;
+          if (batchIds.intersection(visibleIds()).isEmpty) break;
         }
-        if (batchIds.intersection(_currentDocIds.toSet()).isNotEmpty) {
+        if (batchIds.intersection(visibleIds()).isNotEmpty) {
           messenger.showSnackBar(const SnackBar(
             content: Text('Stream did not refresh; stopping loop'),
           ));
@@ -492,7 +574,12 @@ class _ReviewTabState extends State<_ReviewTab> {
               if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
               if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
               final docs = snapshot.data!.docs;
-              _currentDocIds = docs.map((d) => d.id).toList();
+              _currentItems = docs
+                  .map((d) => (
+                        docId: d.id,
+                        sourceJobId: (d.data()['sourceJobId'] ?? '').toString(),
+                      ))
+                  .toList();
               if (docs.isEmpty) return const Center(child: Text('No products to review.'));
 
               final items = docs.map((doc) {

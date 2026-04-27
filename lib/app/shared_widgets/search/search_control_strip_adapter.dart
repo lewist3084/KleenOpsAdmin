@@ -20,7 +20,7 @@ class SearchControlStrip extends StatelessWidget {
     required this.onChanged,
     this.hintText = 'Search',
     this.trailingActions = const <shared.SearchStripAction>[],
-    this.autofocus = true,
+    this.autofocus = false,
     this.focusNode,
     this.textInputAction,
     this.onSubmitted,
