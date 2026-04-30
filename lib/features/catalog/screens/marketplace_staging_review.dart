@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:kleenops_admin/app/shared_widgets/search/search_control_strip_adapter.dart';
 import 'package:shared_widgets/services/catalog_firebase_service.dart';
 import 'package:kleenops_admin/features/catalog/details/marketplace_staging_review_details.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
@@ -16,8 +15,15 @@ import 'package:shared_widgets/lists/standardView.dart';
 import 'package:kleenops_admin/l10n/app_localizations.dart';
 
 /// Displays staged products that need review before being added to the catalog.
+///
+/// Search is owned by the surrounding StagingReviewWrapper so the search
+/// field can live in the bottom chrome (just above the DetailsAppBar) and
+/// be toggled by the appbar's search button. The wrapper passes the live
+/// query in via [searchQuery].
 class StagingReviewScreen extends ConsumerStatefulWidget {
-  const StagingReviewScreen({super.key});
+  const StagingReviewScreen({super.key, this.searchQuery = ''});
+
+  final String searchQuery;
 
   @override
   ConsumerState<StagingReviewScreen> createState() =>
@@ -27,8 +33,6 @@ class StagingReviewScreen extends ConsumerStatefulWidget {
 class _StagingReviewScreenState extends ConsumerState<StagingReviewScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String searchQuery = '';
-  final TextEditingController _searchController = TextEditingController();
   bool _bulkApproving = false;
   final Set<String> _excludedDocIds = {};
   bool _saving = false;
@@ -45,7 +49,6 @@ class _StagingReviewScreenState extends ConsumerState<StagingReviewScreen>
 
   @override
   void dispose() {
-    _searchController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -159,18 +162,13 @@ class _StagingReviewScreenState extends ConsumerState<StagingReviewScreen>
               ],
             ),
           ),
-          SearchControlStrip(
-            controller: _searchController,
-            hintText: loc.marketplaceSearchStagedItems,
-            onChanged: (val) => setState(() => searchQuery = val),
-          ),
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
                 _StagedProductList(
                   status: 'needs_review',
-                  searchQuery: searchQuery,
+                  searchQuery: widget.searchQuery,
                   showActions: true,
                   useNewDesign: true,
                   excludedDocIds: _excludedDocIds,
@@ -181,14 +179,14 @@ class _StagingReviewScreenState extends ConsumerState<StagingReviewScreen>
                 ),
                 _StagedProductList(
                   status: 'auto_approved',
-                  searchQuery: searchQuery,
+                  searchQuery: widget.searchQuery,
                   showActions: true,
                   onBulkApprove: _bulkApprove,
                   bulkApproving: _bulkApproving,
                 ),
                 _StagedProductList(
                   status: 'approved',
-                  searchQuery: searchQuery,
+                  searchQuery: widget.searchQuery,
                   showActions: false,
                 ),
               ],
@@ -393,6 +391,8 @@ class _StagedProductListState extends State<_StagedProductList> {
                 final normalized =
                     data['normalizedData'] as Map<String, dynamic>? ?? {};
                 final rawData = data['rawData'] as Map<String, dynamic>? ?? {};
+                final objectData =
+                    data['objectData'] as Map<String, dynamic>? ?? {};
                 final name = normalized['name']?.toString() ?? loc.commonUnnamed;
                 final imageUrl = normalized['imageUrl']?.toString() ??
                     rawData['imageUrl']?.toString() ??
@@ -406,6 +406,16 @@ class _StagedProductListState extends State<_StagedProductList> {
                     (data['suggestedCategoryKey'] ?? '').toString();
                 final suggestedScalar =
                     (data['suggestedScalarKey'] ?? '').toString();
+
+                // Content size = the per-unit content of one container,
+                // pulled from skuConfig with any leading "Nx" pack-multiplier
+                // stripped: "55 gal" stays as-is, "4x1 gal" → "1 gal",
+                // "12x20 oz" → "20 oz". Parent skuConfig wins over rawData
+                // since we now compute it on the worker side.
+                final skuConfig =
+                    (objectData['skuConfig'] ?? rawData['skuConfig'] ?? '')
+                        .toString();
+                final contentSize = _stripPackMultiplier(skuConfig);
 
                 return InkWell(
                   onTap: () async {
@@ -427,10 +437,12 @@ class _StagedProductListState extends State<_StagedProductList> {
                     secondLineIcon: suggestedCategory.isNotEmpty
                         ? Icons.category_outlined
                         : Icons.help_outline,
-                    thirdLine: suggestedScalar.isNotEmpty
+                    thirdLine: contentSize.isNotEmpty ? contentSize : '—',
+                    thirdLineIcon: Icons.local_drink_outlined,
+                    fourthLine: suggestedScalar.isNotEmpty
                         ? 'Usage: $suggestedScalar'
                         : 'Usage: Not set',
-                    thirdLineIcon: Icons.straighten,
+                    fourthLineIcon: Icons.straighten,
                     trailingIcon1: Icons.close,
                     trailingAction1: () =>
                         widget.onToggleExcluded?.call(doc.id),
@@ -500,6 +512,18 @@ class _StagedProductListState extends State<_StagedProductList> {
         ),
       ],
     );
+  }
+
+  // Strip a leading "Nx" pack-multiplier from a skuConfig string so the
+  // tile displays per-container content size:
+  //   "55 gal"   → "55 gal"
+  //   "4x1 gal"  → "1 gal"
+  //   "12x20 oz" → "20 oz"
+  static String _stripPackMultiplier(String s) {
+    final trimmed = s.trim();
+    if (trimmed.isEmpty) return '';
+    final m = RegExp(r'^\d+x(.+)$', caseSensitive: false).firstMatch(trimmed);
+    return (m != null ? m.group(1)! : trimmed).trim();
   }
 }
 

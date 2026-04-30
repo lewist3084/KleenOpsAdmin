@@ -537,7 +537,10 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
                 ),
               ),
 
-            // 2. Identifiers
+            // 2. Identifiers — labels carry a "Bulk" prefix on the bulk
+            // packaging variant view because for some vendors (Spartan)
+            // the code/UPC is published per packaging case, not per
+            // individual unit. Field paths stay the same; just the header.
             ContainerActionWidget(
               title: '',
               actionText: '',
@@ -545,13 +548,13 @@ class _CatalogDetailsScreenState extends State<CatalogDetailsScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   HeaderInfoIconValue(
-                    header: 'Product Code',
+                    header: isBulkVariant ? 'Bulk Product Code' : 'Product Code',
                     value: productCode.isNotEmpty ? productCode : 'Not set',
                     icon: Icons.confirmation_number_outlined,
                   ),
                   const SizedBox(height: 12),
                   HeaderInfoIconValue(
-                    header: 'UPC',
+                    header: isBulkVariant ? 'Bulk UPC' : 'UPC',
                     value: upc.isNotEmpty ? upc : 'Not set',
                     icon: Icons.qr_code,
                   ),

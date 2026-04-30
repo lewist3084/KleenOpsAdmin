@@ -33,7 +33,11 @@ Map<String, dynamic> _asStringDynamicMap(dynamic value) {
 
 /// Scraping screen with two tabs: Websites (brand owners) and Scraping (jobs).
 class ScrapeJobsScreen extends ConsumerStatefulWidget {
-  const ScrapeJobsScreen({super.key});
+  const ScrapeJobsScreen({super.key, this.searchQuery = ''});
+
+  /// Live search string from the wrapper's appbar-toggle search strip.
+  /// Currently only used by the Review tab — Websites and Jobs ignore it.
+  final String searchQuery;
 
   @override
   ConsumerState<ScrapeJobsScreen> createState() => _ScrapeJobsScreenState();
@@ -81,10 +85,10 @@ class _ScrapeJobsScreenState extends ConsumerState<ScrapeJobsScreen>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [
-                _WebsitesTab(),
-                _ScrapingTab(),
-                _ReviewTab(),
+              children: [
+                const _WebsitesTab(),
+                const _ScrapingTab(),
+                _ReviewTab(searchQuery: widget.searchQuery),
               ],
             ),
           ),
@@ -423,7 +427,12 @@ class _ScrapingTab extends StatelessWidget {
 
 /// Review tab — staged products needing review.
 class _ReviewTab extends StatefulWidget {
-  const _ReviewTab();
+  const _ReviewTab({this.searchQuery = ''});
+
+  /// Live filter string from the wrapper's appbar-toggle search strip.
+  /// Empty means no filter — show every needs_review row.
+  final String searchQuery;
+
   @override
   State<_ReviewTab> createState() => _ReviewTabState();
 }
@@ -431,12 +440,18 @@ class _ReviewTab extends StatefulWidget {
 class _ReviewTabState extends State<_ReviewTab> {
   bool _processing = false;
   // Each item carries its sourceJobId so Transfer can filter by which
-  // scrape job produced it. The list is rebuilt on every stream snapshot
-  // and reflects the currently-visible review batch (up to 100 docs).
+  // scrape job produced it. The list is rebuilt on every stream snapshot.
   List<({String docId, String sourceJobId})> _currentItems = [];
 
-  List<String> get _currentDocIds =>
-      _currentItems.map((e) => e.docId).toList();
+  // Hard cap on how many needs_review docs we pull into a single render.
+  // The previous 200/page incremental paging caused two visible bugs on
+  // web: the scrollbar jumped because the list extent grew mid-scroll,
+  // and the client-side alphabetical sort reshuffled items every time a
+  // new page came in. Loading the full queue (well under this cap for
+  // the foreseeable future) gives a stable extent and stable order. If
+  // we ever blow past this we'll switch to a Firestore-side
+  // orderBy(objectData.nameLower) + a real cursor pager.
+  static const int _hardLimit = 2000;
 
   String _resolveImageUrl(Map<String, dynamic> data) {
     final detailData = data['detailData'] is Map ? Map<String, dynamic>.from(data['detailData'] as Map) : <String, dynamic>{};
@@ -464,12 +479,40 @@ class _ReviewTabState extends State<_ReviewTab> {
   }
 
   Future<void> _confirmClear(BuildContext context) async {
-    if (_currentDocIds.isEmpty) return;
+    final db = FirebaseFirestore.instance;
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Count the full needs_review queue, not just the visible 100. Without
+    // this the user has to tap Clear once per page; with ~500 staged that
+    // meant five round-trips before. count() is a single aggregation
+    // query — constant memory.
+    setState(() => _processing = true);
+    final int totalCount;
+    try {
+      final countSnap = await db
+          .collection('stagedProduct')
+          .where('status', isEqualTo: 'needs_review')
+          .count()
+          .get();
+      totalCount = countSnap.count ?? 0;
+    } catch (e) {
+      if (mounted) {
+        setState(() => _processing = false);
+        messenger.showSnackBar(SnackBar(content: Text('Count failed: $e')));
+      }
+      return;
+    }
+
+    if (totalCount == 0 || !context.mounted) {
+      if (mounted) setState(() => _processing = false);
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Clear All Review Items'),
-        content: Text('Are you sure you want to clear ${_currentDocIds.length} items from review? This cannot be undone.'),
+        content: Text('Are you sure you want to clear $totalCount items from review? This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           FilledButton(
@@ -480,18 +523,36 @@ class _ReviewTabState extends State<_ReviewTab> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
-    setState(() => _processing = true);
+    if (confirmed != true || !mounted) {
+      if (mounted) setState(() => _processing = false);
+      return;
+    }
+
     try {
-      final db = FirebaseFirestore.instance;
-      final batch = db.batch();
-      for (final id in _currentDocIds) {
-        batch.delete(db.collection('stagedProduct').doc(id));
+      // Page through the queue in small chunks. Firestore's documented batch
+      // limit is 500 ops, but stagedProduct docs are large enough that a
+      // 500-delete batch trips the server-side "Transaction too big" guard
+      // (invalid-argument). 100/batch stays well under the request-size cap
+      // and only adds a handful of round trips.
+      const int pageSize = 100;
+      int deleted = 0;
+      while (true) {
+        final snap = await db
+            .collection('stagedProduct')
+            .where('status', isEqualTo: 'needs_review')
+            .limit(pageSize)
+            .get();
+        if (snap.docs.isEmpty) break;
+        final batch = db.batch();
+        for (final doc in snap.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+        deleted += snap.docs.length;
       }
-      await batch.commit();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_currentDocIds.length} items cleared')));
+      if (mounted) messenger.showSnackBar(SnackBar(content: Text('$deleted items cleared')));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+      if (mounted) messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
     } finally {
       if (mounted) setState(() => _processing = false);
     }
@@ -671,7 +732,7 @@ class _ReviewTabState extends State<_ReviewTab> {
                 .collection('stagedProduct')
                 .where('status', isEqualTo: 'needs_review')
                 .orderBy('createdAt', descending: true)
-                .limit(100)
+                .limit(_hardLimit)
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
@@ -685,7 +746,7 @@ class _ReviewTabState extends State<_ReviewTab> {
                   .toList();
               if (docs.isEmpty) return const Center(child: Text('No products to review.'));
 
-              final items = docs.map((doc) {
+              final allItems = docs.map((doc) {
                 final data = doc.data();
                 final objectData = data['objectData'] is Map
                     ? Map<String, dynamic>.from(data['objectData'] as Map)
@@ -719,9 +780,44 @@ class _ReviewTabState extends State<_ReviewTab> {
                           rawData['brandName'] ??
                           '')
                       .toString(),
+                  // skuConfig drives the per-container content-size cell
+                  // ("55 gal", "1 gal", "20 oz") shown on row 3 of the
+                  // tile. Falls back to rawData when objectData hasn't
+                  // been backfilled yet.
+                  'skuConfig': (objectData['skuConfig'] ?? rawData['skuConfig'] ?? '').toString(),
                   'imageUrl': _resolveImageUrl(data),
                 };
               }).toList();
+
+              // Apply the wrapper's search query — case-insensitive match
+              // against name / brand / product code / UPC so the reviewer can
+              // search by whatever's visible on the tile or printed on the
+              // label.
+              final q = widget.searchQuery.trim().toLowerCase();
+              final filtered = q.isEmpty
+                  ? List<Map<String, dynamic>>.from(allItems)
+                  : allItems.where((item) {
+                      final name = (item['name'] as String).toLowerCase();
+                      final brand = (item['brand'] as String).toLowerCase();
+                      final code =
+                          (item['objectProductCode'] as String).toLowerCase();
+                      final upc = (item['upc'] as String).toLowerCase();
+                      return name.contains(q) ||
+                          brand.contains(q) ||
+                          code.contains(q) ||
+                          upc.contains(q);
+                    }).toList();
+
+              // Sort alphabetically by name within the Firestore result.
+              // StandardView groups by suggestedCategoryKey downstream and
+              // preserves the relative order inside each group, so passing
+              // an A→Z list here yields A→Z within every category bucket.
+              filtered.sort((a, b) {
+                final an = (a['name'] as String).toLowerCase();
+                final bn = (b['name'] as String).toLowerCase();
+                return an.compareTo(bn);
+              });
+              final items = filtered;
 
               return Column(
                 children: [
@@ -756,11 +852,28 @@ class _ReviewTabState extends State<_ReviewTab> {
                         final brand = item['brand'] as String;
                         final usage =
                             (item['suggestedScalarKey'] as String? ?? '');
+                        // Strip any leading "Nx" pack-multiplier off
+                        // skuConfig so the tile shows per-container content
+                        // size: "55 gal" stays as-is, "4x1 gal" → "1 gal",
+                        // "12x20 oz" → "20 oz".
+                        final skuConfig = (item['skuConfig'] as String? ?? '').trim();
+                        final contentSize = skuConfig.isEmpty
+                            ? ''
+                            : (RegExp(r'^\d+x(.+)$', caseSensitive: false)
+                                    .firstMatch(skuConfig)
+                                    ?.group(1)
+                                    ?.trim() ??
+                                skuConfig);
 
-                        // Row 1 = name, row 2 = brand, row 3 = usage
-                        // (suggestedScalarKey — e.g. Volume, Time, Count).
+                        // Row layout:
+                        //   1: name
+                        //   2: brand
+                        //   3: per-container content size ("55 gal" etc.)
+                        //   4: usage scalar (Volume, Time, Count, …)
                         final secondLine = brand.isNotEmpty ? brand : '';
                         final thirdLine =
+                            contentSize.isNotEmpty ? contentSize : null;
+                        final fourthLine =
                             usage.isNotEmpty ? usage : null;
 
                         return StandardTileLargeDart(
@@ -772,8 +885,12 @@ class _ReviewTabState extends State<_ReviewTab> {
                               ? Icons.branding_watermark_outlined
                               : null,
                           thirdLine: thirdLine,
-                          thirdLineIcon:
-                              thirdLine != null ? Icons.straighten : null,
+                          thirdLineIcon: thirdLine != null
+                              ? Icons.local_drink_outlined
+                              : null,
+                          fourthLine: fourthLine,
+                          fourthLineIcon:
+                              fourthLine != null ? Icons.straighten : null,
                         );
                       },
                     ),

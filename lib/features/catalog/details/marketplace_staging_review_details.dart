@@ -1167,6 +1167,12 @@ class _StagingPackagingDetailsScreenState
             ),
 
             // Identifiers — headerless, matches catalog bulk variant.
+            // Labels carry the "Bulk" prefix here because on some vendors
+            // (e.g. Spartan) the product code + UPC are published per
+            // packaging case rather than per individual unit; the parent
+            // product itself has no scannable code. Calling these "Bulk"
+            // makes that obvious without changing where the values are
+            // stored.
             ContainerActionWidget(
               title: '',
               actionText: '',
@@ -1174,13 +1180,13 @@ class _StagingPackagingDetailsScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   HeaderInfoIconValue(
-                    header: 'Product Code',
+                    header: 'Bulk Product Code',
                     value: productCode.isNotEmpty ? productCode : 'Not set',
                     icon: Icons.confirmation_number_outlined,
                   ),
                   const SizedBox(height: 12),
                   HeaderInfoIconValue(
-                    header: 'UPC',
+                    header: 'Bulk UPC',
                     value: upc.isNotEmpty ? upc : 'Not set',
                     icon: Icons.qr_code,
                   ),
