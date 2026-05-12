@@ -24,20 +24,11 @@ class DetailsAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final VoidCallback? onSearchToggle;
   final bool searchActive;
   final bool showSearchToggle;
-  final VoidCallback? onCellTowerToggle;
-  final bool cellTowerActive;
-  final bool showCellTowerToggle;
-  final String? cellTowerTooltipActive;
-  final String? cellTowerTooltipInactive;
-
-  // Deprecated: appbar no longer renders a filter icon. Wire filter
-  // UI into the screen's SearchControlStrip via its onFilterToggle.
-  @Deprecated('Move filter wiring to SearchControlStrip.onFilterToggle')
   final VoidCallback? onFilterToggle;
-  @Deprecated('Move filter wiring to SearchControlStrip.filterActive')
   final bool filterActive;
-  @Deprecated('Move filter wiring to SearchControlStrip.showFilterToggle')
   final bool showFilterToggle;
+  final String? filterTooltipActive;
+  final String? filterTooltipInactive;
 
   const DetailsAppBar({
     super.key,
@@ -59,17 +50,11 @@ class DetailsAppBar extends ConsumerWidget implements PreferredSizeWidget {
     this.onSearchToggle,
     this.searchActive = false,
     this.showSearchToggle = true,
-    this.onCellTowerToggle,
-    this.cellTowerActive = false,
-    this.showCellTowerToggle = false,
-    this.cellTowerTooltipActive,
-    this.cellTowerTooltipInactive,
-    @Deprecated('Move filter wiring to SearchControlStrip.onFilterToggle')
     this.onFilterToggle,
-    @Deprecated('Move filter wiring to SearchControlStrip.filterActive')
     this.filterActive = false,
-    @Deprecated('Move filter wiring to SearchControlStrip.showFilterToggle')
     this.showFilterToggle = false,
+    this.filterTooltipActive,
+    this.filterTooltipInactive,
   });
 
   @override
@@ -102,11 +87,11 @@ class DetailsAppBar extends ConsumerWidget implements PreferredSizeWidget {
       onSearchToggle: onSearchToggle,
       searchActive: searchActive,
       showSearchToggle: showSearchToggle,
-      onCellTowerToggle: onCellTowerToggle,
-      cellTowerActive: cellTowerActive,
-      showCellTowerToggle: showCellTowerToggle,
-      cellTowerTooltipActive: cellTowerTooltipActive,
-      cellTowerTooltipInactive: cellTowerTooltipInactive,
+      onFilterToggle: onFilterToggle,
+      filterActive: filterActive,
+      showFilterToggle: showFilterToggle,
+      filterTooltipActive: filterTooltipActive,
+      filterTooltipInactive: filterTooltipInactive,
     );
   }
 }

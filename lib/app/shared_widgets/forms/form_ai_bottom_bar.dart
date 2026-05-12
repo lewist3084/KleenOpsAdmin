@@ -40,13 +40,6 @@ class FormAiBottomBar extends ConsumerWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        DetailsAppBar(
-          title: title,
-          onAiPressed: onAiPressed ?? controller.toggle,
-          showMenu: showMenu,
-          showUserMenu: showUserMenu,
-          showNavigationArrows: showNavigationArrows,
-        ),
         CancelSaveBar(
           onCancel: onCancel,
           onSave: onSave,
@@ -55,6 +48,13 @@ class FormAiBottomBar extends ConsumerWidget {
           showTopBorder: showTopBorder,
           clipTopShadow: clipTopShadow,
           topBorderColor: topBorderColor,
+        ),
+        DetailsAppBar(
+          title: title,
+          onAiPressed: onAiPressed ?? controller.toggle,
+          showMenu: showMenu,
+          showUserMenu: showUserMenu,
+          showNavigationArrows: showNavigationArrows,
         ),
       ],
     );

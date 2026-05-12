@@ -84,12 +84,17 @@ class AiSecretaryService {
     return companyRef.collection('aiSecretaryConfig').doc(uid).snapshots();
   }
 
-  /// Watch the aiSecretaryEnabled flag on a user's extension doc.
-  Stream<DocumentSnapshot<Map<String, dynamic>>> watchExtension(
+  /// Watch the aiSecretaryEnabled flag on a user's extension.
+  /// Extensions are no longer keyed by uid — look them up by assignedUid.
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchExtension(
     DocumentReference<Map<String, dynamic>> companyRef,
     String uid,
   ) {
-    return companyRef.collection('phoneExtension').doc(uid).snapshots();
+    return companyRef
+        .collection('phoneExtension')
+        .where('assignedUid', isEqualTo: uid)
+        .limit(1)
+        .snapshots();
   }
 
   /// Watch recent AI secretary logs for a company in real time.

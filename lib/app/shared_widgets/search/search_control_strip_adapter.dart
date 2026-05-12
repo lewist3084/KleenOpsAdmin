@@ -25,10 +25,6 @@ class SearchControlStrip extends StatelessWidget {
     this.textInputAction,
     this.onSubmitted,
     this.createTranscriber,
-    this.onFilterToggle,
-    this.filterActive = false,
-    this.showFilterToggle = false,
-    this.filterTooltip,
   });
 
   final TextEditingController controller;
@@ -40,10 +36,6 @@ class SearchControlStrip extends StatelessWidget {
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onSubmitted;
   final shared_ai.LiveChunkedTranscriber Function()? createTranscriber;
-  final VoidCallback? onFilterToggle;
-  final bool filterActive;
-  final bool showFilterToggle;
-  final String? filterTooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -58,10 +50,6 @@ class SearchControlStrip extends StatelessWidget {
       onSubmitted: onSubmitted,
       createTranscriber:
           createTranscriber ?? createGoogleStreamingTranscriber,
-      onFilterToggle: onFilterToggle,
-      filterActive: filterActive,
-      showFilterToggle: showFilterToggle,
-      filterTooltip: filterTooltip,
     );
   }
 }

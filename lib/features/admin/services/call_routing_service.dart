@@ -2,28 +2,57 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 /// Service for managing call routing: extensions, ring groups, and availability.
+///
+/// Schema note: phoneExtension docs are keyed by the 3-digit extension
+/// number (e.g. "100"), with `assignedUid` either null (unassigned pool slot)
+/// or set to the member's uid.
 class CallRoutingService {
   CallRoutingService._();
   static final instance = CallRoutingService._();
 
   final _functions = FirebaseFunctions.instance;
 
-  // ── Extensions ────────────────────────────────────────────
+  // ── Extension pool ────────────────────────────────────────
 
-  Future<Map<String, dynamic>> manageExtension({
+  Future<Map<String, dynamic>> seedExtensions({
     required String companyId,
-    String? targetUid,
-    String? extension,
-    String? displayName,
+    int count = 10,
   }) async {
-    final callable = _functions.httpsCallable('callManageExtension');
+    final callable = _functions.httpsCallable('callSeedExtensions');
     final result = await callable.call<Map<String, dynamic>>({
       'companyId': companyId,
-      if (targetUid != null) 'targetUid': targetUid,
-      if (extension != null) 'extension': extension,
-      if (displayName != null) 'displayName': displayName,
+      'count': count,
     });
     return Map<String, dynamic>.from(result.data);
+  }
+
+  Future<Map<String, dynamic>> assignExtension({
+    required String companyId,
+    required String extension,
+    required String targetUid,
+    String? displayName,
+    String? label,
+  }) async {
+    final callable = _functions.httpsCallable('callAssignExtension');
+    final result = await callable.call<Map<String, dynamic>>({
+      'companyId': companyId,
+      'extension': extension,
+      'targetUid': targetUid,
+      if (displayName != null) 'displayName': displayName,
+      if (label != null) 'label': label,
+    });
+    return Map<String, dynamic>.from(result.data);
+  }
+
+  Future<void> unassignExtension({
+    required String companyId,
+    required String extension,
+  }) async {
+    final callable = _functions.httpsCallable('callUnassignExtension');
+    await callable.call({
+      'companyId': companyId,
+      'extension': extension,
+    });
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> watchExtensions(
@@ -31,7 +60,17 @@ class CallRoutingService {
   ) {
     return companyRef
         .collection('phoneExtension')
-        .orderBy('extension')
+        .orderBy(FieldPath.documentId)
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchUnassigned(
+    DocumentReference<Map<String, dynamic>> companyRef,
+  ) {
+    return companyRef
+        .collection('phoneExtension')
+        .where('assignedUid', isNull: true)
+        .orderBy(FieldPath.documentId)
         .snapshots();
   }
 

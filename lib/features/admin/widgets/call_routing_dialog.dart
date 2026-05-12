@@ -21,7 +21,6 @@ enum _Tab { extensions, ringGroups }
 class _CallRoutingDialogState extends ConsumerState<CallRoutingDialog> {
   final _service = CallRoutingService.instance;
   _Tab _tab = _Tab.extensions;
-  bool _busy = false;
   String? _error;
 
   @override
@@ -52,7 +51,6 @@ class _CallRoutingDialogState extends ConsumerState<CallRoutingDialog> {
         height: 480,
         child: Column(
           children: [
-            // Tab bar
             Row(
               children: [
                 _tabButton('Extensions', _Tab.extensions),
@@ -113,7 +111,7 @@ class _CallRoutingDialogState extends ConsumerState<CallRoutingDialog> {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  Extensions Tab
+//  Extensions Tab — pool view (assigned + unassigned)
 // ═══════════════════════════════════════════════════════════════
 
 class _ExtensionsTab extends StatelessWidget {
@@ -134,12 +132,27 @@ class _ExtensionsTab extends StatelessWidget {
         Row(
           children: [
             const Expanded(
-              child: Text('Employee Extensions',
+              child: Text('Extension Pool',
                   style: TextStyle(fontWeight: FontWeight.w600)),
             ),
             TextButton.icon(
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Assign Extension'),
+              label: const Text('Add 10'),
+              onPressed: () async {
+                try {
+                  await service.seedExtensions(
+                    companyId: companyRef.id,
+                    count: 10,
+                  );
+                } catch (_) {
+                  onError('Failed to seed extensions.');
+                }
+              },
+            ),
+            const SizedBox(width: 4),
+            TextButton.icon(
+              icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+              label: const Text('Assign'),
               onPressed: () => _showAssignDialog(context),
             ),
           ],
@@ -155,8 +168,11 @@ class _ExtensionsTab extends StatelessWidget {
               final docs = snap.data?.docs ?? [];
               if (docs.isEmpty) {
                 return const Center(
-                  child: Text('No extensions assigned yet.',
-                      style: TextStyle(color: Colors.grey)),
+                  child: Text(
+                    'No extensions yet. Click "Add 10" to seed the pool.',
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
                 );
               }
               return ListView.separated(
@@ -164,31 +180,66 @@ class _ExtensionsTab extends StatelessWidget {
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, i) {
                   final data = docs[i].data();
-                  final ext = data['extension'] ?? '—';
-                  final name = data['displayName'] ?? docs[i].id;
+                  final ext = docs[i].id;
+                  final assignedUid = data['assignedUid'] as String?;
+                  final name = (data['displayName'] as String?)?.trim();
                   final available = data['available'] != false;
+                  final assigned = assignedUid != null && assignedUid.isNotEmpty;
+
                   return ListTile(
                     dense: true,
                     leading: CircleAvatar(
                       radius: 16,
-                      backgroundColor: available
-                          ? Colors.green.shade100
+                      backgroundColor: assigned
+                          ? (available
+                              ? Colors.green.shade100
+                              : Colors.orange.shade100)
                           : Colors.grey.shade200,
                       child: Text(ext,
                           style: const TextStyle(
                               fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
-                    title: Text(name, style: const TextStyle(fontSize: 14)),
-                    subtitle: Text(
-                      available ? 'Available' : 'Do Not Disturb',
+                    title: Text(
+                      assigned
+                          ? (name?.isNotEmpty == true ? name! : 'Assigned')
+                          : 'Available',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: available ? Colors.green : Colors.orange,
+                        fontSize: 14,
+                        color: assigned ? Colors.black87 : Colors.grey,
+                        fontStyle:
+                            assigned ? FontStyle.normal : FontStyle.italic,
                       ),
                     ),
-                    trailing: Text('ext $ext',
-                        style: const TextStyle(
-                            fontSize: 13, color: Colors.grey)),
+                    subtitle: assigned
+                        ? Text(
+                            available ? 'Available' : 'Do Not Disturb',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: available ? Colors.green : Colors.orange,
+                            ),
+                          )
+                        : const Text(
+                            'In pool — ready to assign',
+                            style:
+                                TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                    trailing: assigned
+                        ? IconButton(
+                            tooltip: 'Unassign',
+                            icon: const Icon(Icons.person_remove_outlined,
+                                size: 18, color: Colors.red),
+                            onPressed: () async {
+                              try {
+                                await service.unassignExtension(
+                                  companyId: companyRef.id,
+                                  extension: ext,
+                                );
+                              } catch (_) {
+                                onError('Failed to unassign extension.');
+                              }
+                            },
+                          )
+                        : null,
                   );
                 },
               );
@@ -229,23 +280,31 @@ class _AssignExtensionDialog extends StatefulWidget {
 }
 
 class _AssignExtensionDialogState extends State<_AssignExtensionDialog> {
-  final _extCtrl = TextEditingController();
-  final _nameCtrl = TextEditingController();
+  String? _selectedExtension;
   String? _selectedUid;
+  String _displayName = '';
   bool _busy = false;
   String? _error;
+
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _members = [];
-  bool _loadingMembers = true;
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _unassigned = [];
+  bool _loading = true;
   StreamSubscription? _memberSub;
+  StreamSubscription? _extSub;
 
   @override
   void initState() {
     super.initState();
     _memberSub = widget.service.watchMembers(widget.companyRef).listen((snap) {
+      if (mounted) setState(() => _members = snap.docs);
+    });
+    _extSub = widget.service.watchUnassigned(widget.companyRef).listen((snap) {
       if (mounted) {
         setState(() {
-          _members = snap.docs;
-          _loadingMembers = false;
+          _unassigned = snap.docs;
+          _loading = false;
+          _selectedExtension ??=
+              _unassigned.isNotEmpty ? _unassigned.first.id : null;
         });
       }
     });
@@ -253,35 +312,30 @@ class _AssignExtensionDialogState extends State<_AssignExtensionDialog> {
 
   @override
   void dispose() {
-    _extCtrl.dispose();
-    _nameCtrl.dispose();
     _memberSub?.cancel();
+    _extSub?.cancel();
     super.dispose();
   }
 
   Future<void> _assign() async {
-    if (_selectedUid == null) return;
+    if (_selectedExtension == null || _selectedUid == null) return;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      await widget.service.manageExtension(
+      await widget.service.assignExtension(
         companyId: widget.companyRef.id,
-        targetUid: _selectedUid,
-        extension:
-            _extCtrl.text.trim().isNotEmpty ? _extCtrl.text.trim() : null,
-        displayName:
-            _nameCtrl.text.trim().isNotEmpty ? _nameCtrl.text.trim() : null,
+        extension: _selectedExtension!,
+        targetUid: _selectedUid!,
+        displayName: _displayName.trim().isNotEmpty ? _displayName.trim() : null,
       );
       if (mounted) Navigator.of(context).pop();
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = e.toString().contains('already-exists')
-              ? 'That extension number is already taken.'
-              : 'Failed to assign extension.';
+          _error = 'Failed to assign extension.';
         });
       }
     }
@@ -293,62 +347,79 @@ class _AssignExtensionDialogState extends State<_AssignExtensionDialog> {
       title: const Text('Assign Extension', style: TextStyle(fontSize: 15)),
       content: SizedBox(
         width: 360,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_loadingMembers)
-              const Center(child: CircularProgressIndicator())
-            else
-              DropdownButtonFormField<String>(
-                decoration:
-                    const InputDecoration(labelText: 'Select Employee'),
-                items: _members.map((doc) {
-                  final d = doc.data();
-                  final label = d['displayName'] ?? d['name'] ?? doc.id;
-                  return DropdownMenuItem(value: doc.id, child: Text(label));
-                }).toList(),
-                onChanged: (uid) {
-                  _selectedUid = uid;
-                  // Pre-fill display name
-                  if (uid != null) {
-                    final match =
-                        _members.where((d) => d.id == uid).firstOrNull;
-                    if (match != null) {
-                      final name = match.data()['displayName'] ??
-                          match.data()['name'] ??
-                          '';
-                      _nameCtrl.text = name;
-                    }
-                  }
-                },
-              ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Display Name',
-                hintText: 'Shown to callers',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _extCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Extension (optional)',
-                hintText: 'Leave blank to auto-assign',
-              ),
-              keyboardType: TextInputType.number,
-              maxLength: 3,
-            ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(_error!,
-                    style: const TextStyle(color: Colors.red, fontSize: 13)),
-              ),
-          ],
-        ),
+        child: _loading
+            ? const SizedBox(
+                height: 100, child: Center(child: CircularProgressIndicator()))
+            : _unassigned.isEmpty
+                ? const Text(
+                    'No unassigned extensions in the pool. Click "Add 10" '
+                    'on the previous screen to add more.',
+                    style: TextStyle(color: Colors.grey),
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedExtension,
+                        decoration:
+                            const InputDecoration(labelText: 'Extension'),
+                        items: _unassigned.map((doc) {
+                          return DropdownMenuItem(
+                            value: doc.id,
+                            child: Text('Ext ${doc.id}'),
+                          );
+                        }).toList(),
+                        onChanged: (v) => setState(() => _selectedExtension = v),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedUid,
+                        decoration:
+                            const InputDecoration(labelText: 'Assign to'),
+                        items: _members.map((doc) {
+                          final d = doc.data();
+                          final label = d['displayName'] ?? d['name'] ?? doc.id;
+                          return DropdownMenuItem(
+                            value: doc.id,
+                            child: Text(label),
+                          );
+                        }).toList(),
+                        onChanged: (uid) {
+                          setState(() {
+                            _selectedUid = uid;
+                            if (uid != null) {
+                              final match =
+                                  _members.where((d) => d.id == uid).firstOrNull;
+                              if (match != null) {
+                                _displayName = match.data()['displayName'] ??
+                                    match.data()['name'] ??
+                                    '';
+                              }
+                            }
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        decoration: const InputDecoration(
+                          labelText: 'Display Name',
+                          hintText: 'Shown to callers',
+                        ),
+                        controller: TextEditingController(text: _displayName)
+                          ..selection = TextSelection.collapsed(
+                              offset: _displayName.length),
+                        onChanged: (v) => _displayName = v,
+                      ),
+                      if (_error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(_error!,
+                              style: const TextStyle(
+                                  color: Colors.red, fontSize: 13)),
+                        ),
+                    ],
+                  ),
       ),
       actions: [
         TextButton(
@@ -356,10 +427,15 @@ class _AssignExtensionDialogState extends State<_AssignExtensionDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: _busy ? null : _assign,
+          onPressed:
+              _busy || _selectedExtension == null || _selectedUid == null
+                  ? null
+                  : _assign,
           child: _busy
               ? const SizedBox(
-                  width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
               : const Text('Assign'),
         ),
       ],
@@ -368,7 +444,7 @@ class _AssignExtensionDialogState extends State<_AssignExtensionDialog> {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  Ring Groups Tab
+//  Ring Groups Tab (unchanged)
 // ═══════════════════════════════════════════════════════════════
 
 class _RingGroupsTab extends StatelessWidget {
