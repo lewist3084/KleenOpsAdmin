@@ -6,6 +6,7 @@
 // Objects tab — same layout the regular CleanOps app uses so the admin and
 // the customer-facing app look identical when the user lands on Objects.
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod/legacy.dart';
@@ -34,8 +35,17 @@ class ObjectsTabsScreen extends ConsumerStatefulWidget {
 
 class _ObjectsTabsScreenState extends ConsumerState<ObjectsTabsScreen> {
   bool _searchVisible = false;
+  /// Bumped each time the user taps the DetailsAppBar filter icon. The
+  /// Objects tab content listens and opens its category filter dialog.
+  final ValueNotifier<int> _filterTickVN = ValueNotifier<int>(0);
 
   void _toggleSearch() => setState(() => _searchVisible = !_searchVisible);
+
+  @override
+  void dispose() {
+    _filterTickVN.dispose();
+    super.dispose();
+  }
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -91,7 +101,10 @@ class _ObjectsTabsScreenState extends ConsumerState<ObjectsTabsScreen> {
       backgroundColor: Colors.grey[100],
       appBar: null,
       drawer: const UserDrawer(),
-      body: _wrapCanvas(_ObjectsTabs(searchVisible: _searchVisible)),
+      body: _wrapCanvas(_ObjectsTabs(
+        searchVisible: _searchVisible,
+        filterTickVN: _filterTickVN,
+      )),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -101,6 +114,14 @@ class _ObjectsTabsScreenState extends ConsumerState<ObjectsTabsScreen> {
             menuSections: menuSections,
             onSearchToggle: _toggleSearch,
             searchActive: _searchVisible,
+            // Only the Objects tab has a filter dialog.
+            showSearchToggle: true,
+            showFilterToggle: activeTabIndex == 0,
+            onFilterToggle: activeTabIndex == 0
+                ? () => _filterTickVN.value = _filterTickVN.value + 1
+                : null,
+            filterTooltipInactive: 'Filter by category',
+            filterTooltipActive: 'Filter by category',
           ),
           const HomeNavBarAdapter(),
         ],
@@ -110,9 +131,10 @@ class _ObjectsTabsScreenState extends ConsumerState<ObjectsTabsScreen> {
 }
 
 class _ObjectsTabs extends ConsumerStatefulWidget {
-  const _ObjectsTabs({this.searchVisible = false});
+  const _ObjectsTabs({this.searchVisible = false, this.filterTickVN});
 
   final bool searchVisible;
+  final ValueListenable<int>? filterTickVN;
 
   @override
   ConsumerState<_ObjectsTabs> createState() => _ObjectsTabsState();
@@ -169,7 +191,10 @@ class _ObjectsTabsState extends ConsumerState<_ObjectsTabs>
             physics: const NeverScrollableScrollPhysics(),
             controller: _tabController,
             children: [
-              ObjectsObjectsContent(searchVisible: widget.searchVisible),
+              ObjectsObjectsContent(
+                searchVisible: widget.searchVisible,
+                filterTickVN: widget.filterTickVN,
+              ),
               const Center(
                 key: PageStorageKey('objects-charts'),
                 child: Text('Charts coming soon'),

@@ -6,6 +6,7 @@
 // filter + add-FAB layout.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
@@ -19,9 +20,17 @@ import '../forms/objects_inventory_form.dart';
 import '../utils/company_object_file_images.dart';
 
 class ObjectsObjectsContent extends ConsumerStatefulWidget {
-  const ObjectsObjectsContent({super.key, this.searchVisible = false});
+  const ObjectsObjectsContent({
+    super.key,
+    this.searchVisible = false,
+    this.filterTickVN,
+  });
 
   final bool searchVisible;
+  /// Bump to request the category filter dialog open. Driven by the
+  /// DetailsAppBar filter icon — the dialog is no longer attached to the
+  /// search strip.
+  final ValueListenable<int>? filterTickVN;
 
   @override
   ConsumerState<ObjectsObjectsContent> createState() =>
@@ -42,8 +51,38 @@ class ObjectsObjectsContentState
   // Cache: objectId -> primary header image url.
   final Map<String, String> _imageUrlCache = {};
 
+  VoidCallback? _filterTickListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _attachFilterTickListener();
+  }
+
+  @override
+  void didUpdateWidget(covariant ObjectsObjectsContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.filterTickVN != oldWidget.filterTickVN) {
+      if (_filterTickListener != null) {
+        oldWidget.filterTickVN?.removeListener(_filterTickListener!);
+        _filterTickListener = null;
+      }
+      _attachFilterTickListener();
+    }
+  }
+
+  void _attachFilterTickListener() {
+    final vn = widget.filterTickVN;
+    if (vn == null) return;
+    _filterTickListener = () => _openFilterDialog();
+    vn.addListener(_filterTickListener!);
+  }
+
   @override
   void dispose() {
+    if (_filterTickListener != null) {
+      widget.filterTickVN?.removeListener(_filterTickListener!);
+    }
     _searchController.dispose();
     _fabVisibleNotifier.dispose();
     super.dispose();
@@ -174,13 +213,6 @@ class ObjectsObjectsContentState
                 controller: _searchController,
                 hintText: 'Search objects',
                 onChanged: (val) => setState(() => _searchQuery = val),
-                trailingActions: [
-                  SearchStripAction(
-                    icon: Icons.filter_list,
-                    tooltip: 'Filter by category',
-                    onTap: _openFilterDialog,
-                  ),
-                ],
               )
             : const SizedBox.shrink();
 
