@@ -13,7 +13,7 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'dart:typed_data';
 import 'package:shared_widgets/dialogs/dialog_select.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
-import 'package:shared_widgets/tiles/image_text_checkbox.dart';
+import 'package:shared_widgets/tiles/selectable_row_tile.dart';
 import 'package:kleenops_admin/widgets/viewers/live_barcode_scanner_page.dart';
 import 'package:kleenops_admin/widgets/viewers/pdf_viewer.dart';
 import 'package:kleenops_admin/widgets/viewers/image_viewer.dart';
@@ -349,10 +349,13 @@ class _PurchasingOrderDetailsScreenState
                         ),
                         builder: (context, imageSnap) {
                           final imageUrl = imageSnap.data ?? '';
-                          return ImageTextCheckbox(
-                            value: selected == d.reference,
-                            onChanged: (v) => setD(
-                              () => selected = v == true ? d.reference : null,
+                          final isSelected = selected == d.reference;
+                          return SelectableRowTile<DocumentReference<Map<String, dynamic>>>(
+                            value: d.reference,
+                            selected: isSelected,
+                            onTap: () => setD(
+                              () => selected =
+                                  isSelected ? null : d.reference,
                             ),
                             label: (objData['localName'] ?? d.id).toString(),
                             imageUrl: imageUrl,

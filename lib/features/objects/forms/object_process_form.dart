@@ -8,7 +8,7 @@ import 'package:kleenops_admin/services/ai_text_adapter.dart';
 import 'package:kleenops_admin/widgets/tiles/image_text_tile_percent.dart';
 import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/dialogs/dialog_select.dart';
-import 'package:shared_widgets/tiles/image_text_radio_button.dart';
+import 'package:shared_widgets/tiles/selectable_row_tile.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
 import 'package:shared_widgets/fields/ai_text.dart' as shared;
 import 'package:shared_widgets/lists/standardViewGroup.dart';
@@ -924,11 +924,12 @@ class ObjectProcessFormState extends State<ObjectProcessForm> {
                               return Padding(
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 4),
-                                child: ImageTextRadioButton<DocumentReference>(
+                                child: SelectableRowTile<DocumentReference>(
                                   value: ref,
-                                  groupValue: normalizedSelection,
-                                  onChanged: (value) => setDialogState(
-                                      () => tempSelection = value),
+                                  control: SelectControl.radio,
+                                  selected: normalizedSelection == ref,
+                                  onTap: () => setDialogState(
+                                      () => tempSelection = ref),
                                   label:
                                       name.isEmpty ? loc.commonUnnamed : name,
                                   imageUrl:

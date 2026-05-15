@@ -85,6 +85,11 @@ class WizardItem {
   final String key;
   final String label;
   final String description;
+
+  /// Broader explanation shown when the user taps the info icon next to the
+  /// item label. Falls back to [description] when null.
+  final String? helpText;
+
   final IconData icon;
   final int position;
   final bool aiAssistAvailable;
@@ -100,6 +105,7 @@ class WizardItem {
     required this.description,
     required this.icon,
     required this.position,
+    this.helpText,
     this.aiAssistAvailable = false,
     this.requiredEntityTypes,
   });

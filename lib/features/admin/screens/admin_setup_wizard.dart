@@ -477,15 +477,18 @@ class _WizardTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (item.aiAssistAvailable)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 6),
-                          child: Icon(
-                            Icons.auto_awesome,
-                            size: 14,
-                            color: Colors.amber[700],
+                      Padding(
+                        padding: const EdgeInsets.only(left: 6),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _showHelp(context),
+                          child: const Icon(
+                            Icons.info,
+                            size: 16,
+                            color: Colors.red,
                           ),
                         ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 2),
@@ -508,6 +511,35 @@ class _WizardTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showHelp(BuildContext context) {
+    final body = (item.helpText?.trim().isNotEmpty ?? false)
+        ? item.helpText!
+        : item.description;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(item.icon, color: Theme.of(ctx).primaryColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(item.label, style: const TextStyle(fontSize: 16)),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Text(body, style: const TextStyle(fontSize: 14, height: 1.4)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }

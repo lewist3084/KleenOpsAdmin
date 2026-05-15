@@ -3845,7 +3845,6 @@ class _SiteDetailTemplateDialogState extends State<_SiteDetailTemplateDialog> {
             '${item.name} ${item.productNumber} ${item.vendorName} ${item.sourceUrl}',
         initialSelection: _selectedStagedOption(),
         tileType: DialogSelectTileType.radio,
-        radioControlAffinity: ListTileControlAffinity.trailing,
         searchLabelText: loc.marketplaceSearchStagedProducts,
         emptyStateText: loc.marketplaceNoStagedProductsMatchSearch,
         contentHeight: 520,
