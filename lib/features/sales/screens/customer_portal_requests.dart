@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
+import 'package:shared_widgets/theme/app_palette.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 /// Company-side screen showing all service requests across all customers.
 class CustomerPortalRequestsScreen extends ConsumerWidget {
@@ -26,17 +28,24 @@ class CustomerPortalRequestsScreen extends ConsumerWidget {
   }
 }
 
-class _AllRequestsList extends StatelessWidget {
+class _AllRequestsList extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
 
   const _AllRequestsList({required this.companyRef});
+
+  @override
+  State<_AllRequestsList> createState() => _AllRequestsListState();
+}
+
+class _AllRequestsListState extends State<_AllRequestsList> {
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _customersStream;
 
   @override
   Widget build(BuildContext context) {
     // Query all customers, then for each, stream their requests.
     // For scalability, we use a collectionGroup query on serviceRequest.
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
+      stream: _customersStream ??= FirebaseFirestore.instance
           .collection('customer')
           .orderBy('name')
           .snapshots(),
@@ -55,7 +64,7 @@ class _AllRequestsList extends StatelessWidget {
         }
 
         return _AggregatedRequestsList(
-          companyRef: companyRef,
+          companyRef: widget.companyRef,
           customers: customers,
         );
       },
@@ -265,6 +274,8 @@ class _CompanyRequestDetailScreenState
     extends State<_CompanyRequestDetailScreen> {
   final _messageCtrl = TextEditingController();
   bool _sending = false;
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _requestStream;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _messagesStream;
 
   @override
   void dispose() {
@@ -288,8 +299,8 @@ class _CompanyRequestDetailScreenState
       _messageCtrl.clear();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Error: $e')),
         );
       }
     } finally {
@@ -305,8 +316,8 @@ class _CompanyRequestDetailScreenState
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Error: $e')),
         );
       }
     }
@@ -338,7 +349,7 @@ class _CompanyRequestDetailScreenState
         children: [
           // Request header
           StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: widget.requestRef.snapshots(),
+            stream: _requestStream ??= widget.requestRef.snapshots(),
             builder: (context, snap) {
               if (!snap.hasData || !snap.data!.exists) {
                 return const SizedBox.shrink();
@@ -351,7 +362,7 @@ class _CompanyRequestDetailScreenState
           // Messages
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: widget.requestRef
+              stream: _messagesStream ??= widget.requestRef
                   .collection('portalMessage')
                   .orderBy('createdAt', descending: false)
                   .snapshots(),
@@ -399,6 +410,7 @@ class _CompanyRequestDetailScreenState
                       ),
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _sendReply(),
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -529,7 +541,7 @@ class _CompanyMessageBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: isCompany
-              ? Theme.of(context).primaryColor
+              ? AppPaletteScope.of(context).primary2
               : Colors.grey[200],
           borderRadius: BorderRadius.circular(16),
         ),
@@ -542,13 +554,13 @@ class _CompanyMessageBubble extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
-                  color: isCompany ? Colors.white70 : Colors.grey[700],
+                  color: isCompany ? Colors.black54 : Colors.grey[700],
                 ),
               ),
             Text(
               message,
               style: TextStyle(
-                color: isCompany ? Colors.white : Colors.black87,
+                color: isCompany ? Colors.black : Colors.black87,
               ),
             ),
             if (timeStr.isNotEmpty)
@@ -558,7 +570,7 @@ class _CompanyMessageBubble extends StatelessWidget {
                   timeStr,
                   style: TextStyle(
                     fontSize: 10,
-                    color: isCompany ? Colors.white60 : Colors.grey[500],
+                    color: isCompany ? Colors.black45 : Colors.grey[500],
                   ),
                 ),
               ),

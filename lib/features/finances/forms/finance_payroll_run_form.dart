@@ -6,8 +6,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:kleenops_admin/features/finances/services/payroll_service.dart';
+import 'package:shared_widgets/theme/app_palette.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class FinancePayrollRunForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -157,8 +161,9 @@ class _FinancePayrollRunFormState extends State<FinancePayrollRunForm> {
 
       if (mounted) {
         setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
+        SnackbarService.instance.showSnackBar(
           SnackBar(
+            duration: const Duration(seconds: 5),
             content: Text(populated > 0
                 ? 'Loaded hours for $populated employees from timesheets'
                 : 'No timesheet entries found for this pay period'),
@@ -167,8 +172,8 @@ class _FinancePayrollRunFormState extends State<FinancePayrollRunForm> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading timesheets: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Error loading timesheets: $e')),
         );
       }
     }
@@ -177,8 +182,8 @@ class _FinancePayrollRunFormState extends State<FinancePayrollRunForm> {
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
     if (_periodStart == null || _periodEnd == null || _payDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select all dates')),
+      SnackbarService.instance.showSnackBar(
+        const SnackBar(duration: Duration(seconds: 5), content: Text('Please select all dates')),
       );
       return;
     }
@@ -221,15 +226,16 @@ class _FinancePayrollRunFormState extends State<FinancePayrollRunForm> {
 
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
+      SnackbarService.instance.showSnackBar(
         SnackBar(
+            duration: const Duration(seconds: 5),
             content: Text(
                 'Payroll run created with ${hoursMap.length} pay stubs')),
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create payroll run: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to create payroll run: $e')),
         );
       }
     } finally {
@@ -240,8 +246,8 @@ class _FinancePayrollRunFormState extends State<FinancePayrollRunForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const StandardAppBar(title: 'New Payroll Run'),
-      body: _loading
+      body: BookendedCanvas(
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
@@ -267,6 +273,8 @@ class _FinancePayrollRunFormState extends State<FinancePayrollRunForm> {
                           ),
                           validator: (_) =>
                               _periodStart == null ? 'Required' : null,
+                          textInputAction: TextInputAction.next,
+                          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -285,6 +293,8 @@ class _FinancePayrollRunFormState extends State<FinancePayrollRunForm> {
                           ),
                           validator: (_) =>
                               _periodEnd == null ? 'Required' : null,
+                          textInputAction: TextInputAction.next,
+                          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                         ),
                       ),
                     ],
@@ -304,6 +314,8 @@ class _FinancePayrollRunFormState extends State<FinancePayrollRunForm> {
                     ),
                     validator: (_) =>
                         _payDate == null ? 'Required' : null,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 24),
 
@@ -316,14 +328,20 @@ class _FinancePayrollRunFormState extends State<FinancePayrollRunForm> {
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.blue[50],
+                            color: AppPaletteScope.of(context)
+                                .primary2
+                                .withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.blue[200]!),
+                            border: Border.all(
+                                color: AppPaletteScope.of(context)
+                                    .primary2
+                                    .withValues(alpha: 0.5)),
                           ),
                           child: Text(
                             'Salary employees are auto-calculated. Enter hours for hourly employees or load from timesheets.',
                             style: TextStyle(
-                                fontSize: 12, color: Colors.blue[800]),
+                                fontSize: 12,
+                                color: AppPaletteScope.of(context).primary2),
                           ),
                         ),
                       ),
@@ -346,11 +364,20 @@ class _FinancePayrollRunFormState extends State<FinancePayrollRunForm> {
                 ],
               ),
             ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _handleSave,
-        isSaving: _saving,
-        saveLabel: 'Generate Payroll',
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _handleSave,
+            isSaving: _saving,
+            saveLabel: 'Generate Payroll',
+            reserveNavBarSpace: false,
+          ),
+          const DetailsAppBar(title: 'New Payroll Run'),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }
@@ -418,6 +445,8 @@ class _FinancePayrollRunFormState extends State<FinancePayrollRunForm> {
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
                     ],
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -435,6 +464,8 @@ class _FinancePayrollRunFormState extends State<FinancePayrollRunForm> {
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
                     ],
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ),
               ],

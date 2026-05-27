@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 /// Company-side view of portal service requests from a customer.
 class CustomerRequestsTab extends StatelessWidget {
@@ -161,8 +162,8 @@ class _CompanyRequestTile extends StatelessWidget {
       });
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Error: $e')),
         );
       }
     }

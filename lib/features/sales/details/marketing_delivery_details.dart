@@ -15,12 +15,21 @@ import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 import '../screens/marketing_schedule.dart';
 
-class MarketingDeliveryDetailsScreen extends StatelessWidget {
+class MarketingDeliveryDetailsScreen extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> docRef;
   const MarketingDeliveryDetailsScreen({super.key, required this.docRef});
 
+  @override
+  State<MarketingDeliveryDetailsScreen> createState() =>
+      _MarketingDeliveryDetailsScreenState();
+}
+
+class _MarketingDeliveryDetailsScreenState
+    extends State<MarketingDeliveryDetailsScreen> {
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _deliveryDocStream;
+
   DocumentReference<Map<String, dynamic>> get _companyRef =>
-      docRef.parent.parent!;
+      widget.docRef.parent.parent!;
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -101,7 +110,7 @@ class MarketingDeliveryDetailsScreen extends StatelessWidget {
             ),
       body: _wrapCanvas(
           StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: docRef.snapshots(),
+            stream: _deliveryDocStream ??= widget.docRef.snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
@@ -186,7 +195,7 @@ class MarketingDeliveryDetailsScreen extends StatelessWidget {
                       onPressed: () => showDeliveryScheduleDialog(
                         context: context,
                         companyRef: _companyRef,
-                        docRef: docRef,
+                        docRef: widget.docRef,
                       ),
                     ),
                   ),

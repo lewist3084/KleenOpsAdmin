@@ -165,16 +165,26 @@ class _PurchasingRequestsContentState
             .where('timelineCategoryId', isEqualTo: categoryRef)
             .orderBy('createdAt', descending: true);
 
-        final list = StandardViewGroup(
-          queryStream: query.snapshots(),
-          groupBy: (doc) {
-            final ts = doc.data()['createdAt'] as Timestamp?;
-            if (ts == null) return 'Unknown';
-            return DateFormat('yMMMd').format(ts.toDate());
+        String? dayLabel(QueryDocumentSnapshot<Map<String, dynamic>> d) {
+          final ts = d.data()['createdAt'] as Timestamp?;
+          if (ts == null) return null;
+          return DateFormat('yMMMd').format(ts.toDate());
+        }
+
+        final list = StandardViewGroup.paginated(
+          query: query,
+          sectionHeaderBuilder: (ctx, doc, prev, _) {
+            final label = dayLabel(doc);
+            if (label == null) return null;
+            if (prev != null && dayLabel(prev) == label) return null;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(label,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 14)),
+            );
           },
-          groupSort: (a, b) => b.compareTo(a),
-          headerIcon: null,
-          itemBuilder: (doc) {
+          itemBuilder: (ctx, doc, _) {
             final data = doc.data();
             final name = data['name'] ?? '';
             return StandardTileSmallDart.iconText(

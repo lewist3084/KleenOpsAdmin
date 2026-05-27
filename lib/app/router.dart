@@ -4,6 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_widgets/containers/canvas_top_bookend.dart';
+import 'package:shared_widgets/containers/standard_canvas.dart';
+import 'shared_widgets/navigation/details_appbar_adapter.dart';
+import 'shared_widgets/navigation/home_navbar_adapter.dart';
 
 import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/screens/admin_auth_screen.dart';
@@ -96,18 +100,56 @@ import '../features/purchasing/tabs/objects_tabs.dart';
 import '../features/purchasing/screens/purchasing_vendors.dart';
 import '../features/purchasing/screens/purchasing_stats.dart';
 import '../features/tasks/screens/tasks_home.dart';
+import '../features/tasks/screens/tasks_message.dart';
+import '../features/tasks/screens/tasks_quality.dart';
+import '../features/tasks/screens/tasks_dependability.dart';
+import '../features/tasks/screens/tasks_performance.dart';
+import '../features/tasks/screens/tasks_timecard.dart';
+import '../features/tasks/screens/tasks_employee_tasks.dart';
+import '../features/tasks/screens/task_completion.dart';
+import '../features/tasks/screens/task_contributor_list.dart';
+import '../features/tasks/details/tasks_message_details.dart';
+import '../features/tasks/details/tasks_quality_details.dart';
+import '../features/tasks/forms/task_alert_form.dart';
+import '../features/tasks/forms/tasks_tasks_form.dart';
+import '../features/tasks/forms/tasks_timecard_form.dart';
+import '../features/tasks/tabs/task_details_tabs.dart';
+import '../features/tasks/tabs/tasks_timecard_tabs.dart';
 import '../features/facilities/screens/facilities_home.dart';
+import '../features/facilities/forms/property_type_form.dart';
+import '../features/facilities/details/property_type_details.dart';
 import '../features/marketplace/screens/marketplace_home.dart';
 import '../features/marketplace/screens/marketplace_resell.dart';
-import '../features/objects/screens/objects_tabs.dart' as objects_root;
+import '../features/objects/screens/objects_home.dart' as objects_home;
+import '../features/objects/screens/objects_objects.dart' as objects_objects;
+import '../features/objects/screens/objects_stats.dart' as objects_stats;
+import '../features/objects/screens/ai_prompts.dart' as objects_ai_prompts;
 import '../features/processes/screens/processes_home.dart';
+import '../features/processes/tabs/processes_tabs.dart' as processes_tabs;
+import '../features/processes/screens/processes_category_list.dart';
+import '../features/processes/screens/processes_measurements.dart';
+import '../features/processes/screens/processes_stats.dart';
 import '../features/scheduling/screens/scheduling_home.dart';
 import '../features/supervision/screens/supervision_home.dart';
+import '../features/supervision/tabs/supervision_stats_tabs.dart';
 import '../features/training/screens/training_home.dart';
+import '../features/training/screens/training_teams.dart';
+import '../features/training/tabs/training_employees_tabs.dart';
 import '../features/quality/screens/quality_home.dart';
+import '../features/quality/screens/quality_inspections.dart';
+import '../features/quality/screens/quality_stats.dart';
+import '../features/quality/screens/quality_teams.dart';
 import '../features/safety/screens/safety_home.dart';
+import '../features/safety/screens/safety_analysis.dart';
+import '../features/safety/screens/safety_response.dart';
+import '../features/safety/screens/safety_stats.dart';
 import '../features/occupancy/screens/occupancy_home.dart';
 import '../features/engagement/screens/engagement_home.dart';
+import '../features/engagement/screens/engagement_reports.dart' as engagement_reports;
+import '../features/engagement/screens/engagement_stats.dart' as engagement_stats;
+import '../features/compliance/screens/compliance_home.dart';
+import '../features/compliance/screens/compliance_dashboard_screen.dart';
+import '../features/compliance/screens/compliance_item_detail_screen.dart';
 import '../features/registration/providers/registration_provider.dart';
 import '../features/registration/screens/registration_fork_screen.dart';
 import '../features/registration/screens/registration_join_qr_screen.dart';
@@ -782,6 +824,173 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: AppRoutePaths.tasksMessage,
+        name: AppRouteIds.tasksMessage,
+        builder: (_, __) => CompanyWrapper(
+          builder: (companyRef) => Consumer(
+            builder: (context, ref, _) {
+              final memberRef = ref.watch(memberDocRefProvider).value;
+              if (memberRef == null) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              return _FeatureContentScaffold(
+                title: 'Messages',
+                child: TasksMessageContent(
+                  pendingDocs: const [],
+                  memberRef: memberRef,
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.tasksMessageDetails,
+        name: AppRouteIds.tasksMessageDetails,
+        pageBuilder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final docRef = extra?['docRef'] as DocumentReference<Map<String, dynamic>>?;
+          final memberRef = extra?['memberRef'] as DocumentReference<Map<String, dynamic>>?;
+          if (docRef == null || memberRef == null) {
+            return _noTransitionPage(state, const Scaffold(
+              body: Center(child: Text('Missing message reference')),
+            ));
+          }
+          return _noTransitionPage(state, TasksMessageDetails(
+            docRef: docRef,
+            memberRef: memberRef,
+          ));
+        },
+      ),
+      GoRoute(
+        path: AppRoutePaths.tasksQuality,
+        name: AppRouteIds.tasksQuality,
+        builder: (_, __) => const _FeatureContentScaffold(
+          title: 'Quality',
+          child: TasksQualityContent(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.tasksQualityDetails,
+        name: AppRouteIds.tasksQualityDetails,
+        pageBuilder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final companyRef = extra?['companyId'] as DocumentReference<Map<String, dynamic>>?;
+          final docId = extra?['docId'] as String?;
+          if (companyRef == null || docId == null) {
+            return _noTransitionPage(state, const Scaffold(
+              body: Center(child: Text('Missing quality reference')),
+            ));
+          }
+          return _noTransitionPage(state, TasksQualityDetails(
+            companyId: companyRef,
+            docId: docId,
+          ));
+        },
+      ),
+      GoRoute(
+        path: AppRoutePaths.tasksDependability,
+        name: AppRouteIds.tasksDependability,
+        builder: (_, __) => const _FeatureContentScaffold(
+          title: 'Dependability',
+          child: TasksDependabilityContent(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.tasksPerformance,
+        name: AppRouteIds.tasksPerformance,
+        builder: (_, __) => const _FeatureContentScaffold(
+          title: 'Performance',
+          child: TasksPerformanceContent(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.tasksTimecard,
+        name: AppRouteIds.tasksTimecard,
+        builder: (_, __) => const _FeatureContentScaffold(
+          title: 'Timecard',
+          child: TasksTimecardContent(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.tasksTimecardTabs,
+        name: AppRouteIds.tasksTimecardTabs,
+        builder: (_, __) => const TasksTimecardTabsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.tasksTimecardForm,
+        name: AppRouteIds.tasksTimecardForm,
+        pageBuilder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final docId = extra?['docId'] as String?;
+          return _noTransitionPage(state, CompanyWrapper(
+            builder: (companyRef) => TasksTimecardForm(
+              companyId: companyRef,
+              docId: docId,
+            ),
+          ));
+        },
+      ),
+      GoRoute(
+        path: AppRoutePaths.tasksEmployeeTasks,
+        name: AppRouteIds.tasksEmployeeTasks,
+        builder: (_, __) => const _FeatureContentScaffold(
+          title: 'Employee Tasks',
+          child: TasksEmployeeTasksContent(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.taskCompletion,
+        name: AppRouteIds.taskCompletion,
+        builder: (_, state) {
+          final qp = state.uri.queryParameters;
+          return TaskCompletion(
+            companyId: qp['companyId'] ?? '',
+            docId: qp['docId'] ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutePaths.taskContributorList,
+        name: AppRouteIds.taskContributorList,
+        builder: (_, state) {
+          final qp = state.uri.queryParameters;
+          return TaskContributorList(
+            companyId: qp['companyId'] ?? '',
+            docId: qp['docId'] ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutePaths.taskDetailsTabs,
+        name: AppRouteIds.taskDetailsTabs,
+        builder: (_, state) {
+          final qp = state.uri.queryParameters;
+          return TaskDetailsTabs(
+            routineId: qp['routineId'] ?? '',
+            companyId: qp['companyId'] ?? '',
+            teamId: qp['teamId'],
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutePaths.taskAlertForm,
+        name: AppRouteIds.taskAlertForm,
+        pageBuilder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final timelineRef = extra?['timelineRef']
+              as DocumentReference<Map<String, dynamic>>?;
+          if (timelineRef == null) {
+            return _noTransitionPage(state, const Scaffold(
+              body: Center(child: Text('Missing timeline reference')),
+            ));
+          }
+          return _noTransitionPage(state, TaskAlertForm(timelineRef: timelineRef));
+        },
+      ),
+      GoRoute(
         path: AppRoutePaths.facilitiesHome,
         name: AppRouteIds.facilitiesHome,
         builder: (_, __) => const FacilitiesHome(),
@@ -793,6 +1002,27 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           guide: facilitiesGuide,
           child: const FacilitiesHome(),
         ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.facilitiesPropertyTypeForm,
+        name: AppRouteIds.facilitiesPropertyTypeForm,
+        pageBuilder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final docId = extra?['docId'] as String?;
+          return _noTransitionPage(state, PropertyTypeForm(docId: docId));
+        },
+      ),
+      GoRoute(
+        path: AppRoutePaths.facilitiesPropertyTypeDetails,
+        name: AppRouteIds.facilitiesPropertyTypeDetails,
+        pageBuilder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final docId = (extra?['docId'] ?? '') as String;
+          return _noTransitionPage(
+            state,
+            PropertyTypeDetailsScreen(docId: docId),
+          );
+        },
       ),
       GoRoute(
         path: AppRoutePaths.marketplaceHome,
@@ -813,7 +1043,25 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.objectsHome,
         name: AppRouteIds.objectsHome,
-        builder: (_, __) => const objects_root.ObjectsTabsScreen(),
+        builder: (_, __) => const objects_home.ObjectsHomeScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.objectsObjects,
+        name: AppRouteIds.objectsObjects,
+        builder: (_, __) => const _FeatureContentScaffold(
+          title: 'Objects',
+          child: objects_objects.ObjectsObjectsContent(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.objectsStats,
+        name: AppRouteIds.objectsStats,
+        builder: (_, __) => const objects_stats.ObjectsStatsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.objectsAiPrompts,
+        name: AppRouteIds.objectsAiPrompts,
+        builder: (_, __) => const objects_ai_prompts.AiPromptsScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.processesHome,
@@ -822,6 +1070,32 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           guide: processesGuide,
           child: const ProcessesHome(),
         ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.processesTabs,
+        name: AppRouteIds.processesTabs,
+        builder: (_, __) => const processes_tabs.ProcessesTabsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.processesCategoryList,
+        name: AppRouteIds.processesCategoryList,
+        builder: (_, __) => const _FeatureContentScaffold(
+          title: 'Categories',
+          child: ProcessesCategoryListScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.processesMeasurements,
+        name: AppRouteIds.processesMeasurements,
+        builder: (_, __) => const _FeatureContentScaffold(
+          title: 'Measurements',
+          child: ProcessesMeasurementsContent(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.processesStats,
+        name: AppRouteIds.processesStats,
+        builder: (_, __) => const ProcessesStatsScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.schedulingHome,
@@ -850,12 +1124,27 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: AppRoutePaths.supervisionStats,
+        name: AppRouteIds.supervisionStats,
+        builder: (_, __) => const SupervisionStatsTabs(),
+      ),
+      GoRoute(
         path: AppRoutePaths.trainingHome,
         name: AppRouteIds.trainingHome,
         builder: (_, __) => SetupGuideGate(
           guide: trainingGuide,
           child: const TrainingHome(),
         ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.trainingTeams,
+        name: AppRouteIds.trainingTeams,
+        builder: (_, __) => const TrainingTeamsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.trainingEmployees,
+        name: AppRouteIds.trainingEmployees,
+        builder: (_, __) => const TrainingEmployeesTabsScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.qualityHome,
@@ -865,10 +1154,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.qualityTeams,
         name: AppRouteIds.qualityTeams,
-        builder: (_, __) => SetupGuideGate(
-          guide: qualityGuide,
-          child: const QualityHome(),
-        ),
+        builder: (_, __) => const QualityTeamsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.qualityInspections,
+        name: AppRouteIds.qualityInspections,
+        builder: (_, __) => const QualityInspectionsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.qualityStats,
+        name: AppRouteIds.qualityStats,
+        builder: (_, __) => const QualityStatsScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.safetyHome,
@@ -878,10 +1174,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.safetyAnalysis,
         name: AppRouteIds.safetyAnalysis,
-        builder: (_, __) => SetupGuideGate(
-          guide: safetyGuide,
-          child: const SafetyHome(),
-        ),
+        builder: (_, __) => const SafetyAnalysisScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.safetyResponse,
+        name: AppRouteIds.safetyResponse,
+        builder: (_, __) => const SafetyResponseScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.safetyStats,
+        name: AppRouteIds.safetyStats,
+        builder: (_, __) => const SafetyStatsScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.occupancyHome,
@@ -904,10 +1207,33 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.engagementReports,
         name: AppRouteIds.engagementReports,
-        builder: (_, __) => SetupGuideGate(
-          guide: engagementGuide,
-          child: const EngagementHome(),
-        ),
+        builder: (_, __) => const engagement_reports.EngagementReportsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.engagementStats,
+        name: AppRouteIds.engagementStats,
+        builder: (_, __) => const engagement_stats.EngagementStatsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.complianceHome,
+        name: AppRouteIds.complianceHome,
+        builder: (_, __) => const ComplianceHome(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.complianceDashboard,
+        name: AppRouteIds.complianceDashboard,
+        builder: (_, __) => const ComplianceDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.complianceItemDetail,
+        name: AppRouteIds.complianceItemDetail,
+        pageBuilder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return _noTransitionPage(
+            state,
+            ComplianceItemDetailScreen.fromExtra(extra),
+          );
+        },
       ),
 
       // ── Communication routes ──────────────────────────────────────────
@@ -971,6 +1297,46 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 // Detail routes keep the bottom nav; skip transitions to avoid re-animating it.
 Page<void> _noTransitionPage(GoRouterState state, Widget child) {
   return NoTransitionPage<void>(key: state.pageKey, child: child);
+}
+
+/// Wraps a hub sub-screen "Content" widget in the bookend Scaffold chrome
+/// admin uses for its hub sub-screens (DetailsAppBar + HomeNavBarAdapter).
+class _FeatureContentScaffold extends StatelessWidget {
+  const _FeatureContentScaffold({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      body: StandardCanvas(
+        child: SafeArea(
+          top: true,
+          bottom: false,
+          child: Stack(
+            children: [
+              Positioned.fill(child: child),
+              const Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                child: CanvasTopBookend(),
+              ),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DetailsAppBar(title: title),
+          const HomeNavBarAdapter(),
+        ],
+      ),
+    );
+  }
 }
 
 /// Wrapper that resolves the current user's company and passes it to [builder].

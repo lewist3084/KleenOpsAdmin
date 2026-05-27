@@ -5,8 +5,11 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class HrBenefitPlanForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -145,8 +148,8 @@ class _HrBenefitPlanFormState extends State<HrBenefitPlanForm> {
       Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save benefit plan: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to save benefit plan: $e')),
         );
       }
     } finally {
@@ -158,11 +161,9 @@ class _HrBenefitPlanFormState extends State<HrBenefitPlanForm> {
   Widget build(BuildContext context) {
     final title = _isEditing ? 'Edit Benefit Plan' : 'New Benefit Plan';
 
-    return Scaffold(
-      appBar: StandardAppBar(title: title),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Form(
+    final form = _loading
+        ? const Center(child: CircularProgressIndicator())
+        : Form(
               key: _formKey,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
@@ -176,6 +177,8 @@ class _HrBenefitPlanFormState extends State<HrBenefitPlanForm> {
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? 'Plan name is required'
                         : null,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
@@ -196,12 +199,16 @@ class _HrBenefitPlanFormState extends State<HrBenefitPlanForm> {
                     decoration:
                         const InputDecoration(labelText: 'Provider / Carrier'),
                     textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _planNumberCtrl,
                     decoration:
                         const InputDecoration(labelText: 'Plan / Group Number'),
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 24),
 
@@ -217,6 +224,8 @@ class _HrBenefitPlanFormState extends State<HrBenefitPlanForm> {
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
                     ],
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -230,6 +239,8 @@ class _HrBenefitPlanFormState extends State<HrBenefitPlanForm> {
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
                     ],
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 24),
 
@@ -265,6 +276,8 @@ class _HrBenefitPlanFormState extends State<HrBenefitPlanForm> {
                       inputFormatters: [
                         FilteringTextInputFormatter.digitsOnly,
                       ],
+                      textInputAction: TextInputAction.next,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -278,6 +291,8 @@ class _HrBenefitPlanFormState extends State<HrBenefitPlanForm> {
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                     ],
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -291,6 +306,8 @@ class _HrBenefitPlanFormState extends State<HrBenefitPlanForm> {
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                     ],
+                    textInputAction: TextInputAction.done,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 24),
 
@@ -307,11 +324,22 @@ class _HrBenefitPlanFormState extends State<HrBenefitPlanForm> {
                   ),
                 ],
               ),
+            );
+
+    return Scaffold(
+      body: BookendedCanvas(child: form),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _handleSave,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
           ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _handleSave,
-        isSaving: _saving,
+          DetailsAppBar(title: title),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

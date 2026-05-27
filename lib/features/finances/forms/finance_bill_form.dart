@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
 
@@ -187,8 +189,8 @@ class _FinanceBillFormState extends State<FinanceBillForm> {
     final title = isEdit ? 'Edit Bill' : 'New Bill';
 
     return Scaffold(
-      appBar: StandardAppBar(title: title),
-      body: Form(
+      body: BookendedCanvas(
+        child: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -203,6 +205,8 @@ class _FinanceBillFormState extends State<FinanceBillForm> {
               validator: (v) => v == null || v.trim().isEmpty
                   ? 'Enter bill number'
                   : null,
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
 
@@ -316,6 +320,8 @@ class _FinanceBillFormState extends State<FinanceBillForm> {
               ),
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
 
@@ -327,15 +333,26 @@ class _FinanceBillFormState extends State<FinanceBillForm> {
                 border: OutlineInputBorder(),
               ),
               maxLines: 3,
+              textInputAction: TextInputAction.newline,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 80),
           ],
         ),
+        ),
       ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _save,
-        isSaving: _saving,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _save,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
+          ),
+          DetailsAppBar(title: title),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

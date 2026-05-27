@@ -125,6 +125,8 @@ class _HrRoleFormState extends State<HrRoleForm> {
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? 'Name is required'
                         : null,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -134,6 +136,8 @@ class _HrRoleFormState extends State<HrRoleForm> {
                     textCapitalization: TextCapitalization.sentences,
                     minLines: 2,
                     maxLines: 4,
+                    textInputAction: TextInputAction.newline,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ],
               ),

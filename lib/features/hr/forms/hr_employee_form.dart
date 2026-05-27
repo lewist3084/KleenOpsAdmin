@@ -632,6 +632,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
           textCapitalization: TextCapitalization.words,
           validator: (v) =>
               (v == null || v.trim().isEmpty) ? 'First name is required' : null,
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 12),
         TextFormField(
@@ -640,12 +642,16 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
           textCapitalization: TextCapitalization.words,
           validator: (v) =>
               (v == null || v.trim().isEmpty) ? 'Last name is required' : null,
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _preferredNameCtrl,
           decoration: const InputDecoration(labelText: 'Preferred Name'),
           textCapitalization: TextCapitalization.words,
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 24),
 
@@ -655,12 +661,16 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
           controller: _emailCtrl,
           decoration: const InputDecoration(labelText: 'Email'),
           keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _phoneCtrl,
           decoration: const InputDecoration(labelText: 'Phone'),
           keyboardType: TextInputType.phone,
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 12),
         TextFormField(
@@ -677,6 +687,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
             pastYears: 80,
             futureYears: 0,
           ),
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 12),
         TextFormField(
@@ -693,6 +705,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
             FilteringTextInputFormatter.digitsOnly,
             LengthLimitingTextInputFormatter(4),
           ],
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 24),
 
@@ -702,6 +716,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
           controller: _streetCtrl,
           decoration: const InputDecoration(labelText: 'Street'),
           textCapitalization: TextCapitalization.words,
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 12),
         Row(
@@ -712,6 +728,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
                 controller: _cityCtrl,
                 decoration: const InputDecoration(labelText: 'City'),
                 textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.next,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
             ),
             const SizedBox(width: 12),
@@ -723,6 +741,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
                 textCapitalization: TextCapitalization.characters,
                 maxLength: 2,
                 buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+                textInputAction: TextInputAction.next,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
             ),
             const SizedBox(width: 12),
@@ -734,6 +754,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
                 keyboardType: TextInputType.number,
                 maxLength: 10,
                 buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+                textInputAction: TextInputAction.next,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
             ),
           ],
@@ -746,18 +768,24 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
           controller: _emergencyNameCtrl,
           decoration: const InputDecoration(labelText: 'Contact Name'),
           textCapitalization: TextCapitalization.words,
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _emergencyPhoneCtrl,
           decoration: const InputDecoration(labelText: 'Contact Phone'),
           keyboardType: TextInputType.phone,
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _emergencyRelationCtrl,
           decoration: const InputDecoration(labelText: 'Relationship'),
           textCapitalization: TextCapitalization.words,
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 24),
 
@@ -769,6 +797,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
           textCapitalization: TextCapitalization.sentences,
           minLines: 2,
           maxLines: 4,
+          textInputAction: TextInputAction.newline,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
       ],
     );
@@ -834,6 +864,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
           onChanged: (val) {
             if (val.length == 5) _lookupZip(val);
           },
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 12),
         if (_localTaxJurisdictions.isNotEmpty) ...[
@@ -903,6 +935,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
             helperText: 'Required if employee works in a city with local income tax (e.g., NYC, Philadelphia)',
           ),
           textCapitalization: TextCapitalization.words,
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 24),
 
@@ -929,6 +963,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
             ctrl: _startDateCtrl,
             onPicked: (d) => _startDate = d,
           ),
+          textInputAction: TextInputAction.done,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
       ],
     );
@@ -952,6 +988,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
           ],
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
@@ -1008,6 +1046,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
             ],
+            textInputAction: TextInputAction.done,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           ),
         ],
       ],
@@ -1044,6 +1084,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
           ),
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 12),
         TextFormField(
@@ -1058,6 +1100,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
           ],
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 24),
 
@@ -1080,6 +1124,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
           ),
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          textInputAction: TextInputAction.next,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 12),
         TextFormField(
@@ -1094,6 +1140,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
           ],
+          textInputAction: TextInputAction.done,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         const SizedBox(height: 24),
 
@@ -1213,6 +1261,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
             controller: _bankNameCtrl,
             decoration: const InputDecoration(labelText: 'Bank Name'),
             textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.next,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           ),
           const SizedBox(height: 12),
           TextFormField(
@@ -1231,6 +1281,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
               if (v.trim().length != 9) return 'Must be 9 digits';
               return null;
             },
+            textInputAction: TextInputAction.next,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           ),
           const SizedBox(height: 12),
           TextFormField(
@@ -1238,6 +1290,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
             decoration: const InputDecoration(labelText: 'Account Number'),
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            textInputAction: TextInputAction.next,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           ),
           const SizedBox(height: 12),
           TextFormField(
@@ -1254,6 +1308,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
               }
               return null;
             },
+            textInputAction: TextInputAction.done,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
@@ -1453,6 +1509,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
                   decoration:
                       const InputDecoration(labelText: 'Bank Name'),
                   textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
                 const SizedBox(height: 8),
                 TextField(
@@ -1461,6 +1519,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
                       labelText: 'Routing Number'),
                   keyboardType: TextInputType.number,
                   maxLength: 9,
+                  textInputAction: TextInputAction.next,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
                 const SizedBox(height: 8),
                 TextField(
@@ -1468,6 +1528,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
                   decoration: const InputDecoration(
                       labelText: 'Account Number'),
                   keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
@@ -1519,6 +1581,8 @@ class _HrEmployeeFormState extends State<HrEmployeeForm>
                     ),
                     keyboardType: const TextInputType.numberWithOptions(
                         decimal: true),
+                    textInputAction: TextInputAction.done,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ],
               ],

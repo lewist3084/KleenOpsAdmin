@@ -47,6 +47,8 @@ class _MarketingAdsContentState extends ConsumerState<MarketingAdsContent> {
                 labelText: 'Name',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -55,6 +57,8 @@ class _MarketingAdsContentState extends ConsumerState<MarketingAdsContent> {
                 labelText: 'Description',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.done,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
           ],
         ),
@@ -127,10 +131,9 @@ class _MarketingAdsContentState extends ConsumerState<MarketingAdsContent> {
         final query =
             FirebaseFirestore.instance.collection('marketingMaterial').orderBy('name');
 
-        final list = StandardViewGroup(
-          queryStream: query.snapshots(),
-          groupBy: (_) => '',
-          itemBuilder: (doc) {
+        final list = StandardViewGroup.paginated(
+          query: query,
+          itemBuilder: (ctx, doc, _) {
             final data = doc.data();
             final name = data['name'] ?? '';
             final desc = data['description'] ?? '';
@@ -161,7 +164,8 @@ class _MarketingAdsContentState extends ConsumerState<MarketingAdsContent> {
               ),
             );
           },
-          emptyMessage: 'No marketing materials found.',
+          emptyBuilder: (_) =>
+              const Center(child: Text('No marketing materials found.')),
         );
 
         return Stack(

@@ -128,10 +128,27 @@ class AppRouteIds {
   // Tasks
   static const tasksHome = 'tasksHome';
   static const tasksTasks = 'tasksTasks';
+  static const tasksMessage = 'tasksMessage';
+  static const tasksMessageDetails = 'tasksMessageDetails';
+  static const tasksQuality = 'tasksQuality';
+  static const tasksQualityDetails = 'tasksQualityDetails';
+  static const tasksDependability = 'tasksDependability';
+  static const tasksPerformance = 'tasksPerformance';
+  static const tasksTimecard = 'tasksTimecard';
+  static const tasksTimecardForm = 'tasksTimecardForm';
+  static const tasksTimecardTabs = 'tasksTimecardTabs';
+  static const tasksEmployeeTasks = 'tasksEmployeeTasks';
+  static const taskCompletion = 'taskCompletion';
+  static const taskContributorList = 'taskContributorList';
+  static const taskDetailsTabs = 'taskDetailsTabs';
+  static const taskAlertForm = 'taskAlertForm';
+  static const tasksTasksForm = 'tasksTasksForm';
 
   // Facilities
   static const facilitiesHome = 'facilitiesHome';
   static const facilitiesProperties = 'facilitiesProperties';
+  static const facilitiesPropertyTypeDetails = 'facilitiesPropertyTypeDetails';
+  static const facilitiesPropertyTypeForm = 'facilitiesPropertyTypeForm';
 
   // Marketplace
   static const marketplaceHome = 'marketplaceHome';
@@ -139,9 +156,16 @@ class AppRouteIds {
 
   // Objects
   static const objectsHome = 'objectsHome';
+  static const objectsObjects = 'objectsObjects';
+  static const objectsStats = 'objectsStats';
+  static const objectsAiPrompts = 'objectsAiPrompts';
 
   // Processes
   static const processesHome = 'processesHome';
+  static const processesTabs = 'processesTabs';
+  static const processesCategoryList = 'processesCategoryList';
+  static const processesMeasurements = 'processesMeasurements';
+  static const processesStats = 'processesStats';
 
   // Scheduling
   static const schedulingHome = 'schedulingHome';
@@ -150,17 +174,24 @@ class AppRouteIds {
   // Supervision
   static const supervisionHome = 'supervisionHome';
   static const supervisionTeams = 'supervisionTeams';
+  static const supervisionStats = 'supervisionStats';
 
   // Training
   static const trainingHome = 'trainingHome';
+  static const trainingTeams = 'trainingTeams';
+  static const trainingEmployees = 'trainingEmployees';
 
   // Quality
   static const qualityHome = 'qualityHome';
   static const qualityTeams = 'qualityTeams';
+  static const qualityInspections = 'qualityInspections';
+  static const qualityStats = 'qualityStats';
 
   // Safety
   static const safetyHome = 'safetyHome';
   static const safetyAnalysis = 'safetyAnalysis';
+  static const safetyResponse = 'safetyResponse';
+  static const safetyStats = 'safetyStats';
 
   // Occupancy
   static const occupancyHome = 'occupancyHome';
@@ -169,6 +200,12 @@ class AppRouteIds {
   // Engagement
   static const engagementHome = 'engagementHome';
   static const engagementReports = 'engagementReports';
+  static const engagementStats = 'engagementStats';
+
+  // Compliance
+  static const complianceHome = 'complianceHome';
+  static const complianceDashboard = 'complianceDashboard';
+  static const complianceItemDetail = 'complianceItemDetail';
 
   // Setup dashboard (post-registration card-based onboarding)
   static const setupDashboard = 'setupDashboard';
@@ -298,10 +335,27 @@ class AppRoutePaths {
   // Tasks
   static const tasksHome = '/tasks/home';
   static const tasksTasks = '/tasks/tasks';
+  static const tasksMessage = '/tasks/messages';
+  static const tasksMessageDetails = '/tasks/messages/details';
+  static const tasksQuality = '/tasks/quality';
+  static const tasksQualityDetails = '/tasks/quality/details';
+  static const tasksDependability = '/tasks/dependability';
+  static const tasksPerformance = '/tasks/performance';
+  static const tasksTimecard = '/tasks/timecard';
+  static const tasksTimecardForm = '/tasks/timecard/form';
+  static const tasksTimecardTabs = '/tasks/timecard/tabs';
+  static const tasksEmployeeTasks = '/tasks/employee';
+  static const taskCompletion = '/tasks/completion';
+  static const taskContributorList = '/tasks/contributors';
+  static const taskDetailsTabs = '/tasks/details';
+  static const taskAlertForm = '/tasks/alert/form';
+  static const tasksTasksForm = '/tasks/tasks/form';
 
   // Facilities
   static const facilitiesHome = '/facilities/home';
   static const facilitiesProperties = '/facilities/properties';
+  static const facilitiesPropertyTypeDetails = '/facilities/property-type/details';
+  static const facilitiesPropertyTypeForm = '/facilities/property-type/form';
 
   // Marketplace
   static const marketplaceHome = '/marketplace/home';
@@ -309,9 +363,16 @@ class AppRoutePaths {
 
   // Objects
   static const objectsHome = '/objects';
+  static const objectsObjects = '/objects/list';
+  static const objectsStats = '/objects/stats';
+  static const objectsAiPrompts = '/objects/ai-prompts';
 
   // Processes
   static const processesHome = '/processes/home';
+  static const processesTabs = '/processes/tabs';
+  static const processesCategoryList = '/processes/categories';
+  static const processesMeasurements = '/processes/measurements';
+  static const processesStats = '/processes/stats';
 
   // Scheduling
   static const schedulingHome = '/scheduling/home';
@@ -320,17 +381,26 @@ class AppRoutePaths {
   // Supervision
   static const supervisionHome = '/supervision/home';
   static const supervisionTeams = '/supervision/teams';
+  static const supervisionStats = '/supervision/stats';
 
   // Training
   static const trainingHome = '/training/home';
+  static const trainingTraining = '/training/training';
+  static const trainingStats = '/training/stats';
+  static const trainingTeams = '/training/teams';
+  static const trainingEmployees = '/training/employees';
 
   // Quality
   static const qualityHome = '/quality/home';
   static const qualityTeams = '/quality/teams';
+  static const qualityStats = '/quality/stats';
+  static const qualityInspections = '/quality/inspections';
 
   // Safety
   static const safetyHome = '/safety/home';
   static const safetyAnalysis = '/safety/analysis';
+  static const safetyResponse = '/safety/response';
+  static const safetyStats = '/safety/stats';
 
   // Occupancy
   static const occupancyHome = '/occupancy/home';
@@ -339,6 +409,16 @@ class AppRoutePaths {
   // Engagement
   static const engagementHome = '/engagement/home';
   static const engagementReports = '/engagement/reports';
+  static const engagementStats = '/engagement/stats';
+  static const engagementSurvey = '/engagement/survey';
+
+  // Compliance
+  static const complianceHome = '/compliance/home';
+  static const complianceDashboard = '/compliance/dashboard';
+  static const complianceItemDetail = '/compliance/item/details';
+
+  // Objects (ported feature route constants)
+  static const objectsObjectsDetails = '/objects/details';
 
   // Setup dashboard (post-registration card-based onboarding)
   static const setupDashboard = '/setup';

@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class AdminInsuranceFormScreen extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -127,8 +130,8 @@ class _AdminInsuranceFormState extends State<AdminInsuranceFormScreen> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Save failed: $e')),
         );
       }
     } finally {
@@ -139,10 +142,8 @@ class _AdminInsuranceFormState extends State<AdminInsuranceFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: StandardAppBar(
-        title: widget._isEditing ? 'Edit Policy' : 'New Insurance Policy',
-      ),
-      body: _loading
+      body: BookendedCanvas(
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
@@ -169,12 +170,16 @@ class _AdminInsuranceFormState extends State<AdminInsuranceFormScreen> {
                     decoration:
                         const InputDecoration(labelText: 'Insurance Carrier'),
                     textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _policyNumberCtrl,
                     decoration:
                         const InputDecoration(labelText: 'Policy Number'),
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -184,6 +189,8 @@ class _AdminInsuranceFormState extends State<AdminInsuranceFormScreen> {
                       prefixText: '\$',
                     ),
                     keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -193,6 +200,8 @@ class _AdminInsuranceFormState extends State<AdminInsuranceFormScreen> {
                       prefixText: '\$',
                     ),
                     keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -202,6 +211,8 @@ class _AdminInsuranceFormState extends State<AdminInsuranceFormScreen> {
                       hintText: 'YYYY-MM-DD',
                     ),
                     keyboardType: TextInputType.datetime,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -211,6 +222,8 @@ class _AdminInsuranceFormState extends State<AdminInsuranceFormScreen> {
                       hintText: 'YYYY-MM-DD',
                     ),
                     keyboardType: TextInputType.datetime,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -218,6 +231,8 @@ class _AdminInsuranceFormState extends State<AdminInsuranceFormScreen> {
                     decoration:
                         const InputDecoration(labelText: 'Agent / Broker'),
                     textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -225,6 +240,8 @@ class _AdminInsuranceFormState extends State<AdminInsuranceFormScreen> {
                     decoration:
                         const InputDecoration(labelText: 'Agent Phone'),
                     keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -233,14 +250,27 @@ class _AdminInsuranceFormState extends State<AdminInsuranceFormScreen> {
                     textCapitalization: TextCapitalization.sentences,
                     minLines: 2,
                     maxLines: 4,
+                    textInputAction: TextInputAction.newline,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ],
               ),
             ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _save,
-        isSaving: _saving,
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _save,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
+          ),
+          DetailsAppBar(
+            title: widget._isEditing ? 'Edit Policy' : 'New Insurance Policy',
+          ),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

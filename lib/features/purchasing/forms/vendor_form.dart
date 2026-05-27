@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 
 class VendorForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyId;
@@ -50,27 +52,38 @@ class _VendorFormState extends State<VendorForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const StandardAppBar(title: 'New Contact'),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: TextFormField(
-            controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Name'),
-            validator: (val) {
-              if (val == null || val.trim().isEmpty) {
-                return 'Please enter a name';
-              }
-              return null;
-            },
+      body: BookendedCanvas(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
+            child: TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Name'),
+              validator: (val) {
+                if (val == null || val.trim().isEmpty) {
+                  return 'Please enter a name';
+                }
+                return null;
+              },
+              textInputAction: TextInputAction.done,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+            ),
           ),
         ),
       ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _save,
-        isSaving: _saving,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _save,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
+          ),
+          const DetailsAppBar(title: 'New Contact'),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

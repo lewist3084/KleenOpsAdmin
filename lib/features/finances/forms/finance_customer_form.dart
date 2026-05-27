@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 
 class FinanceCustomerForm extends StatefulWidget {
@@ -144,8 +146,8 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
     final title = isEdit ? 'Edit Customer' : 'New Customer';
 
     return Scaffold(
-      appBar: StandardAppBar(title: title),
-      body: Form(
+      body: BookendedCanvas(
+        child: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -159,6 +161,8 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
               validator: (v) => v == null || v.trim().isEmpty
                   ? 'Enter customer name'
                   : null,
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -167,6 +171,8 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
                 labelText: 'Contact Name',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -176,6 +182,8 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -185,6 +193,8 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 24),
             Text(
@@ -198,6 +208,8 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
                 labelText: 'Street',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 12),
             Row(
@@ -210,6 +222,8 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
                       labelText: 'City',
                       border: OutlineInputBorder(),
                     ),
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -220,6 +234,8 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
                       labelText: 'State',
                       border: OutlineInputBorder(),
                     ),
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -231,6 +247,8 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ),
               ],
@@ -243,6 +261,8 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
                 border: OutlineInputBorder(),
               ),
               maxLines: 3,
+              textInputAction: TextInputAction.newline,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 24),
             Text(
@@ -263,6 +283,8 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
                 labelText: 'Billing Contact Name',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -272,6 +294,8 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -281,6 +305,8 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.done,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 8),
             SwitchListTile(
@@ -302,11 +328,20 @@ class _FinanceCustomerFormState extends State<FinanceCustomerForm> {
             const SizedBox(height: 80),
           ],
         ),
+        ),
       ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _save,
-        isSaving: _saving,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _save,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
+          ),
+          DetailsAppBar(title: title),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

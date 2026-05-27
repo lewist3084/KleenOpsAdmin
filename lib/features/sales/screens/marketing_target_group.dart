@@ -56,6 +56,8 @@ class _MarketingTargetGroupContentState
                   labelText: 'Name',
                   border: OutlineInputBorder(),
                 ),
+                textInputAction: TextInputAction.next,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -66,6 +68,8 @@ class _MarketingTargetGroupContentState
                 ),
                 minLines: 2,
                 maxLines: 2,
+                textInputAction: TextInputAction.newline,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
               const SizedBox(height: 16),
               SearchAddSelectDropdown<DocumentReference<Map<String, dynamic>>>(
@@ -137,9 +141,8 @@ class _MarketingTargetGroupContentState
 
         final query = FirebaseFirestore.instance.collection('targetGroup').orderBy('name');
 
-        final list = StandardViewGroup(
-          queryStream: query.snapshots(),
-          groupBy: (_) => '',
+        final list = StandardViewGroup.paginated(
+          query: query,
           onTap: (doc) {
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -150,7 +153,7 @@ class _MarketingTargetGroupContentState
               ),
             );
           },
-          itemBuilder: (doc) {
+          itemBuilder: (ctx, doc, _) {
             final data = doc.data();
             final name = data['name'] ?? '';
             return StandardTileLargeDart(
@@ -159,7 +162,8 @@ class _MarketingTargetGroupContentState
               firstLineIcon: Icons.flag_outlined,
             );
           },
-          emptyMessage: 'No target groups found.',
+          emptyBuilder: (_) =>
+              const Center(child: Text('No target groups found.')),
         );
 
         return Stack(

@@ -134,6 +134,8 @@ class _HrTeamFormState extends State<HrTeamForm> {
                               }
                               return null;
                             },
+                            textInputAction: TextInputAction.next,
+                            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
@@ -144,6 +146,8 @@ class _HrTeamFormState extends State<HrTeamForm> {
                             textCapitalization: TextCapitalization.sentences,
                             minLines: 2,
                             maxLines: 4,
+                            textInputAction: TextInputAction.newline,
+                            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                           ),
                         ],
                       ),
@@ -221,6 +225,8 @@ class _HrTeamFormState extends State<HrTeamForm> {
         }
         return null;
       },
+      textInputAction: TextInputAction.next,
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
     );
   }
 

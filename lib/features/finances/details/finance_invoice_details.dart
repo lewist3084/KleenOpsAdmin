@@ -17,6 +17,7 @@ import 'package:shared_widgets/containers/container_header.dart';
 import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class FinanceInvoiceDetailsScreen extends ConsumerStatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -48,8 +49,8 @@ class _FinanceInvoiceDetailsScreenState
   Future<void> _markAsSent() async {
     await _invoiceService.updateInvoiceStatus(_invoiceRef, 'sent');
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invoice marked as sent')),
+      SnackbarService.instance.showSnackBar(
+        const SnackBar(duration: Duration(seconds: 5), content: Text('Invoice marked as sent')),
       );
     }
   }
@@ -57,8 +58,8 @@ class _FinanceInvoiceDetailsScreenState
   Future<void> _markAsPaid() async {
     await _invoiceService.updateInvoiceStatus(_invoiceRef, 'paid');
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invoice marked as paid')),
+      SnackbarService.instance.showSnackBar(
+        const SnackBar(duration: Duration(seconds: 5), content: Text('Invoice marked as paid')),
       );
     }
   }
@@ -91,6 +92,8 @@ class _FinanceInvoiceDetailsScreenState
               }
               return null;
             },
+            textInputAction: TextInputAction.done,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           ),
         ),
         actions: [
@@ -120,8 +123,9 @@ class _FinanceInvoiceDetailsScreenState
         companyRef: widget.companyRef,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        SnackbarService.instance.showSnackBar(
           SnackBar(
+            duration: const Duration(seconds: 5),
             content: Text(
               'Payment of \$${result.toStringAsFixed(2)} recorded',
             ),
@@ -147,14 +151,14 @@ class _FinanceInvoiceDetailsScreenState
         if (result['emailSent'] == true) sentTo.add('email');
         if (result['smsSent'] == true) sentTo.add('SMS');
         final channel = sentTo.isEmpty ? '' : ' via ${sentTo.join(' & ')}';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment link sent$channel')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Payment link sent$channel')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Error: $e')),
         );
       }
     }

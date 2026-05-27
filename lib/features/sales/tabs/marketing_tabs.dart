@@ -16,6 +16,7 @@ import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
+import 'package:shared_widgets/tabs/lazy_tab_view.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
 
 /// Top-level screen with its own Scaffold (app bar + content + bottom nav)
@@ -160,7 +161,6 @@ class _SalesMarketingTabsState extends ConsumerState<SalesMarketingTabs>
               controller: _tabController,
               isScrollable: true,
               dividerColor: Colors.grey[300],
-              indicatorColor: Theme.of(context).primaryColor,
               indicatorWeight: 3.0,
               labelColor: Colors.black,
               unselectedLabelColor: Colors.grey[600],
@@ -176,7 +176,7 @@ class _SalesMarketingTabsState extends ConsumerState<SalesMarketingTabs>
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(bottom: bottomInset),
-              child: TabBarView(
+              child: LazyTabView(
                 physics: const NeverScrollableScrollPhysics(),
                 controller: _tabController,
                 children: [

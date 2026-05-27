@@ -25,6 +25,8 @@ class MarketingDataDetailsScreen extends StatefulWidget {
 
 class _MarketingDataDetailsScreenState
     extends State<MarketingDataDetailsScreen> {
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _dataDocStream;
+
   Future<void> _showEditDialog(
       {required String currentName, required String currentDesc}) async {
     final nameCtl = TextEditingController(text: currentName);
@@ -42,6 +44,8 @@ class _MarketingDataDetailsScreenState
                 labelText: 'Name',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -50,6 +54,8 @@ class _MarketingDataDetailsScreenState
                 labelText: 'Description',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.done,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
           ],
         ),
@@ -146,7 +152,7 @@ class _MarketingDataDetailsScreenState
             ),
       body: _wrapCanvas(
           StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: widget.docRef.snapshots(),
+            stream: _dataDocStream ??= widget.docRef.snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());

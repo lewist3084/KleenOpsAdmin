@@ -10,6 +10,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod/legacy.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
@@ -21,6 +22,9 @@ import '../../../app/shared_widgets/navigation/home_navbar_adapter.dart';
 import '../../../common/communications/comm_menu.dart';
 import '../../catalog/screens/catalog.dart';
 
+final marketplaceMarketplaceSearchVisibleProvider =
+    StateProvider<bool>((_) => false);
+
 class MarketplaceHome extends ConsumerWidget {
   const MarketplaceHome({super.key});
 
@@ -30,6 +34,8 @@ class MarketplaceHome extends ConsumerWidget {
       actions: const [],
       communications: buildAdminCommunicationMenuItems(context),
     );
+    final searchActive =
+        ref.watch(marketplaceMarketplaceSearchVisibleProvider);
 
     return Scaffold(
       appBar: null,
@@ -57,6 +63,13 @@ class MarketplaceHome extends ConsumerWidget {
           DetailsAppBar(
             title: 'Marketplace',
             menuSections: menuSections,
+            showSearchToggle: true,
+            searchActive: searchActive,
+            onSearchToggle: () {
+              final notifier =
+                  ref.read(marketplaceMarketplaceSearchVisibleProvider.notifier);
+              notifier.state = !notifier.state;
+            },
           ),
           const HomeNavBarAdapter(),
         ],

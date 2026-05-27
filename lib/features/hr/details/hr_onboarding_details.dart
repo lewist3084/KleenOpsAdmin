@@ -12,6 +12,8 @@ import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
+import 'package:shared_widgets/theme/app_palette.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class HrOnboardingDetailsScreen extends ConsumerWidget {
   final String documentId;
@@ -179,7 +181,7 @@ class _OnboardingDetailsBody extends StatelessWidget {
                               valueColor: AlwaysStoppedAnimation<Color>(
                                 progress == 1.0
                                     ? Colors.green[600]!
-                                    : Theme.of(context).primaryColor,
+                                    : AppPaletteScope.of(context).primary2,
                               ),
                             ),
                           ),
@@ -307,8 +309,8 @@ class _OnboardingDetailsBody extends StatelessWidget {
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update step: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to update step: $e')),
         );
       }
     }

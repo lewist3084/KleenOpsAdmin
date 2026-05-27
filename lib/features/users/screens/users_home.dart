@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
+import 'package:shared_widgets/tiles/standard_bubble_tile.dart';
 
 import '../../../app/routes.dart';
 import '../../../services/admin_firebase_service.dart';
@@ -43,18 +44,19 @@ class UsersHome extends StatelessWidget {
             }
 
             return ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               itemCount: docs.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final doc = docs[index];
                 final data = doc.data();
                 final email = data['email'] as String? ?? '';
                 final name = data['name'] as String? ?? email;
 
-                return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.person)),
-                  title: Text(name),
-                  subtitle: Text(email),
+                return StandardBubbleTile(
+                  title: name,
+                  description: email,
+                  leadingIcon: Icons.person,
                   trailing: Text(doc.id.substring(0, 8),
                       style: const TextStyle(
                           fontSize: 11, color: Colors.grey)),

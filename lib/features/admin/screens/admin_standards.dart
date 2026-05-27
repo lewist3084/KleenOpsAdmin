@@ -68,11 +68,26 @@ class AdminStandardsContent extends ConsumerWidget {
 
             final data = snapshot.data!.data() ?? {};
             final measurementSystem = data['measurementSystem'] ?? 'Standard';
-            final lateGracePeriod = data['lateGracePeriod'];
+            final earlyArrivalGrace =
+                data['earlyArrivalGracePeriod'] ?? data['earlyGracePeriod'];
+            final lateArrivalGrace =
+                data['lateArrivalGracePeriod'] ?? data['lateGracePeriod'];
+            final earlyDepartureGrace = data['earlyDepartureGracePeriod'] ??
+                data['departureGracePeriod'] ??
+                data['earlyGracePeriod'];
+            final lateDepartureGrace = data['lateDepartureGracePeriod'] ??
+                data['departureGracePeriod'] ??
+                data['lateGracePeriod'];
             final dependabilityMinimum = data['dependabilityMinimum'];
-            final dependabilityInterval = data['dependabilityInterval'];
             final contributionMinimum = data['contributionMinimum'];
-            final contributionInterval = data['contributionInterval'];
+            final evaluationInterval = data['evaluationInterval'] ??
+                data['EvaluationInterval'] ??
+                data['evaluationIntervalCamelText'] ??
+                data['EvaluationIntervalCamelText'] ??
+                data['evaluationIntervalCamelTex'] ??
+                data['EvaluationIntervalCamelTex'] ??
+                data['evaluationIntervalText'] ??
+                data['EvaluationIntervalText'];
             final mandatoryLunchAt = data['mandatoryLunchAt'] ??
                 data['MandatoryLunchAt'] ??
                 data['mandatoryLunchAtCamelTex'] ??
@@ -106,9 +121,30 @@ class AdminStandardsContent extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         TextValueInline(
-                          header: 'Grace Period',
-                          value: lateGracePeriod,
+                          header: 'Early Arrival Grace',
+                          value: earlyArrivalGrace,
+                          icon: Icons.login,
+                          boldHeader: false,
+                        ),
+                        const SizedBox(height: 8),
+                        TextValueInline(
+                          header: 'Late Arrival Grace',
+                          value: lateArrivalGrace,
                           icon: Icons.timer,
+                          boldHeader: false,
+                        ),
+                        const SizedBox(height: 8),
+                        TextValueInline(
+                          header: 'Early Departure Grace',
+                          value: earlyDepartureGrace,
+                          icon: Icons.logout,
+                          boldHeader: false,
+                        ),
+                        const SizedBox(height: 8),
+                        TextValueInline(
+                          header: 'Late Departure Grace',
+                          value: lateDepartureGrace,
+                          icon: Icons.timer_off,
                           boldHeader: false,
                         ),
                         const SizedBox(height: 8),
@@ -120,23 +156,9 @@ class AdminStandardsContent extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         TextValueInline(
-                          header: 'Dependability Interval',
-                          value: dependabilityInterval,
-                          icon: Icons.timeline,
-                          boldHeader: false,
-                        ),
-                        const SizedBox(height: 8),
-                        TextValueInline(
                           header: 'Contribution Minimum',
                           value: contributionMinimum,
                           icon: Icons.note_add_outlined,
-                          boldHeader: false,
-                        ),
-                        const SizedBox(height: 8),
-                        TextValueInline(
-                          header: 'Contribution Interval',
-                          value: contributionInterval,
-                          icon: Icons.calendar_today,
                           boldHeader: false,
                         ),
                         const SizedBox(height: 8),
@@ -168,6 +190,16 @@ class AdminStandardsContent extends ConsumerWidget {
                           boldHeader: false,
                         ),
                       ],
+                    ),
+                    actionText: '',
+                  ),
+                  ContainerActionWidget(
+                    title: 'Evaluation',
+                    content: TextValueInline(
+                      header: 'Evaluation Interval',
+                      value: evaluationInterval,
+                      icon: Icons.timeline,
+                      boldHeader: false,
                     ),
                     actionText: '',
                   ),

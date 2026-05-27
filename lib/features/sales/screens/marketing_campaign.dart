@@ -21,6 +21,7 @@ import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 import '../details/marketing_campaign_details.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 /// Top-level screen with its own Scaffold (app bar + content + bottom nav)
 class MarketingCampaignScreen extends StatefulWidget {
@@ -162,11 +163,15 @@ class _SalesMarketingContentState
             TextField(
               controller: nameCtl,
               decoration: const InputDecoration(labelText: 'Name'),
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: descCtl,
               decoration: const InputDecoration(labelText: 'Description'),
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -196,6 +201,8 @@ class _SalesMarketingContentState
                 );
                 launchCtl.text = dateFmt.format(launchDate!);
               },
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -225,6 +232,8 @@ class _SalesMarketingContentState
                 );
                 termCtl.text = dateFmt.format(termDate!);
               },
+              textInputAction: TextInputAction.done,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
           ],
         ),
@@ -235,8 +244,8 @@ class _SalesMarketingContentState
           final name = nameCtl.text.trim();
           final desc = descCtl.text.trim();
           if (name.isEmpty || launchDate == null || termDate == null) {
-            ScaffoldMessenger.of(ctx).showSnackBar(
-              const SnackBar(content: Text('Please fill all fields.')),
+            SnackbarService.instance.showSnackBar(
+              const SnackBar(duration: Duration(seconds: 5), content: Text('Please fill all fields.')),
             );
             return;
           }
@@ -295,9 +304,8 @@ class _SalesMarketingContentState
         }
         final query = FirebaseFirestore.instance.collection('campaign').orderBy('name');
 
-        final list = StandardViewGroup(
-          queryStream: query.snapshots(),
-          groupBy: (_) => '',
+        final list = StandardViewGroup.paginated(
+          query: query,
           onTap: (doc) {
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -308,7 +316,7 @@ class _SalesMarketingContentState
               ),
             );
           },
-          itemBuilder: (doc) {
+          itemBuilder: (ctx, doc, _) {
             final data = doc.data();
             final name = data['name'] as String? ?? '';
             final desc = data['description'] as String? ?? '';
@@ -319,7 +327,7 @@ class _SalesMarketingContentState
               firstLineIcon: Icons.campaign_outlined,
             );
           },
-          emptyMessage: 'No campaigns found.',
+          emptyBuilder: (_) => const Center(child: Text('No campaigns found.')),
         );
 
         return Stack(

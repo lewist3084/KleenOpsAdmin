@@ -29,6 +29,8 @@ class PurchasingVendorDetails extends StatefulWidget {
 }
 
 class _PurchasingVendorDetailsState extends State<PurchasingVendorDetails> {
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _vendorStream;
+
   Future<void> _addBillingLocation(
       DocumentReference<Map<String, dynamic>> vendorRef) async {
     final addressCtl = TextEditingController();
@@ -75,16 +77,22 @@ class _PurchasingVendorDetailsState extends State<PurchasingVendorDetails> {
               TextField(
                 controller: cityCtl,
                 decoration: const InputDecoration(labelText: 'City'),
+                textInputAction: TextInputAction.next,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: stateCtl,
                 decoration: const InputDecoration(labelText: 'State'),
+                textInputAction: TextInputAction.next,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: zipCtl,
                 decoration: const InputDecoration(labelText: 'Zip Code'),
+                textInputAction: TextInputAction.done,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
             ],
           ),
@@ -119,6 +127,8 @@ class _PurchasingVendorDetailsState extends State<PurchasingVendorDetails> {
         content: TextField(
           controller: nameCtl,
           decoration: const InputDecoration(labelText: 'Name'),
+          textInputAction: TextInputAction.done,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
       ),
     );
@@ -130,7 +140,7 @@ class _PurchasingVendorDetailsState extends State<PurchasingVendorDetails> {
         widget.companyId.collection('companyCompany').doc(widget.docId);
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: vendorRef.snapshots(),
+      stream: _vendorStream ??= vendorRef.snapshots(),
       builder: (context, snap) {
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -265,7 +275,7 @@ class _PurchasingVendorDetailsState extends State<PurchasingVendorDetails> {
   }
 }
 
-class _VendorBalanceSummary extends StatelessWidget {
+class _VendorBalanceSummary extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
   final DocumentReference<Map<String, dynamic>> vendorRef;
 
@@ -275,11 +285,18 @@ class _VendorBalanceSummary extends StatelessWidget {
   });
 
   @override
+  State<_VendorBalanceSummary> createState() => _VendorBalanceSummaryState();
+}
+
+class _VendorBalanceSummaryState extends State<_VendorBalanceSummary> {
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _billsStream;
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
+      stream: _billsStream ??= FirebaseFirestore.instance
           .collection('bill')
-          .where('vendorId', isEqualTo: vendorRef)
+          .where('vendorId', isEqualTo: widget.vendorRef)
           .where('status', whereIn: const ['unpaid', 'partial'])
           .snapshots(),
       builder: (context, snap) {

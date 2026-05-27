@@ -112,111 +112,101 @@ class FinanceStatsContent extends ConsumerWidget {
         if (companyRef == null) {
           return const Center(child: Text('No company found'));
         }
-        return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _StatSection(
-                title: 'Invoices',
-                icon: Icons.receipt_long_outlined,
+        // Top-level financeSummary collection — admin uses top-level, not
+        // company subcollections.
+        final summaryRef = FirebaseFirestore.instance
+            .collection('financeSummary')
+            .doc('current');
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: summaryRef.snapshots(),
+          builder: (ctx, snap) {
+            if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snap.hasError) {
+              return Center(child: Text('Error: ${snap.error}'));
+            }
+            final data = snap.data?.data() ?? const <String, dynamic>{};
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _StreamCountStat(
-                    label: 'Outstanding',
-                    stream: FirebaseFirestore.instance
-                        .collection('invoice')
-                        .where('status', whereIn: const ['sent', 'partial'])
-                        .snapshots(),
-                    sumField: 'amountDue',
+                  _StatSection(
+                    title: 'Invoices',
+                    icon: Icons.receipt_long_outlined,
+                    children: [
+                      _SummaryStat(
+                        label: 'Outstanding',
+                        bucket: data['outstandingInvoices'],
+                        sumField: 'amountDueSum',
+                      ),
+                      _SummaryStat(
+                        label: 'Overdue',
+                        bucket: data['overdueInvoices'],
+                        sumField: 'amountDueSum',
+                      ),
+                      _SummaryStat(
+                        label: 'Paid (all time)',
+                        bucket: data['paidInvoices'],
+                        sumField: 'totalSum',
+                      ),
+                    ],
                   ),
-                  _StreamCountStat(
-                    label: 'Overdue',
-                    stream: FirebaseFirestore.instance
-                        .collection('invoice')
-                        .where('status', isEqualTo: 'overdue')
-                        .snapshots(),
-                    sumField: 'amountDue',
+                  const SizedBox(height: 16),
+                  _StatSection(
+                    title: 'Bills',
+                    icon: Icons.request_quote_outlined,
+                    children: [
+                      _SummaryStat(
+                        label: 'Unpaid',
+                        bucket: data['unpaidBills'],
+                        sumField: 'totalSum',
+                      ),
+                      _SummaryStat(
+                        label: 'Paid (all time)',
+                        bucket: data['paidBills'],
+                        sumField: 'totalSum',
+                      ),
+                    ],
                   ),
-                  _StreamCountStat(
-                    label: 'Paid (all time)',
-                    stream: FirebaseFirestore.instance
-                        .collection('invoice')
-                        .where('status', isEqualTo: 'paid')
-                        .snapshots(),
-                    sumField: 'total',
+                  const SizedBox(height: 16),
+                  _StatSection(
+                    title: 'Customers',
+                    icon: Icons.people_outlined,
+                    children: [
+                      _SummaryStat(
+                        label: 'Active',
+                        bucket: data['activeCustomers'],
+                      ),
+                      _SummaryStat(
+                        label: 'Total owed',
+                        bucket: data['activeCustomers'],
+                        sumField: 'balanceSum',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _StatSection(
+                    title: 'Payments',
+                    icon: Icons.payments_outlined,
+                    children: [
+                      _SummaryStat(
+                        label: 'Received',
+                        bucket: data['paymentsReceived'],
+                        sumField: 'amountSum',
+                      ),
+                      _SummaryStat(
+                        label: 'Made',
+                        bucket: data['paymentsMade'],
+                        sumField: 'amountSum',
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              _StatSection(
-                title: 'Bills',
-                icon: Icons.request_quote_outlined,
-                children: [
-                  _StreamCountStat(
-                    label: 'Unpaid',
-                    stream: FirebaseFirestore.instance
-                        .collection('bill')
-                        .where('status', whereIn: const ['unpaid', 'partial'])
-                        .snapshots(),
-                    sumField: 'total',
-                  ),
-                  _StreamCountStat(
-                    label: 'Paid (all time)',
-                    stream: FirebaseFirestore.instance
-                        .collection('bill')
-                        .where('status', isEqualTo: 'paid')
-                        .snapshots(),
-                    sumField: 'total',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _StatSection(
-                title: 'Customers',
-                icon: Icons.people_outlined,
-                children: [
-                  _StreamCountStat(
-                    label: 'Active',
-                    stream: FirebaseFirestore.instance
-                        .collection('customer')
-                        .where('active', isEqualTo: true)
-                        .snapshots(),
-                  ),
-                  _StreamCountStat(
-                    label: 'Total owed',
-                    stream: FirebaseFirestore.instance
-                        .collection('customer')
-                        .where('active', isEqualTo: true)
-                        .snapshots(),
-                    sumField: 'balance',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _StatSection(
-                title: 'Payments',
-                icon: Icons.payments_outlined,
-                children: [
-                  _StreamCountStat(
-                    label: 'Received',
-                    stream: FirebaseFirestore.instance
-                        .collection('payment')
-                        .where('type', isEqualTo: 'received')
-                        .snapshots(),
-                    sumField: 'amount',
-                  ),
-                  _StreamCountStat(
-                    label: 'Made',
-                    stream: FirebaseFirestore.instance
-                        .collection('payment')
-                        .where('type', isEqualTo: 'made')
-                        .snapshots(),
-                    sumField: 'amount',
-                  ),
-                ],
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -264,59 +254,51 @@ class _StatSection extends StatelessWidget {
   }
 }
 
-class _StreamCountStat extends StatelessWidget {
+class _SummaryStat extends StatelessWidget {
   final String label;
-  final Stream<QuerySnapshot<Map<String, dynamic>>> stream;
+  final Object? bucket;
   final String? sumField;
 
-  const _StreamCountStat({
+  const _SummaryStat({
     required this.label,
-    required this.stream,
+    required this.bucket,
     this.sumField,
   });
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: stream,
-      builder: (context, snap) {
-        final count = snap.data?.docs.length ?? 0;
-        double sum = 0;
-        if (sumField != null && snap.hasData) {
-          for (final doc in snap.data!.docs) {
-            final val = doc.data()[sumField!];
-            if (val is num) sum += val.toDouble();
-          }
-        }
+    final map = bucket is Map ? bucket as Map<dynamic, dynamic> : const {};
+    final countRaw = map['count'];
+    final count = countRaw is num ? countRaw.toInt() : 0;
+    final sumRaw = sumField != null ? map[sumField!] : null;
+    final sum = sumRaw is num ? sumRaw.toDouble() : 0.0;
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label),
+          Row(
             children: [
-              Text(label),
-              Row(
-                children: [
-                  Text(
-                    '$count',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  if (sumField != null) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      '\$${sum.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                  ],
-                ],
+              Text(
+                '$count',
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
+              if (sumField != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '\$${sum.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
             ],
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }

@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod/legacy.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
@@ -15,6 +16,9 @@ import '../../../app/shared_widgets/drawers/user_drawer.dart';
 import '../../../app/shared_widgets/navigation/details_appbar_adapter.dart';
 import '../../../app/shared_widgets/navigation/home_navbar_adapter.dart';
 import '../../../common/communications/comm_menu.dart';
+
+final marketplaceResellSearchVisibleProvider =
+    StateProvider<bool>((_) => false);
 
 class MarketplaceResellScreen extends ConsumerStatefulWidget {
   const MarketplaceResellScreen({super.key});
@@ -100,10 +104,22 @@ class _MarketplaceResellScreenState
             actions: const [],
             communications: buildAdminCommunicationMenuItems(context),
           );
+          final searchActive =
+              ref.watch(marketplaceResellSearchVisibleProvider);
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DetailsAppBar(title: 'Resell', menuSections: menuSections),
+              DetailsAppBar(
+                title: 'Resell',
+                menuSections: menuSections,
+                showSearchToggle: true,
+                searchActive: searchActive,
+                onSearchToggle: () {
+                  final notifier = ref
+                      .read(marketplaceResellSearchVisibleProvider.notifier);
+                  notifier.state = !notifier.state;
+                },
+              ),
               const HomeNavBarAdapter(),
             ],
           );

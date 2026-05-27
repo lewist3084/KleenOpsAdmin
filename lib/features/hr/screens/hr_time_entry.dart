@@ -333,6 +333,8 @@ class _TimeEntryContentState extends State<_TimeEntryContent> {
                                             RegExp(r'[\d.]')),
                                       ],
                                       style: const TextStyle(fontSize: 13),
+                                      textInputAction: TextInputAction.next,
+                                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                                       onChanged: (val) {
                                         final hours =
                                             double.tryParse(val) ?? 0;

@@ -19,6 +19,8 @@ import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
+import 'package:shared_widgets/theme/app_palette.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class AdminComplianceScreen extends StatelessWidget {
   const AdminComplianceScreen({super.key});
@@ -138,14 +140,14 @@ class _ComplianceContentState extends State<_ComplianceContent> {
       );
       final total = counts.values.fold(0, (a, b) => a + b);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Seeded $total reference documents')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Seeded $total reference documents')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Seed error: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Seed error: $e')),
         );
       }
     } finally {
@@ -273,22 +275,28 @@ class _ComplianceContentState extends State<_ComplianceContent> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
-                border: Border.all(color: Colors.blue[200]!),
+                color: AppPaletteScope.of(context)
+                    .primary2
+                    .withValues(alpha: 0.12),
+                border: Border.all(
+                    color: AppPaletteScope.of(context)
+                        .primary2
+                        .withValues(alpha: 0.5)),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(Icons.info_outline,
-                      color: Colors.blue[800], size: 20),
+                      color: AppPaletteScope.of(context).primary2, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'This page shows shared reference data for all companies. '
                       'Use the Compliance Dashboard to track your company-specific compliance status.',
-                      style:
-                          TextStyle(fontSize: 13, color: Colors.blue[900]),
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: AppPaletteScope.of(context).primary2),
                     ),
                   ),
                 ],

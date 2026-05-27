@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class AdminPolicyFormScreen extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -106,8 +109,8 @@ class _AdminPolicyFormState extends State<AdminPolicyFormScreen> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Save failed: $e')),
         );
       }
     } finally {
@@ -118,10 +121,8 @@ class _AdminPolicyFormState extends State<AdminPolicyFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: StandardAppBar(
-        title: widget._isEditing ? 'Edit Policy' : 'New Policy',
-      ),
-      body: _loading
+      body: BookendedCanvas(
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
@@ -136,6 +137,8 @@ class _AdminPolicyFormState extends State<AdminPolicyFormScreen> {
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? 'Title is required'
                         : null,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
@@ -172,6 +175,8 @@ class _AdminPolicyFormState extends State<AdminPolicyFormScreen> {
                     controller: _versionCtrl,
                     decoration:
                         const InputDecoration(labelText: 'Version'),
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -181,6 +186,8 @@ class _AdminPolicyFormState extends State<AdminPolicyFormScreen> {
                       hintText: 'YYYY-MM-DD',
                     ),
                     keyboardType: TextInputType.datetime,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   SwitchListTile(
@@ -201,14 +208,27 @@ class _AdminPolicyFormState extends State<AdminPolicyFormScreen> {
                     textCapitalization: TextCapitalization.sentences,
                     minLines: 8,
                     maxLines: 20,
+                    textInputAction: TextInputAction.newline,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ],
               ),
             ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _save,
-        isSaving: _saving,
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _save,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
+          ),
+          DetailsAppBar(
+            title: widget._isEditing ? 'Edit Policy' : 'New Policy',
+          ),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

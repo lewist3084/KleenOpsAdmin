@@ -10,6 +10,7 @@ import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:kleenops_admin/widgets/tiles/purchase_order_tile.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:kleenops_admin/features/purchasing/details/purchasing_order_details.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class PurchasingOrdersContent extends ConsumerStatefulWidget {
   const PurchasingOrdersContent({super.key, this.searchVisible = false});
@@ -32,10 +33,10 @@ class _PurchasingOrdersContentState
     final oldData = docSnap.data();
     await ref.delete();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    SnackbarService.instance.showSnackBar(
       SnackBar(
         content: const Text('Purchase order deleted.'),
-        duration: const Duration(minutes: 5),
+        duration: const Duration(seconds: 5),
         action: SnackBarAction(
           label: 'UNDO',
           onPressed: () => ref.set(oldData),
@@ -66,16 +67,26 @@ class _PurchasingOrdersContentState
             .collection('purchaseOrder')
             .orderBy('createdAt', descending: true);
 
-        final list = StandardViewGroup(
-          queryStream: query.snapshots(),
-          groupBy: (doc) {
-            final ts = doc.data()['createdAt'] as Timestamp?;
-            if (ts == null) return 'Unknown';
-            return DateFormat('yMMMd').format(ts.toDate());
+        String? dayLabel(QueryDocumentSnapshot<Map<String, dynamic>> d) {
+          final ts = d.data()['createdAt'] as Timestamp?;
+          if (ts == null) return null;
+          return DateFormat('yMMMd').format(ts.toDate());
+        }
+
+        final list = StandardViewGroup.paginated(
+          query: query,
+          sectionHeaderBuilder: (ctx, doc, prev, _) {
+            final label = dayLabel(doc);
+            if (label == null) return null;
+            if (prev != null && dayLabel(prev) == label) return null;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(label,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 14)),
+            );
           },
-          groupSort: (a, b) => b.compareTo(a),
-          headerIcon: null,
-          itemBuilder: (doc) {
+          itemBuilder: (ctx, doc, _) {
             final data = doc.data();
             final vendorRef =
                 data['vendorId'] as DocumentReference<Map<String, dynamic>>?;

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
+import 'package:shared_widgets/tiles/standard_bubble_tile.dart';
 
 import '../../../app/routes.dart';
 import '../../../services/admin_firebase_service.dart';
@@ -43,26 +44,24 @@ class CompaniesHome extends StatelessWidget {
             }
 
             return ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               itemCount: docs.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final doc = docs[index];
                 final data = doc.data();
                 final name = data['name'] as String? ?? '(unnamed)';
                 final active = data['active'] as bool? ?? true;
 
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor:
-                        active ? palette.primary4 : Colors.grey.shade400,
-                    child: Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : '?',
-                      style: const TextStyle(color: Colors.white),
-                    ),
+                return StandardBubbleTile(
+                  title: name,
+                  description: active ? 'Active' : 'Inactive',
+                  leadingBackgroundColor:
+                      active ? palette.primary4 : Colors.grey.shade400,
+                  leadingChild: Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: const TextStyle(color: Colors.white),
                   ),
-                  title: Text(name),
-                  subtitle: Text(active ? 'Active' : 'Inactive'),
-                  trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.go(
                     '${AppRoutePaths.companiesDetails}?id=${doc.id}',
                   ),

@@ -15,6 +15,7 @@ import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:kleenops_admin/features/finances/services/pay_stub_pdf_service.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class FinancePayStubDetailsScreen extends ConsumerWidget {
   final String runId;
@@ -151,8 +152,9 @@ class _PayStubBodyState extends State<_PayStubBody> {
       if (kIsWeb) {
         // Web: can't save file easily, show snackbar
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          SnackbarService.instance.showSnackBar(
             const SnackBar(
+                duration: Duration(seconds: 5),
                 content: Text('PDF export not available on web yet')),
           );
         }
@@ -165,8 +167,8 @@ class _PayStubBodyState extends State<_PayStubBody> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF export error: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('PDF export error: $e')),
         );
       }
     } finally {

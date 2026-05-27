@@ -89,7 +89,7 @@ class FinanceAccountDetailsScreen extends StatelessWidget {
   }
 }
 
-class _AccountDetailsContent extends StatelessWidget {
+class _AccountDetailsContent extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
   final String docId;
 
@@ -99,11 +99,19 @@ class _AccountDetailsContent extends StatelessWidget {
   });
 
   @override
+  State<_AccountDetailsContent> createState() => _AccountDetailsContentState();
+}
+
+class _AccountDetailsContentState extends State<_AccountDetailsContent> {
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _accountStream;
+
+  @override
   Widget build(BuildContext context) {
-    final accountRef = FirebaseFirestore.instance.collection('account').doc(docId);
+    final accountRef =
+        FirebaseFirestore.instance.collection('account').doc(widget.docId);
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: accountRef.snapshots(),
+      stream: _accountStream ??= accountRef.snapshots(),
       builder: (context, snap) {
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -164,7 +172,10 @@ class _AccountDetailsContent extends StatelessWidget {
                   ),
                 ),
               ),
-              _TransactionList(companyRef: companyRef, accountRef: accountRef),
+              _TransactionList(
+                companyRef: widget.companyRef,
+                accountRef: accountRef,
+              ),
             ],
           ),
         );
@@ -173,7 +184,7 @@ class _AccountDetailsContent extends StatelessWidget {
   }
 }
 
-class _TransactionList extends StatelessWidget {
+class _TransactionList extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
   final DocumentReference<Map<String, dynamic>> accountRef;
 
@@ -183,19 +194,27 @@ class _TransactionList extends StatelessWidget {
   });
 
   @override
+  State<_TransactionList> createState() => _TransactionListState();
+}
+
+class _TransactionListState extends State<_TransactionList> {
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _debitStream;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _creditStream;
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
+      stream: _debitStream ??= FirebaseFirestore.instance
           .collection('timeline')
-          .where('debitAccountId', isEqualTo: accountRef)
+          .where('debitAccountId', isEqualTo: widget.accountRef)
           .orderBy('createdAt', descending: true)
           .limit(25)
           .snapshots(),
       builder: (context, debitSnap) {
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
+          stream: _creditStream ??= FirebaseFirestore.instance
               .collection('timeline')
-              .where('creditAccountId', isEqualTo: accountRef)
+              .where('creditAccountId', isEqualTo: widget.accountRef)
               .orderBy('createdAt', descending: true)
               .limit(25)
               .snapshots(),
@@ -242,7 +261,7 @@ class _TransactionList extends StatelessWidget {
                 final date = ts != null
                     ? DateFormat('MMM d, y').format(ts.toDate())
                     : '';
-                final isDebit = data['debitAccountId'] == accountRef;
+                final isDebit = data['debitAccountId'] == widget.accountRef;
 
                 return StandardTileSmallDart(
                   label: entryName,

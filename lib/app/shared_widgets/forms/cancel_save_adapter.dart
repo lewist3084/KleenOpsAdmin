@@ -17,6 +17,13 @@ class CancelSaveBar extends StatelessWidget {
   final Color? topBorderColor;
   final bool showBorder;
 
+  /// When false, the bar does not reserve space for the OS navigation bar
+  /// below its content. Set this when the bar is stacked above another
+  /// bottom widget (e.g. a DetailsAppBar) that sits against the screen
+  /// edge, so the nav-bar inset is reserved once — by the lowest widget —
+  /// rather than duplicated here.
+  final bool reserveNavBarSpace;
+
   const CancelSaveBar({
     super.key,
     this.onCancel,
@@ -29,14 +36,16 @@ class CancelSaveBar extends StatelessWidget {
     this.clipTopShadow = false,
     this.topBorderColor,
     this.showBorder = true,
+    this.reserveNavBarSpace = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final bottomInset = media.viewInsets.bottom;
-    final navPadding =
-        bottomInset > 0 ? 0.0 : media.viewPadding.bottom;
+    final navPadding = (bottomInset > 0 || !reserveNavBarSpace)
+        ? 0.0
+        : media.viewPadding.bottom;
     final effectiveCancelLabel = cancelLabel ?? 'Cancel';
     final effectiveSaveLabel = saveLabel ?? 'Save';
 
@@ -134,6 +143,7 @@ class CancelSaveBar extends StatelessWidget {
       padding: EdgeInsets.only(bottom: bottomInset),
       child: SafeArea(
         top: false,
+        bottom: reserveNavBarSpace,
         minimum: EdgeInsets.only(bottom: extraBottomPadding + navPadding),
         child: content,
       ),

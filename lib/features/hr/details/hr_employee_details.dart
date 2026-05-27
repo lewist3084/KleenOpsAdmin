@@ -19,6 +19,7 @@ import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:kleenops_admin/app/routes.dart';
 import 'package:kleenops_admin/features/hr/forms/hr_garnishment_form.dart';
 import 'package:kleenops_admin/features/hr/widgets/benefit_eligibility_badge.dart';
+import 'package:shared_widgets/tabs/lazy_tab_view.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:kleenops_admin/features/hr/utils/member_file_images.dart';
@@ -140,7 +141,8 @@ class HrEmployeesDetailsScreen extends ConsumerWidget {
               ),
         ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: palette.primary1.withAlpha(220),
+        backgroundColor: palette.primary2.withAlpha(220),
+        foregroundColor: Colors.black,
         tooltip: 'Edit Employee',
         child: const Icon(Icons.edit),
         onPressed: () {
@@ -299,7 +301,7 @@ class _EmployeeDetailsTabs extends StatelessWidget {
                             color: Colors.grey[600],
                           ),
                         ),
-                      _buildStatusChip(),
+                      _buildStatusChip(context),
                     ],
                   ),
                 ),
@@ -313,7 +315,6 @@ class _EmployeeDetailsTabs extends StatelessWidget {
             child: StandardTabBar(
               isScrollable: true,
               dividerColor: Colors.grey[300],
-              indicatorColor: Theme.of(context).primaryColor,
               indicatorWeight: 3.0,
               labelColor: Colors.black,
               unselectedLabelColor: Colors.grey[600],
@@ -330,16 +331,19 @@ class _EmployeeDetailsTabs extends StatelessWidget {
 
           // ── Tab content ──
           Expanded(
-            child: TabBarView(
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildOverviewTab(context),
-                _buildEmploymentTab(context),
-                _buildPayTaxTab(context),
-                _buildBankingTab(context),
-                _buildBenefitsTab(context),
-                _buildDocumentsTab(context),
-              ],
+            child: Builder(
+              builder: (context) => LazyTabView(
+                controller: DefaultTabController.of(context),
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildOverviewTab(context),
+                  _buildEmploymentTab(context),
+                  _buildPayTaxTab(context),
+                  _buildBankingTab(context),
+                  _buildBenefitsTab(context),
+                  _buildDocumentsTab(context),
+                ],
+              ),
             ),
           ),
         ],
@@ -347,7 +351,8 @@ class _EmployeeDetailsTabs extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusChip() {
+  Widget _buildStatusChip(BuildContext context) {
+    final palette = AppPaletteScope.of(context);
     final active = data['active'] ?? true;
     final employmentType = (data['employmentType'] ?? '').toString();
     return Padding(
@@ -377,15 +382,16 @@ class _EmployeeDetailsTabs extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
+                color: palette.primary2.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue[200]!),
+                border:
+                    Border.all(color: palette.primary2.withValues(alpha: 0.5)),
               ),
               child: Text(
                 _formatEmploymentType(employmentType),
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.blue[800],
+                  color: palette.primary2,
                   fontWeight: FontWeight.w500,
                 ),
               ),

@@ -139,12 +139,15 @@ class _FinanceAccountsContentState
                       ),
                       onChanged: (v) =>
                           setState(() => _searchQuery = v.toLowerCase()),
+                      textInputAction: TextInputAction.done,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
                   ),
                   const SizedBox(width: 8),
                   FloatingActionButton.small(
                     heroTag: 'addAccount',
-                    backgroundColor: palette.primary1.withAlpha(220),
+                    backgroundColor: palette.primary2.withAlpha(220),
+                    foregroundColor: Colors.black,
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(

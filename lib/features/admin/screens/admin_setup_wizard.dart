@@ -7,14 +7,25 @@ import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
+import 'package:shared_widgets/theme/app_palette.dart';
 import 'package:go_router/go_router.dart';
 import '../models/setup_wizard_data.dart';
 import '../services/setup_wizard_service.dart';
 import '../widgets/phone_provisioning_dialog.dart';
-import '../widgets/email_routing_dialog.dart';
 import '../widgets/website_generator_dialog.dart';
 import '../widgets/call_routing_dialog.dart';
 import '../widgets/registered_agent_dialog.dart';
+import '../widgets/business_name_dialog.dart';
+import '../widgets/business_tagline_dialog.dart';
+import '../widgets/operation_type_dialog.dart';
+import '../widgets/primary_address_dialog.dart';
+import '../widgets/business_email_dialog.dart';
+import '../widgets/entity_type_dialog.dart';
+import '../widgets/file_formation_docs_dialog.dart';
+import '../widgets/ein_dialog.dart';
+import '../widgets/naics_sic_dialog.dart';
+import '../widgets/duns_dialog.dart';
+import '../widgets/accounting_intro_dialog.dart';
 
 class AdminSetupWizardScreen extends StatefulWidget {
   const AdminSetupWizardScreen({super.key});
@@ -155,7 +166,7 @@ class _ProgressHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).primaryColor;
+    final color = AppPaletteScope.of(context).primary1;
     final isDone = progress >= 1.0;
     final accent = isDone ? Colors.green : color;
 
@@ -234,7 +245,7 @@ class _CategorySectionState extends State<_CategorySection> {
       return const SizedBox.shrink();
     }
 
-    final color = Theme.of(context).primaryColor;
+    final color = AppPaletteScope.of(context).primary1;
     final completedCount = visibleItems.where((item) {
       final data =
           (widget.itemsData[item.key] as Map<String, dynamic>?) ?? {};
@@ -335,6 +346,7 @@ class _CategorySectionState extends State<_CategorySection> {
                         itemData:
                             (widget.itemsData[item.key] as Map<String, dynamic>?) ??
                                 {},
+                        itemsData: widget.itemsData,
                         service: widget.service,
                       ),
                   ],
@@ -364,7 +376,7 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).primaryColor;
+    final color = AppPaletteScope.of(context).primary1;
 
     if (isComplete) {
       return Container(
@@ -429,17 +441,19 @@ class _CategoryChip extends StatelessWidget {
 class _WizardTile extends StatelessWidget {
   final WizardItem item;
   final Map<String, dynamic> itemData;
+  final Map<String, dynamic> itemsData;
   final SetupWizardService service;
 
   const _WizardTile({
     required this.item,
     required this.itemData,
+    required this.itemsData,
     required this.service,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).primaryColor;
+    final color = AppPaletteScope.of(context).primary1;
     final status = parseWizardStatus(itemData['status'] as String?);
     final isComplete = status == WizardItemStatus.complete;
     final tileColor = isComplete ? Colors.green : color;
@@ -550,15 +564,81 @@ class _WizardTile extends StatelessWidget {
       service.updateItemStatus(item.key, WizardItemStatus.inProgress);
     }
 
+    // Admin is itself a new business getting set up — default to fresh
+    // (non-existing) for dialogs that branch on it. If admin ever grows a
+    // top-level `businessKind` selector, thread that value through here.
+    const isExisting = false;
+    final domainItemData =
+        (itemsData['business_website'] as Map<String, dynamic>?) ?? const {};
+
     // Route to specialized dialogs for automated steps.
     final Widget dialog;
     switch (item.key) {
+      case 'business_name':
+        dialog = BusinessNameDialog(
+          itemData: itemData,
+          service: service,
+          isExisting: isExisting,
+        );
+      case 'business_tagline':
+        dialog = BusinessTaglineDialog(
+          itemData: itemData,
+          service: service,
+          isExisting: isExisting,
+        );
+      case 'operation_type':
+        dialog = OperationTypeDialog(
+          itemData: itemData,
+          service: service,
+        );
+      case 'primary_address':
+        dialog = PrimaryAddressDialog(
+          itemData: itemData,
+          service: service,
+        );
       case 'business_phone':
         dialog = PhoneProvisioningDialog(itemData: itemData);
       case 'business_website':
         dialog = WebsiteGeneratorDialog(itemData: itemData);
       case 'business_email':
-        dialog = EmailRoutingDialog(itemData: itemData);
+        dialog = BusinessEmailDialog(
+          itemData: itemData,
+          domainItemData: domainItemData,
+          service: service,
+          isExisting: isExisting,
+        );
+      case 'entity_type':
+        dialog = EntityTypeDialog(
+          itemData: itemData,
+          service: service,
+          isExisting: isExisting,
+        );
+      case 'file_formation_docs':
+        dialog = FileFormationDocsDialog(
+          itemData: itemData,
+          service: service,
+          isExisting: isExisting,
+        );
+      case 'ein_application':
+        dialog = EinDialog(
+          itemData: itemData,
+          service: service,
+          isExisting: isExisting,
+        );
+      case 'naics_sic_codes':
+        dialog = NaicsSicDialog(
+          itemData: itemData,
+          service: service,
+          isExisting: isExisting,
+        );
+      case 'duns_number':
+        dialog = DunsDialog(
+          itemData: itemData,
+          service: service,
+          isExisting: isExisting,
+        );
+      case 'accounting_intro':
+        dialog = AccountingIntroDialog(service: service);
       case 'call_routing':
         dialog = const CallRoutingDialog();
       case 'registered_agent':
@@ -586,7 +666,7 @@ class _StatusButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).primaryColor;
+    final color = AppPaletteScope.of(context).primary1;
 
     if (status == WizardItemStatus.complete) {
       return Container(
@@ -733,7 +813,7 @@ class _StepDialogState extends State<_StepDialog> {
     return AlertDialog(
       title: Row(
         children: [
-          Icon(widget.item.icon, color: Theme.of(context).primaryColor),
+          Icon(widget.item.icon, color: AppPaletteScope.of(context).primary1),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -785,6 +865,8 @@ class _StepDialogState extends State<_StepDialog> {
               ),
               minLines: 2,
               maxLines: 5,
+              textInputAction: TextInputAction.newline,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
           ],
         ),

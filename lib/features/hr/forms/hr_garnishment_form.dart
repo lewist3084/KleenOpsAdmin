@@ -209,6 +209,8 @@ class _HrGarnishmentFormState extends State<HrGarnishmentForm> {
               decoration: const InputDecoration(
                 labelText: 'Case / Order Number',
               ),
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 12),
 
@@ -236,6 +238,8 @@ class _HrGarnishmentFormState extends State<HrGarnishmentForm> {
                       }
                       return null;
                     },
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -272,6 +276,8 @@ class _HrGarnishmentFormState extends State<HrGarnishmentForm> {
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
               ],
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 12),
 
@@ -282,6 +288,8 @@ class _HrGarnishmentFormState extends State<HrGarnishmentForm> {
                 helperText: 'Who receives the garnishment payment',
               ),
               textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 12),
 
@@ -329,6 +337,8 @@ class _HrGarnishmentFormState extends State<HrGarnishmentForm> {
               minLines: 2,
               maxLines: 4,
               textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.newline,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
 
             const SizedBox(height: 16),

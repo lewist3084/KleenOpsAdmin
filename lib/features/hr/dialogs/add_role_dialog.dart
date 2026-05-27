@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class AddRoleDialog extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -52,8 +53,8 @@ class _AddRoleDialogState extends State<AddRoleDialog> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add role: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to add role: $e')),
         );
       }
     } finally {
@@ -74,6 +75,8 @@ class _AddRoleDialogState extends State<AddRoleDialog> {
           hintText: 'Enter role name',
         ),
         onSubmitted: (_) => _save(),
+        textInputAction: TextInputAction.done,
+        onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
       ),
       cancelText: 'Cancel',
       onCancel: () => Navigator.of(context).pop(false),

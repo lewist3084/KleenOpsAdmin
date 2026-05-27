@@ -114,8 +114,8 @@ class WizardItem {
 // ── Admin Setup Wizard ─────────────────────────────────────────────────────
 //
 // Phase 1: Get the business legally formed and operational.
-// No employees required. No bank account required.
-// Banking/Plaid setup lives in the Finance section.
+// Banking & Accounting (Plaid) is offered early so the built-in free
+// accounting software can start ingesting transactions immediately.
 // Employee-related compliance triggers when first employee is added in HR.
 
 const List<WizardCategory> kSetupWizardCategories = [
@@ -201,12 +201,47 @@ const List<WizardCategory> kSetupWizardCategories = [
     ],
   ),
 
-  // 3 ── Business Formation
+  // 3 ── Banking & Accounting
+  WizardCategory(
+    key: 'banking_accounting',
+    label: 'Banking & Accounting',
+    icon: Icons.account_balance_wallet,
+    position: 2,
+    items: [
+      WizardItem(
+        key: 'accounting_intro',
+        label: 'Free Built-in Accounting',
+        description:
+            'Your built-in QuickBooks-style accounting is included free. '
+            'Connect a bank or card and transactions flow in automatically.',
+        icon: Icons.menu_book_outlined,
+        position: 0,
+      ),
+      WizardItem(
+        key: 'link_bank_plaid',
+        label: 'Connect Your Bank Account',
+        description:
+            'Link a checking or savings account via Plaid (used by most major U.S. banks).',
+        icon: Icons.account_balance_outlined,
+        position: 1,
+      ),
+      WizardItem(
+        key: 'link_credit_card',
+        label: 'Connect a Credit Card',
+        description:
+            'Link a business credit card so expenses are auto-categorized.',
+        icon: Icons.credit_card_outlined,
+        position: 2,
+      ),
+    ],
+  ),
+
+  // 4 ── Business Formation
   WizardCategory(
     key: 'business_formation',
     label: 'Business Formation',
     icon: Icons.account_balance,
-    position: 2,
+    position: 3,
     items: [
       WizardItem(
         key: 'entity_type',
@@ -254,12 +289,12 @@ const List<WizardCategory> kSetupWizardCategories = [
     ],
   ),
 
-  // 4 ── Tax IDs & Federal
+  // 5 ── Tax IDs & Federal
   WizardCategory(
     key: 'tax_ids',
     label: 'Tax IDs & Federal Registration',
     icon: Icons.badge,
-    position: 3,
+    position: 4,
     items: [
       WizardItem(
         key: 'ein_application',
@@ -287,12 +322,12 @@ const List<WizardCategory> kSetupWizardCategories = [
     ],
   ),
 
-  // 5 ── State Registrations & Licenses
+  // 6 ── State Registrations & Licenses
   WizardCategory(
     key: 'state_registrations',
     label: 'State Registrations & Licenses',
     icon: Icons.verified,
-    position: 4,
+    position: 5,
     items: [
       WizardItem(
         key: 'state_business_registration',
@@ -337,12 +372,12 @@ const List<WizardCategory> kSetupWizardCategories = [
     ],
   ),
 
-  // 6 ── Insurance (solo operator — no workers' comp yet)
+  // 7 ── Insurance (solo operator — no workers' comp yet)
   WizardCategory(
     key: 'insurance',
     label: 'Insurance',
     icon: Icons.shield,
-    position: 5,
+    position: 6,
     items: [
       WizardItem(
         key: 'general_liability',
@@ -369,12 +404,12 @@ const List<WizardCategory> kSetupWizardCategories = [
     ],
   ),
 
-  // 7 ── Policies & Agreements (what you need to start serving clients)
+  // 8 ── Policies & Agreements (what you need to start serving clients)
   WizardCategory(
     key: 'policies_procedures',
     label: 'Policies & Agreements',
     icon: Icons.policy,
-    position: 6,
+    position: 7,
     items: [
       WizardItem(
         key: 'service_agreement',

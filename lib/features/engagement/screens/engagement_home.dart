@@ -3,54 +3,80 @@
 // Displays app owner reports submitted via the user drawer's "Report Issue"
 // flow in either kleenops or kleenops_admin. Reports live in the top-level
 // `timeline` collection (which only platformAdmin can read per firestore.rules)
-// tagged with type='app_owner_report'.
+// tagged with type='app_owner_report'. Hub menu links to the ported
+// Reports/Stats surfaces.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:kleenops_admin/app/routes.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
-
-import '../../../app/routes.dart';
-import '../../../app/shared_widgets/drawers/user_drawer.dart';
-import '../../../theme/palette.dart';
+import 'package:shared_widgets/drawers/menu_drawer.dart';
 
 class EngagementHome extends StatelessWidget {
   const EngagementHome({super.key});
 
+  Widget _wrapCanvas(Widget child) {
+    return StandardCanvas(
+      child: SafeArea(
+        top: true,
+        bottom: false,
+        child: Stack(
+          children: [
+            Positioned.fill(child: child),
+            const Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: CanvasTopBookend(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const palette = adminPalette;
+    Widget buildBottomBar({MenuDrawerSections? menuSections}) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DetailsAppBar(title: 'Engagement', menuSections: menuSections),
+          const HomeNavBarAdapter(),
+        ],
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
+      appBar: null,
       drawer: const UserDrawer(),
-      appBar: AppBar(
-        title: const Text('Engagement'),
-        backgroundColor: palette.primary1,
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go(AppRoutePaths.dashboard),
-        ),
-      ),
-      body: StandardCanvas(
-        child: SafeArea(
-          top: true,
-          bottom: false,
-          child: Stack(
-            children: [
-              const Positioned.fill(child: _AppOwnerReportsList()),
-              const Positioned(
-                left: 0,
-                right: 0,
-                top: 0,
-                child: CanvasTopBookend(),
+      body: _wrapCanvas(const _AppOwnerReportsList()),
+      bottomNavigationBar: Consumer(
+        builder: (context, ref, _) {
+          final menuSections = MenuDrawerSections(
+            actions: [
+              ContentMenuItem(
+                icon: Icons.poll_outlined,
+                label: 'Reports',
+                onTap: () => context.push(AppRoutePaths.engagementReports),
+              ),
+              ContentMenuItem(
+                icon: Icons.bar_chart_outlined,
+                label: 'Stats',
+                onTap: () => context.push(AppRoutePaths.engagementStats),
               ),
             ],
-          ),
-        ),
+          );
+          return buildBottomBar(menuSections: menuSections);
+        },
       ),
     );
   }
@@ -84,11 +110,13 @@ class _AppOwnerReportsList extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         final docs = snapshot.data?.docs ?? const [];
+        final bottomInset = kBottomNavigationBarHeight + 16.0 +
+            MediaQuery.of(context).padding.bottom;
         if (docs.isEmpty) {
-          return const Center(
+          return Center(
             child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Column(
+              padding: EdgeInsets.fromLTRB(24, 0, 24, bottomInset),
+              child: const Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.flag_outlined, size: 48, color: Colors.grey),
@@ -111,7 +139,7 @@ class _AppOwnerReportsList extends StatelessWidget {
         }
 
         return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+          padding: EdgeInsets.fromLTRB(12, 12, 12, bottomInset),
           itemCount: docs.length,
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {

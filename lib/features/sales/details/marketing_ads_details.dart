@@ -22,13 +22,22 @@ import 'package:kleenops_admin/widgets/viewers/image_viewer.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
-class MarketingAdsDetailsScreen extends StatelessWidget {
+class MarketingAdsDetailsScreen extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> docRef;
   const MarketingAdsDetailsScreen({super.key, required this.docRef});
 
+  @override
+  State<MarketingAdsDetailsScreen> createState() =>
+      _MarketingAdsDetailsScreenState();
+}
+
+class _MarketingAdsDetailsScreenState extends State<MarketingAdsDetailsScreen> {
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _adsDocStream;
+
   DocumentReference<Map<String, dynamic>> get _companyRef =>
-      docRef.parent.parent!;
+      widget.docRef.parent.parent!;
 
   String _normalizeFileType(Map<String, dynamic> data, String url) {
     final fileType = (data['fileType'] ?? data['mediaType'] ?? '')
@@ -128,8 +137,8 @@ class MarketingAdsDetailsScreen extends StatelessWidget {
       await OpenFilex.open(file.path);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cannot open document: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Cannot open document: $e')),
         );
       }
     }
@@ -138,7 +147,7 @@ class MarketingAdsDetailsScreen extends StatelessWidget {
   Future<int> _nextOrder() async {
     final snap = await FirebaseFirestore.instance
         .collection('file')
-        .where('marketingMaterialRef', isEqualTo: docRef)
+        .where('marketingMaterialRef', isEqualTo: widget.docRef)
         .get();
     if (snap.docs.isEmpty) return 0;
     var maxOrder = 0;
@@ -170,7 +179,7 @@ class MarketingAdsDetailsScreen extends StatelessWidget {
       'name': name,
       'mediaType': fileType,
       'fileType': fileType,
-      'marketingMaterialRef': docRef,
+      'marketingMaterialRef': widget.docRef,
       'marketingMediaRole': fileType,
       'order': order,
       'isMaster': order == 0,
@@ -183,7 +192,7 @@ class MarketingAdsDetailsScreen extends StatelessWidget {
   Future<_MarketingMedia> _loadMedia() async {
     final snap = await FirebaseFirestore.instance
         .collection('file')
-        .where('marketingMaterialRef', isEqualTo: docRef)
+        .where('marketingMaterialRef', isEqualTo: widget.docRef)
         .get();
     if (snap.docs.isEmpty) {
       return const _MarketingMedia(images: [], documents: []);
@@ -276,7 +285,7 @@ class MarketingAdsDetailsScreen extends StatelessWidget {
             ),
       body: _wrapCanvas(
           StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: docRef.snapshots(),
+            stream: _adsDocStream ??= widget.docRef.snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));

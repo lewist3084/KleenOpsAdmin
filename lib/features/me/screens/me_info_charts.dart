@@ -6,10 +6,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:kleenops_admin/widgets/charts/column_chart.dart';
+import 'package:shared_widgets/charts/chart_filter_pills.dart';
+import 'package:shared_widgets/tabs/lazy_tab_view.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
-
-/// How to slice our dates
-enum ChartInterval { daily, weekly, monthly, annual }
 
 class MeInfoChartsContent extends ConsumerStatefulWidget {
   /// Optional override to show another user’s stats
@@ -25,7 +24,8 @@ class MeInfoChartsContent extends ConsumerStatefulWidget {
 }
 
 class _MeInfoChartsContentState extends ConsumerState<MeInfoChartsContent> {
-  ChartInterval _selectedInterval = ChartInterval.weekly;
+  ChartGroupBy _groupBy = ChartGroupBy.day;
+  ChartAperture _aperture = ChartAperture.week;
 
   @override
   Widget build(BuildContext context) {
@@ -67,22 +67,29 @@ class _MeInfoChartsContentState extends ConsumerState<MeInfoChartsContent> {
                 ],
               ),
             Expanded(
-              child: TabBarView(
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  ListView(
-                    padding: EdgeInsets.fromLTRB(12, 12, 12, bottomPadding),
-                    children: [
-                      _buildHoursVsScheduled(companyRef, memberRef),
-                    ],
-                  ),
-                  ListView(
-                    padding: EdgeInsets.fromLTRB(12, 12, 12, bottomPadding),
-                    children: [
-                      _buildContributionVsWorked(companyRef, memberRef),
-                    ],
-                  ),
-                ],
+              child: Builder(
+                builder: (context) => LazyTabView(
+                  controller: DefaultTabController.of(context),
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    ListView(
+                      padding:
+                          EdgeInsets.fromLTRB(12, 12, 12, bottomPadding),
+                      children: [
+                        _buildFilterPills(),
+                        _buildHoursVsScheduled(companyRef, memberRef),
+                      ],
+                    ),
+                    ListView(
+                      padding:
+                          EdgeInsets.fromLTRB(12, 12, 12, bottomPadding),
+                      children: [
+                        _buildFilterPills(),
+                        _buildContributionVsWorked(companyRef, memberRef),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -91,12 +98,23 @@ class _MeInfoChartsContentState extends ConsumerState<MeInfoChartsContent> {
     );
   }
 
+  Widget _buildFilterPills() {
+    return ChartFilterPills(
+      groupBy: _groupBy,
+      aperture: _aperture,
+      onGroupByChanged: (g) => setState(() => _groupBy = g),
+      onApertureChanged: (a) => setState(() => _aperture = a),
+    );
+  }
+
   Widget _buildHoursVsScheduled(
     DocumentReference<Map<String, dynamic>> companyRef,
     DocumentReference<Map<String, dynamic>> memberRef,
   ) {
     return FutureBuilder<List<ChartData>>(
-      future: _loadHoursVsScheduled(companyRef, memberRef, _selectedInterval),
+      key: ValueKey('hvs-${_groupBy.name}-${_aperture.name}'),
+      future: _loadHoursVsScheduled(
+          companyRef, memberRef, _groupBy, _aperture),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -125,8 +143,9 @@ class _MeInfoChartsContentState extends ConsumerState<MeInfoChartsContent> {
     DocumentReference<Map<String, dynamic>> memberRef,
   ) {
     return FutureBuilder<List<ChartData>>(
-      future:
-          _loadContributionVsWorked(companyRef, memberRef, _selectedInterval),
+      key: ValueKey('cvw-${_groupBy.name}-${_aperture.name}'),
+      future: _loadContributionVsWorked(
+          companyRef, memberRef, _groupBy, _aperture),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -159,13 +178,17 @@ class _MeInfoChartsContentState extends ConsumerState<MeInfoChartsContent> {
   Future<List<ChartData>> _loadHoursVsScheduled(
     DocumentReference<Map<String, dynamic>> companyRef,
     DocumentReference<Map<String, dynamic>> memberRef,
-    ChartInterval interval,
+    ChartGroupBy groupBy,
+    ChartAperture aperture,
   ) async {
-    // Only chart new entries that use memberId
-    final snap = await FirebaseFirestore.instance
+    final cutoff = chartCutoffForAperture(aperture);
+    Query<Map<String, dynamic>> q = FirebaseFirestore.instance
         .collection('timeline')
-        .where('memberId', isEqualTo: memberRef)
-        .get();
+        .where('memberId', isEqualTo: memberRef);
+    if (cutoff != null) {
+      q = q.where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(cutoff));
+    }
+    final snap = await q.get();
     final worked = <DateTime, double>{};
     final scheduled = <DateTime, double>{};
     final now = DateTime.now();
@@ -182,7 +205,7 @@ class _MeInfoChartsContentState extends ConsumerState<MeInfoChartsContent> {
       final endTs = data['endTime'] as Timestamp?;
       final start = startTs.toDate();
       final end = endTs?.toDate();
-      final bucket = _bucketForDate(start, interval);
+      final bucket = chartBucketForDate(start, groupBy);
 
       // Prefer explicit duration; fallback to end-start difference.
       double minutes = (data['duration'] is num) ? (data['duration'] as num).toDouble() : 0.0;
@@ -206,13 +229,17 @@ class _MeInfoChartsContentState extends ConsumerState<MeInfoChartsContent> {
   Future<List<ChartData>> _loadContributionVsWorked(
     DocumentReference<Map<String, dynamic>> companyRef,
     DocumentReference<Map<String, dynamic>> memberRef,
-    ChartInterval interval,
+    ChartGroupBy groupBy,
+    ChartAperture aperture,
   ) async {
-    // Only chart new entries that use memberId
-    final snap = await FirebaseFirestore.instance
+    final cutoff = chartCutoffForAperture(aperture);
+    Query<Map<String, dynamic>> q = FirebaseFirestore.instance
         .collection('timeline')
-        .where('memberId', isEqualTo: memberRef)
-        .get();
+        .where('memberId', isEqualTo: memberRef);
+    if (cutoff != null) {
+      q = q.where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(cutoff));
+    }
+    final snap = await q.get();
     final contrib = <DateTime, double>{};
     final worked = <DateTime, double>{};
     for (final doc in snap.docs) {
@@ -225,7 +252,7 @@ class _MeInfoChartsContentState extends ConsumerState<MeInfoChartsContent> {
       final startTs = data['startTime'] as Timestamp?;
       if (startTs == null) continue;
       final endTs = data['endTime'] as Timestamp?;
-      final bucket = _bucketForDate(startTs.toDate(), interval);
+      final bucket = chartBucketForDate(startTs.toDate(), groupBy);
 
       // Prefer explicit duration; fallback to end-start difference.
       double minutes = (data['duration'] is num) ? (data['duration'] as num).toDouble() : 0.0;
@@ -257,20 +284,6 @@ class _MeInfoChartsContentState extends ConsumerState<MeInfoChartsContent> {
       return list.map((d) => ChartData(d.period, d.actual, d.scheduled)).toList();
     }
     return list;
-  }
-
-  DateTime _bucketForDate(DateTime d, ChartInterval interval) {
-    switch (interval) {
-      case ChartInterval.daily:
-        return DateTime(d.year, d.month, d.day);
-      case ChartInterval.weekly:
-        final monday = d.subtract(Duration(days: d.weekday - 1));
-        return DateTime(monday.year, monday.month, monday.day);
-      case ChartInterval.monthly:
-        return DateTime(d.year, d.month);
-      case ChartInterval.annual:
-        return DateTime(d.year);
-    }
   }
 
   List<ChartData> _toChartData({

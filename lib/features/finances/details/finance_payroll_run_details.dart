@@ -17,9 +17,11 @@ import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:kleenops_admin/features/finances/services/payroll_service.dart';
 import 'package:kleenops_admin/features/finances/services/ach_file_service.dart';
 import 'package:kleenops_admin/features/finances/services/payroll_distribution_service.dart';
+import 'package:shared_widgets/theme/app_palette.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class FinancePayrollRunDetailsScreen extends ConsumerWidget {
   final String runId;
@@ -123,14 +125,14 @@ class _RunDetailsBodyState extends State<_RunDetailsBody> {
         runId: widget.runId,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$sent pay stub email(s) sent')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('$sent pay stub email(s) sent')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Email error: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Email error: $e')),
         );
       }
     } finally {
@@ -159,8 +161,9 @@ class _RunDetailsBodyState extends State<_RunDetailsBody> {
 
       if (achContent.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          SnackbarService.instance.showSnackBar(
             const SnackBar(
+                duration: Duration(seconds: 5),
                 content:
                     Text('No direct deposit entries to generate')),
           );
@@ -179,14 +182,14 @@ class _RunDetailsBodyState extends State<_RunDetailsBody> {
         );
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ACH file generated')),
+        SnackbarService.instance.showSnackBar(
+          const SnackBar(duration: Duration(seconds: 5), content: Text('ACH file generated')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('ACH error: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('ACH error: $e')),
         );
       }
     } finally {
@@ -232,7 +235,7 @@ class _RunDetailsBodyState extends State<_RunDetailsBody> {
                   context,
                   'Approve Payroll',
                   Icons.thumb_up_outlined,
-                  Colors.blue,
+                  AppPaletteScope.of(context).primary2,
                   () => _approve(context),
                 ),
                 const SizedBox(height: 8),
@@ -445,7 +448,11 @@ class _RunDetailsBodyState extends State<_RunDetailsBody> {
   }
 
   Widget _actionButton(BuildContext context, String label, IconData icon,
-      MaterialColor color, VoidCallback onTap) {
+      Color color, VoidCallback onTap) {
+    final foreground =
+        ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+            ? Colors.white
+            : Colors.black;
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
@@ -454,7 +461,7 @@ class _RunDetailsBodyState extends State<_RunDetailsBody> {
         label: Text(label),
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
-          foregroundColor: Colors.white,
+          foregroundColor: foreground,
           padding: const EdgeInsets.symmetric(vertical: 12),
         ),
       ),
@@ -469,8 +476,8 @@ class _RunDetailsBodyState extends State<_RunDetailsBody> {
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to approve: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to approve: $e')),
         );
       }
     }
@@ -484,8 +491,8 @@ class _RunDetailsBodyState extends State<_RunDetailsBody> {
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to process: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to process: $e')),
         );
       }
     }

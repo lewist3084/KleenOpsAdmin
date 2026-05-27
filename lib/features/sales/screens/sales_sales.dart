@@ -118,9 +118,8 @@ class _SalesSalesContentState extends ConsumerState<SalesSalesContent> {
 
         final query = FirebaseFirestore.instance.collection('customer').orderBy('name');
 
-        final list = StandardViewGroup(
-          queryStream: query.snapshots(),
-          groupBy: (_) => '',
+        final list = StandardViewGroup.paginated(
+          query: query,
           onTap: (doc) {
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -133,7 +132,7 @@ class _SalesSalesContentState extends ConsumerState<SalesSalesContent> {
               ),
             );
           },
-          itemBuilder: (doc) {
+          itemBuilder: (ctx, doc, _) {
             final data = doc.data();
             final name = data['name'] ?? '';
             return StandardTileSmallDart.iconText(

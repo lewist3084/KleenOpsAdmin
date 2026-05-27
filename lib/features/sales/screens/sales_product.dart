@@ -38,6 +38,8 @@ class _SalesProductContentState extends ConsumerState<SalesProductContent> {
                 labelText: 'Name',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -46,6 +48,8 @@ class _SalesProductContentState extends ConsumerState<SalesProductContent> {
                 labelText: 'Description',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.done,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
           ],
         ),
@@ -91,9 +95,8 @@ class _SalesProductContentState extends ConsumerState<SalesProductContent> {
 
         final query = FirebaseFirestore.instance.collection('product').orderBy('name');
 
-        final list = StandardViewGroup(
-          queryStream: query.snapshots(),
-          groupBy: (_) => '',
+        final list = StandardViewGroup.paginated(
+          query: query,
           onTap: (doc) {
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -107,7 +110,7 @@ class _SalesProductContentState extends ConsumerState<SalesProductContent> {
               ),
             );
           },
-          itemBuilder: (doc) {
+          itemBuilder: (ctx, doc, _) {
             final data = doc.data();
             final name = data['name'] ?? '';
             return StandardTileSmallDart.iconText(

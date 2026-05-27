@@ -7,6 +7,7 @@ import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter
 import 'package:kleenops_admin/common/communications/comm_menu.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
+import 'package:shared_widgets/tiles/standard_bubble_tile.dart';
 
 /// Company member directory — lists active members with contact info.
 class AdminDirectoryScreen extends ConsumerWidget {
@@ -68,9 +69,9 @@ class _MemberList extends StatelessWidget {
         }
 
         return ListView.separated(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           itemCount: docs.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final d = docs[index].data();
             final name = (d['name'] as String?) ?? '';
@@ -82,14 +83,12 @@ class _MemberList extends StatelessWidget {
             final initials = name.split(' ').where((p) => p.isNotEmpty).map(
                 (p) => p[0].toUpperCase()).take(2).join();
 
-            return ListTile(
-              leading: CircleAvatar(child: Text(initials)),
-              title: Text(name),
-              subtitle: Text(
-                [if (role.isNotEmpty) role, if (email.isNotEmpty) email]
-                    .join(' • '),
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              ),
+            return StandardBubbleTile(
+              title: name,
+              description:
+                  [if (role.isNotEmpty) role, if (email.isNotEmpty) email]
+                      .join(' • '),
+              leadingChild: Text(initials),
               trailing: phone.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.phone, size: 20),

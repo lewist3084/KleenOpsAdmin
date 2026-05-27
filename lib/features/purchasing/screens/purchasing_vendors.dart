@@ -157,6 +157,8 @@ class _PurchasingVendorsContentState
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(labelText: 'Name'),
+          textInputAction: TextInputAction.done,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         cancelText: 'Cancel',
         onCancel: () => Navigator.of(ctx).pop(),

@@ -3,8 +3,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class FinanceAccountForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -131,8 +134,8 @@ class _FinanceAccountFormState extends State<FinanceAccountForm> {
       Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save account: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to save account: $e')),
         );
       }
     } finally {
@@ -143,10 +146,10 @@ class _FinanceAccountFormState extends State<FinanceAccountForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: StandardAppBar(title: _isEditing ? 'Edit Account' : 'New Account'),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Form(
+      body: BookendedCanvas(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : Form(
               key: _formKey,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
@@ -157,6 +160,8 @@ class _FinanceAccountFormState extends State<FinanceAccountForm> {
                     textCapitalization: TextCapitalization.words,
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
@@ -199,14 +204,25 @@ class _FinanceAccountFormState extends State<FinanceAccountForm> {
                     textCapitalization: TextCapitalization.sentences,
                     minLines: 2,
                     maxLines: 4,
+                    textInputAction: TextInputAction.newline,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ],
               ),
             ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _save,
-        isSaving: _saving,
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _save,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
+          ),
+          DetailsAppBar(title: _isEditing ? 'Edit Account' : 'New Account'),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

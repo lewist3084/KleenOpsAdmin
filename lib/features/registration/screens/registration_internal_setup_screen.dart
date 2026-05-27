@@ -22,6 +22,7 @@ import '../../../app/routes.dart';
 import '../../../theme/palette.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../services/registration_service.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 const String _kOtherPropertyTypeKey = '__other__';
 
@@ -55,22 +56,23 @@ class _RegistrationInternalSetupScreenState
   Future<void> _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a company name.')),
+      SnackbarService.instance.showSnackBar(
+        const SnackBar(duration: Duration(seconds: 5), content: Text('Please enter a company name.')),
       );
       return;
     }
     if (_selectedKey == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please pick a property type.')),
+      SnackbarService.instance.showSnackBar(
+        const SnackBar(duration: Duration(seconds: 5), content: Text('Please pick a property type.')),
       );
       return;
     }
     final isOther = _selectedKey == _kOtherPropertyTypeKey;
     final customType = (_customPropertyTypeName ?? '').trim();
     if (isOther && customType.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      SnackbarService.instance.showSnackBar(
         const SnackBar(
+          duration: Duration(seconds: 5),
           content: Text('Please enter a name for your property type.'),
         ),
       );
@@ -112,8 +114,8 @@ class _RegistrationInternalSetupScreenState
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating company: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Error creating company: $e')),
         );
       }
     }
@@ -147,6 +149,8 @@ class _RegistrationInternalSetupScreenState
           content: TextField(
             controller: controller,
             autofocus: true,
+            textInputAction: TextInputAction.done,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             decoration: const InputDecoration(
               labelText: 'Property type name',
               border: OutlineInputBorder(),
@@ -253,6 +257,8 @@ class _RegistrationInternalSetupScreenState
                     TextField(
                       controller: _nameController,
                       enabled: !_saving,
+                      textInputAction: TextInputAction.done,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                       decoration: const InputDecoration(
                         labelText: 'Company name',
                         border: OutlineInputBorder(),
@@ -343,8 +349,8 @@ class _RegistrationInternalSetupScreenState
                     ElevatedButton(
                       onPressed: _saving ? null : _save,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: palette.primary1,
-                        foregroundColor: Colors.white,
+                        backgroundColor: palette.primary2,
+                        foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),

@@ -230,6 +230,8 @@ class _HrOnboardingTemplateFormState extends State<HrOnboardingTemplateForm> {
                       validator: (v) => (v == null || v.trim().isEmpty)
                           ? 'Name is required'
                           : null,
+                      textInputAction: TextInputAction.done,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
                   ),
                   Padding(
@@ -380,6 +382,8 @@ class _AddStepDialogState extends State<_AddStepDialog> {
             decoration: const InputDecoration(labelText: 'Step Title'),
             textCapitalization: TextCapitalization.sentences,
             autofocus: true,
+            textInputAction: TextInputAction.next,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
@@ -402,6 +406,8 @@ class _AddStepDialogState extends State<_AddStepDialog> {
             controller: _descCtrl,
             decoration: const InputDecoration(labelText: 'Description'),
             textCapitalization: TextCapitalization.sentences,
+            textInputAction: TextInputAction.done,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           ),
           const SizedBox(height: 8),
           SwitchListTile(

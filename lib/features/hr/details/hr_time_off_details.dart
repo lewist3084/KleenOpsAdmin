@@ -14,6 +14,7 @@ import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/container_header.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class HrTimeOffDetailsScreen extends ConsumerStatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -120,8 +121,9 @@ class _HrTimeOffDetailsScreenState
     try {
       await docRef.update(updateData);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        SnackbarService.instance.showSnackBar(
           SnackBar(
+              duration: const Duration(seconds: 5),
               content: Text(
                   'Request ${status == 'approved' ? 'approved' : 'denied'}')),
         );
@@ -129,8 +131,8 @@ class _HrTimeOffDetailsScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to update: $e')),
         );
       }
     }

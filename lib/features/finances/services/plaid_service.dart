@@ -1,11 +1,22 @@
 // plaid_service.dart
 
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:plaid_flutter/plaid_flutter.dart';
+
+import 'plaid_oauth_state_io.dart'
+    if (dart.library.html) 'plaid_oauth_state_web.dart' as oauth_state;
+
+String _plaidPlatform() {
+  if (kIsWeb) return 'web';
+  if (Platform.isAndroid) return 'android';
+  if (Platform.isIOS) return 'ios';
+  return 'web';
+}
 
 class PlaidService {
   PlaidService({required this.companyRef});
@@ -15,10 +26,16 @@ class PlaidService {
   String get _companyId => companyRef.id;
 
   /// Creates a Plaid Link token via Cloud Functions.
-  Future<String> createLinkToken() async {
+  /// [language] is the BCP-47 / Plaid language code (en, es, fr, …) used to
+  /// render Plaid Link UI. Unsupported codes silently fall back to English.
+  Future<String> createLinkToken({String language = 'en'}) async {
     final callable =
         FirebaseFunctions.instance.httpsCallable('financeCreateLinkToken');
-    final result = await callable.call({'companyId': _companyId});
+    final result = await callable.call({
+      'companyId': _companyId,
+      'platform': _plaidPlatform(),
+      'language': language,
+    });
     return result.data['linkToken'] as String;
   }
 
@@ -73,52 +90,92 @@ class PlaidService {
 
   /// Opens Plaid Link and handles the result.
   /// Returns true if an institution was successfully connected.
-  Future<bool> openPlaidLink() async {
+  /// [language] is the BCP-47 language code for Plaid Link UI.
+  Future<bool> openPlaidLink({String language = 'en'}) async {
     try {
-      final linkToken = await createLinkToken();
+      final linkToken = await createLinkToken(language: language);
+      // Persist the link_token on web so resumePlaidOauthIfPending can
+      // re-create Link with the same token after the OAuth redirect.
+      if (kIsWeb) oauth_state.saveLinkToken(linkToken);
+
       final linkConfig = LinkTokenConfiguration(token: linkToken);
-
-      // Create the Link handler
-      await PlaidLink.create(configuration: linkConfig);
-
-      // Set up stream listeners before opening
-      final completer = Completer<bool>();
-
-      final successSub = PlaidLink.onSuccess.listen((success) async {
-        try {
-          await exchangePublicToken(
-            publicToken: success.publicToken,
-            institutionId: success.metadata.institution?.id ?? '',
-            institutionName: success.metadata.institution?.name ?? '',
-          );
-          if (!completer.isCompleted) completer.complete(true);
-        } catch (e) {
-          debugPrint('PlaidService exchange error: $e');
-          if (!completer.isCompleted) completer.complete(false);
-        }
-      });
-
-      final exitSub = PlaidLink.onExit.listen((exit) {
-        if (!completer.isCompleted) {
-          completer.complete(false);
-        }
-      });
-
-      // Open the Link flow
-      await PlaidLink.open();
-
-      // Wait for result
-      final result = await completer.future;
-
-      // Clean up subscriptions
-      await successSub.cancel();
-      await exitSub.cancel();
-
-      return result;
+      return _runPlaidSession(linkConfig);
     } catch (e) {
       debugPrint('PlaidService.openPlaidLink error: $e');
       return false;
     }
+  }
+
+  /// Web-only: if the current URL is the Plaid OAuth redirect target with an
+  /// `oauth_state_id` query param, re-open Plaid Link with
+  /// `receivedRedirectUri` so the session resumes where the user left off.
+  /// Returns true if a resume was attempted and succeeded.
+  static Future<bool> resumePlaidOauthIfPending({
+    DocumentReference<Map<String, dynamic>>? companyRef,
+  }) async {
+    if (!kIsWeb) return false;
+    final redirectUri = oauth_state.readOauthRedirectUri();
+    if (redirectUri == null) return false;
+    final savedToken = oauth_state.readLinkToken();
+    if (savedToken == null) {
+      // Stale redirect — nothing we can do, clear and bail.
+      oauth_state.clearLinkToken();
+      return false;
+    }
+    try {
+      final linkConfig = LinkTokenConfiguration(
+        token: savedToken,
+        receivedRedirectUri: redirectUri,
+      );
+      if (companyRef != null) {
+        final service = PlaidService(companyRef: companyRef);
+        return service._runPlaidSession(linkConfig);
+      }
+      // No companyRef — at minimum, hand the redirect to Plaid so it can
+      // clean up its in-memory state; the caller is responsible for
+      // exchanging on success once a companyRef is known.
+      await PlaidLink.create(configuration: linkConfig);
+      await PlaidLink.open();
+      return false;
+    } catch (e) {
+      debugPrint('PlaidService.resumePlaidOauthIfPending error: $e');
+      return false;
+    } finally {
+      oauth_state.clearLinkToken();
+    }
+  }
+
+  Future<bool> _runPlaidSession(LinkTokenConfiguration linkConfig) async {
+    await PlaidLink.create(configuration: linkConfig);
+
+    final completer = Completer<bool>();
+
+    final successSub = PlaidLink.onSuccess.listen((success) async {
+      try {
+        await exchangePublicToken(
+          publicToken: success.publicToken,
+          institutionId: success.metadata.institution?.id ?? '',
+          institutionName: success.metadata.institution?.name ?? '',
+        );
+        if (!completer.isCompleted) completer.complete(true);
+      } catch (e) {
+        debugPrint('PlaidService exchange error: $e');
+        if (!completer.isCompleted) completer.complete(false);
+      }
+    });
+
+    final exitSub = PlaidLink.onExit.listen((exit) {
+      if (!completer.isCompleted) completer.complete(false);
+    });
+
+    await PlaidLink.open();
+    final result = await completer.future;
+
+    await successSub.cancel();
+    await exitSub.cancel();
+
+    if (kIsWeb) oauth_state.clearLinkToken();
+    return result;
   }
 
   /// Stream of connected Plaid Items for this company.

@@ -16,6 +16,7 @@ import 'package:shared_widgets/containers/container_header.dart';
 import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class FinanceBillDetailsScreen extends ConsumerStatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -357,6 +358,8 @@ class _FinanceBillDetailsScreenState
                   ),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  textInputAction: TextInputAction.next,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
                 const SizedBox(height: 16),
                 StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -414,13 +417,13 @@ class _FinanceBillDetailsScreenState
                     accountRef: selectedAccount!,
                   );
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Payment recorded')),
+                  SnackbarService.instance.showSnackBar(
+                    const SnackBar(duration: Duration(seconds: 5), content: Text('Payment recorded')),
                   );
                 } catch (e) {
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
+                  SnackbarService.instance.showSnackBar(
+                    SnackBar(duration: const Duration(seconds: 5), content: Text('Error: $e')),
                   );
                 }
               },

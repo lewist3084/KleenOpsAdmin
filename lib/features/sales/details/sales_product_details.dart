@@ -2,7 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/containers/container_header.dart';
 
-class SalesProductDetailsScreen extends StatelessWidget {
+class SalesProductDetailsScreen extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
   final String docId;
 
@@ -13,10 +13,19 @@ class SalesProductDetailsScreen extends StatelessWidget {
   });
 
   @override
+  State<SalesProductDetailsScreen> createState() =>
+      _SalesProductDetailsScreenState();
+}
+
+class _SalesProductDetailsScreenState extends State<SalesProductDetailsScreen> {
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _productDocStream;
+
+  @override
   Widget build(BuildContext context) {
-    final docRef = FirebaseFirestore.instance.collection('product').doc(docId);
+    final docRef =
+        FirebaseFirestore.instance.collection('product').doc(widget.docId);
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: docRef.snapshots(),
+      stream: _productDocStream ??= docRef.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));

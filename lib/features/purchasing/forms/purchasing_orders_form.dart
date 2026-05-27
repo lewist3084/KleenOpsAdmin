@@ -7,10 +7,13 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
 import 'package:kleenops_admin/features/purchasing/details/purchasing_order_details.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class PurchasingOrdersForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyId;
@@ -42,6 +45,10 @@ class _PurchasingOrdersFormState extends State<PurchasingOrdersForm> {
   bool _loading = true;
   bool _saving = false;
   late final String _aiContextKey = _buildAiContextKey();
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _teamsStream;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _membersStream;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _projectsStream;
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _companyStream;
 
   String _buildAiContextKey() {
     final id = widget.docId?.trim();
@@ -97,8 +104,7 @@ class _PurchasingOrdersFormState extends State<PurchasingOrdersForm> {
       _poNumberEditable = false;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error loading: $e')));
+        SnackbarService.instance.showSnackBar(SnackBar(duration: const Duration(seconds: 5), content: Text('Error loading: $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -183,8 +189,7 @@ class _PurchasingOrdersFormState extends State<PurchasingOrdersForm> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Save failed: $e')));
+        SnackbarService.instance.showSnackBar(SnackBar(duration: const Duration(seconds: 5), content: Text('Save failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -212,12 +217,8 @@ class _PurchasingOrdersFormState extends State<PurchasingOrdersForm> {
         ? widget.companyId.collection('purchaseOrder').doc(docId)
         : null;
     return Scaffold(
-      appBar: StandardAppBar(
-        title: widget.docId == null
-            ? 'New Purchase Order'
-            : 'Edit Purchase Order',
-      ),
-      body: GestureDetector(
+      body: BookendedCanvas(
+        child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => FocusScope.of(context).unfocus(),
           child: SingleChildScrollView(
@@ -233,6 +234,8 @@ class _PurchasingOrdersFormState extends State<PurchasingOrdersForm> {
                     labelText: 'PO Number',
                     border: OutlineInputBorder(),
                   ),
+                  textInputAction: TextInputAction.next,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -244,10 +247,12 @@ class _PurchasingOrdersFormState extends State<PurchasingOrdersForm> {
                     suffixIcon: Icon(Icons.calendar_today),
                   ),
                   onTap: _selectDate,
+                  textInputAction: TextInputAction.next,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
                 const SizedBox(height: 16),
                 StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: widget.companyId
+                  stream: _teamsStream ??= widget.companyId
                       .collection('team')
                       .orderBy('name')
                       .snapshots(),
@@ -281,7 +286,7 @@ class _PurchasingOrdersFormState extends State<PurchasingOrdersForm> {
                 ),
                 const SizedBox(height: 16),
                 StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: widget.companyId
+                  stream: _membersStream ??= widget.companyId
                       .collection('member')
                       .orderBy('name')
                       .snapshots(),
@@ -316,7 +321,7 @@ class _PurchasingOrdersFormState extends State<PurchasingOrdersForm> {
                 ),
                 const SizedBox(height: 16),
                 StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: widget.companyId
+                  stream: _projectsStream ??= widget.companyId
                       .collection('project')
                       .orderBy('name')
                       .snapshots(),
@@ -344,7 +349,7 @@ class _PurchasingOrdersFormState extends State<PurchasingOrdersForm> {
                 ),
                 const SizedBox(height: 16),
                 StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                  stream: widget.companyId.snapshots(),
+                  stream: _companyStream ??= widget.companyId.snapshots(),
                   builder: (context, snap) {
                     if (!snap.hasData) {
                       return const SizedBox(
@@ -491,10 +496,23 @@ class _PurchasingOrdersFormState extends State<PurchasingOrdersForm> {
             ),
           ),
         ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => context.pop(),
-        onSave: _saving ? null : _saveForm,
-        isSaving: _saving,
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => context.pop(),
+            onSave: _saving ? null : _saveForm,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
+          ),
+          DetailsAppBar(
+            title: widget.docId == null
+                ? 'New Purchase Order'
+                : 'Edit Purchase Order',
+          ),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

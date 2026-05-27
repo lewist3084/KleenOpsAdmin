@@ -1,45 +1,98 @@
 // lib/features/quality/screens/quality_home.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kleenops_admin/app/routes.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/menu_button_block_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.dart';
+import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
+import 'package:shared_widgets/drawers/menu_drawer.dart';
 
-import '../../../app/routes.dart';
-import '../../../theme/palette.dart';
-
+/// Hub for the Quality feature.
 class QualityHome extends StatelessWidget {
   const QualityHome({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    const palette = adminPalette;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quality'),
-        backgroundColor: palette.primary1,
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go(AppRoutePaths.dashboard),
+  Widget _wrapCanvas(Widget child) {
+    return StandardCanvas(
+      child: SafeArea(
+        top: true,
+        bottom: false,
+        child: Stack(
+          children: [
+            Positioned.fill(child: child),
+            const Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: CanvasTopBookend(),
+            ),
+          ],
         ),
       ),
-      body: StandardCanvas(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.auto_awesome_outlined, size: 64, color: palette.primary3),
-              const SizedBox(height: 16),
-              Text(
-                'Quality',
-                style: Theme.of(context).textTheme.headlineSmall,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget buildBottomBar({MenuDrawerSections? menuSections}) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DetailsAppBar(title: 'Quality', menuSections: menuSections),
+          const HomeNavBarAdapter(),
+        ],
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      appBar: null,
+      drawer: const UserDrawer(),
+      body: _wrapCanvas(const QualityHomeContent()),
+      bottomNavigationBar: Consumer(
+        builder: (context, ref, _) {
+          final menuSections = MenuDrawerSections(
+            actions: [
+              ContentMenuItem(
+                icon: Icons.fact_check_outlined,
+                label: 'Inspections',
+                onTap: () => context.push(AppRoutePaths.qualityInspections),
               ),
-              const SizedBox(height: 8),
-              const Text('Quality assurance and inspections.'),
+              ContentMenuItem(
+                icon: Icons.groups_outlined,
+                label: 'Teams',
+                onTap: () => context.push(AppRoutePaths.qualityTeams),
+              ),
+              ContentMenuItem(
+                icon: Icons.bar_chart_outlined,
+                label: 'Stats',
+                onTap: () => context.push(AppRoutePaths.qualityStats),
+              ),
             ],
-          ),
-        ),
+          );
+          return buildBottomBar(menuSections: menuSections);
+        },
+      ),
+    );
+  }
+}
+
+class QualityHomeContent extends StatelessWidget {
+  const QualityHomeContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset =
+        kBottomNavigationBarHeight + 16.0 + MediaQuery.of(context).padding.bottom;
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [MenuButtonBlock()],
       ),
     );
   }

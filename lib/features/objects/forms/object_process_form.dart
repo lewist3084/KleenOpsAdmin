@@ -19,6 +19,10 @@ import '../utils/company_object_file_images.dart';
 import '../utils/object_element_file_images.dart';
 import '../utils/object_process_file_images.dart';
 import 'package:kleenops_admin/features/processes/utils/process_file_images.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class ObjectProcessForm extends StatefulWidget {
   final DocumentReference companyId;
@@ -790,8 +794,9 @@ class ObjectProcessFormState extends State<ObjectProcessForm> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       final loc = AppLocalizations.of(context)!;
-      ScaffoldMessenger.of(context).showSnackBar(
+      SnackbarService.instance.showSnackBar(
         SnackBar(
+          duration: const Duration(seconds: 5),
           content: Text(loc.objectsProcessFailedToSave(e.toString())),
           backgroundColor: Colors.red,
         ),
@@ -1166,8 +1171,8 @@ class ObjectProcessFormState extends State<ObjectProcessForm> {
     );
 
     return Scaffold(
-      appBar: null,
-      body: SafeArea(
+      body: BookendedCanvas(
+        child: SafeArea(
         bottom: false,
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
@@ -1242,9 +1247,18 @@ class ObjectProcessFormState extends State<ObjectProcessForm> {
           ),
         ),
       ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _save,
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _save,
+            reserveNavBarSpace: false,
+          ),
+          DetailsAppBar(title: loc.objectProcessDetailsTitle),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

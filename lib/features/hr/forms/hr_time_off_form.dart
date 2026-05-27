@@ -271,6 +271,8 @@ class _HrTimeOffFormState extends State<HrTimeOffForm> {
                         ? 'Start date is required'
                         : null,
                     onTap: _selectStartDate,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -281,6 +283,8 @@ class _HrTimeOffFormState extends State<HrTimeOffForm> {
                       suffixIcon: Icon(Icons.calendar_today),
                     ),
                     onTap: _selectEndDate,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -293,6 +297,8 @@ class _HrTimeOffFormState extends State<HrTimeOffForm> {
                       FilteringTextInputFormatter.allow(
                           RegExp(r'[\d.]')),
                     ],
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -302,6 +308,8 @@ class _HrTimeOffFormState extends State<HrTimeOffForm> {
                     textCapitalization: TextCapitalization.sentences,
                     minLines: 2,
                     maxLines: 4,
+                    textInputAction: TextInputAction.newline,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ],
               ),

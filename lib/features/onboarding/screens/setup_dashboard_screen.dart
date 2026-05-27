@@ -16,6 +16,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:kleenops_admin/app/routes.dart';
 import 'package:kleenops_admin/services/analytics_service.dart';
+import 'package:shared_widgets/theme/app_palette.dart';
+import 'package:shared_widgets/tiles/standard_bubble_tile.dart';
 
 /* ─── Section definitions ─────────────────────────────────── */
 
@@ -278,8 +280,8 @@ class _ProgressCard extends StatelessWidget {
                     value: progress,
                     strokeWidth: 6,
                     backgroundColor: Colors.grey.shade200,
-                    valueColor:
-                        const AlwaysStoppedAnimation(Color(0xFF002E5D)),
+                    valueColor: AlwaysStoppedAnimation(
+                        AppPaletteScope.of(context).primary2),
                   ),
                   Center(
                     child: Text(
@@ -313,96 +315,39 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final opacity = isLocked ? 0.45 : 1.0;
+    final IconData leadingIcon;
+    final Color leadingIconColor;
+    if (isComplete) {
+      leadingIcon = Icons.check_circle;
+      leadingIconColor = Colors.green;
+    } else if (isLocked) {
+      leadingIcon = Icons.lock_outline;
+      leadingIconColor = Colors.grey.shade500;
+    } else {
+      leadingIcon = section.icon;
+      leadingIconColor = AppPaletteScope.of(context).primary2;
+    }
 
-    return Opacity(
-      opacity: opacity,
-      child: Card(
-        elevation: 1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                /* ─── Status icon ─── */
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: isComplete
-                        ? Colors.green.withValues(alpha: 0.1)
-                        : isLocked
-                            ? Colors.grey.shade100
-                            : section.color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: isComplete
-                      ? const Icon(Icons.check_circle,
-                          color: Colors.green, size: 24)
-                      : isLocked
-                          ? Icon(Icons.lock_outline,
-                              color: Colors.grey.shade400, size: 22)
-                          : Icon(section.icon,
-                              color: section.color, size: 22),
-                ),
-                const SizedBox(width: 14),
-
-                /* ─── Text ─── */
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        section.title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                          color: isLocked
-                              ? Colors.grey.shade500
-                              : Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        section.description,
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 13,
-                          height: 1.3,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(Icons.schedule,
-                              size: 14, color: Colors.grey.shade500),
-                          const SizedBox(width: 4),
-                          Text(
-                            '~${section.estimateMinutes} min',
-                            style: TextStyle(
-                              color: Colors.grey.shade500,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          _CostBadge(label: section.costLabel),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                /* ─── Chevron ─── */
-                if (!isLocked)
-                  Icon(Icons.chevron_right, color: Colors.grey.shade400),
-              ],
-            ),
+    return StandardBubbleTile(
+      title: section.title,
+      description: section.description,
+      leadingIcon: leadingIcon,
+      leadingIconColor: leadingIconColor,
+      enabled: !isLocked,
+      onTap: onTap ?? () {},
+      metaWidget: Row(
+        children: [
+          Icon(Icons.schedule, size: 14, color: Colors.grey.shade500),
+          const SizedBox(width: 4),
+          Text(
+            '~${section.estimateMinutes} min',
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
           ),
-        ),
+          const SizedBox(width: 16),
+          _CostBadge(label: section.costLabel),
+        ],
       ),
+      trailing: isLocked ? const SizedBox.shrink() : null,
     );
   }
 }
@@ -479,8 +424,8 @@ class _CostFooter extends StatelessWidget {
                 ElevatedButton(
                   onPressed: null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF002E5D),
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppPaletteScope.of(context).primary2,
+                    foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 14),
                     shape: RoundedRectangleBorder(

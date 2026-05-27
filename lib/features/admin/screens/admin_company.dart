@@ -11,6 +11,7 @@ import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:shared_widgets/utils/google_api_key.dart';
 import 'package:kleenops_admin/features/admin/forms/admin_company_form.dart';
 import 'package:kleenops_admin/features/admin/utils/company_file_images.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 /// Content widget for the Admin Company tab/screen.
 class AdminCompanyContent extends ConsumerStatefulWidget {
@@ -97,8 +98,8 @@ class _AdminCompanyContentState extends ConsumerState<AdminCompanyContent> {
                 MarkupImageField(
                   imageUrl: imageUrl,
                   onImageChanged: (url) => setDState(() => imageUrl = url),
-                  onMarkupTap: () => ScaffoldMessenger.of(ctx2).showSnackBar(
-                    const SnackBar(content: Text('Markup tapped')),
+                  onMarkupTap: () => SnackbarService.instance.showSnackBar(
+                    const SnackBar(duration: Duration(seconds: 5), content: Text('Markup tapped')),
                   ),
                   storageFolder: 'company/${companyRef.id}/mainImage',
                 ),
@@ -106,6 +107,8 @@ class _AdminCompanyContentState extends ConsumerState<AdminCompanyContent> {
                 TextField(
                   controller: nameCtl,
                   decoration: const InputDecoration(labelText: 'Name'),
+                  textInputAction: TextInputAction.done,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
               ],
             ),
@@ -139,6 +142,8 @@ class _AdminCompanyContentState extends ConsumerState<AdminCompanyContent> {
           controller: phoneCtl,
           decoration: const InputDecoration(labelText: 'Phone Number'),
           keyboardType: TextInputType.phone,
+          textInputAction: TextInputAction.done,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
       ),
     );
@@ -168,6 +173,8 @@ class _AdminCompanyContentState extends ConsumerState<AdminCompanyContent> {
           controller: emailCtl,
           decoration: const InputDecoration(labelText: 'Email'),
           keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.done,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
       ),
     );
@@ -221,16 +228,22 @@ class _AdminCompanyContentState extends ConsumerState<AdminCompanyContent> {
               TextField(
                 controller: cityCtl,
                 decoration: const InputDecoration(labelText: 'City'),
+                textInputAction: TextInputAction.next,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: stateCtl,
                 decoration: const InputDecoration(labelText: 'State'),
+                textInputAction: TextInputAction.next,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: zipCtl,
                 decoration: const InputDecoration(labelText: 'Zip Code'),
+                textInputAction: TextInputAction.done,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(

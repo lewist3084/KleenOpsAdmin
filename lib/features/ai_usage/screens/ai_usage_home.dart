@@ -37,7 +37,7 @@ class AiUsageHome extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Track Vertex AI calls, token consumption, and cost per company.',
+                'Track Gemini calls, token consumption, and cost per company.',
               ),
               const SizedBox(height: 24),
               const Text(

@@ -133,6 +133,8 @@ class _FinanceCustomersContentState
                       onChanged: (v) {
                         setState(() => _searchQuery = v.trim().toLowerCase());
                       },
+                      textInputAction: TextInputAction.done,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
                   ),
                   const SizedBox(width: 8),

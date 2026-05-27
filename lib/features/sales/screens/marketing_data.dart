@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
-import 'package:shared_widgets/tiles/standard_tile_small.dart';
 import 'package:kleenops_admin/widgets/labels/icon_text_checkbox.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
@@ -69,6 +68,8 @@ class _MarketingDataContentState extends ConsumerState<MarketingDataContent> {
                     labelText: 'Name',
                     border: OutlineInputBorder(),
                   ),
+                  textInputAction: TextInputAction.next,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -77,6 +78,8 @@ class _MarketingDataContentState extends ConsumerState<MarketingDataContent> {
                     labelText: 'Description',
                     border: OutlineInputBorder(),
                   ),
+                  textInputAction: TextInputAction.done,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
                 const SizedBox(height: 16),
                 IconTextCheckbox(
@@ -133,10 +136,9 @@ class _MarketingDataContentState extends ConsumerState<MarketingDataContent> {
 
         final query = FirebaseFirestore.instance.collection('marketingData').orderBy('name');
 
-        final list = StandardViewGroup(
-          queryStream: query.snapshots(),
-          groupBy: (_) => '',
-          itemBuilder: (doc) {
+        final list = StandardViewGroup.paginated(
+          query: query,
+          itemBuilder: (ctx, doc, _) {
             final data = doc.data();
             final name = data['name'] ?? '';
             final desc = data['description'] ?? '';

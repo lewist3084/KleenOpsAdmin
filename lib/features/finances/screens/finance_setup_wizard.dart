@@ -15,7 +15,9 @@ import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
+import 'package:shared_widgets/theme/app_palette.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class FinanceSetupWizardScreen extends ConsumerStatefulWidget {
   const FinanceSetupWizardScreen({super.key});
@@ -231,7 +233,7 @@ class _ProgressHeader extends StatelessWidget {
                   valueColor: AlwaysStoppedAnimation<Color>(
                     progress >= 1.0
                         ? Colors.green
-                        : Theme.of(context).primaryColor,
+                        : AppPaletteScope.of(context).primary2,
                   ),
                 ),
                 Center(
@@ -337,7 +339,7 @@ class _WizardTile extends StatelessWidget {
       leadingIcon: item.icon,
       leadingIconColor: status == WizardItemStatus.complete
           ? Colors.green
-          : Theme.of(context).primaryColor,
+          : AppPaletteScope.of(context).primary2,
       trailingIcon1:
           status == WizardItemStatus.complete ? Icons.check_circle : null,
       onTap: () => _onTileTap(context, status),
@@ -377,12 +379,14 @@ class _WizardTile extends StatelessWidget {
     service.updateItemStatus(item.key, WizardItemStatus.inProgress);
 
     try {
-      await plaidService.openPlaidLink();
+      final lang = Localizations.localeOf(context).languageCode;
+      await plaidService.openPlaidLink(language: lang);
       // If we get here, Plaid Link succeeded.
       service.completeItem(item.key, data: {'connectedViaPlaid': true});
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        SnackbarService.instance.showSnackBar(
           const SnackBar(
+            duration: Duration(seconds: 5),
             content: Text('Bank account linked successfully!'),
             backgroundColor: Colors.green,
           ),
@@ -390,8 +394,8 @@ class _WizardTile extends StatelessWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Bank linking failed: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Bank linking failed: $e')),
         );
       }
     }
@@ -480,7 +484,7 @@ class _StepDialogState extends State<_StepDialog> {
     return AlertDialog(
       title: Row(
         children: [
-          Icon(widget.item.icon, color: Theme.of(context).primaryColor),
+          Icon(widget.item.icon, color: AppPaletteScope.of(context).primary2),
           const SizedBox(width: 12),
           Expanded(
             child: Text(widget.item.label,
@@ -527,6 +531,8 @@ class _StepDialogState extends State<_StepDialog> {
               ),
               minLines: 2,
               maxLines: 5,
+              textInputAction: TextInputAction.newline,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
           ],
         ),

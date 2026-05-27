@@ -5,8 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
+import 'package:shared_widgets/theme/app_palette.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class AdminFederalRuleForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -159,8 +163,8 @@ class _AdminFederalRuleFormState extends State<AdminFederalRuleForm> {
       Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save federal rules: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to save federal rules: $e')),
         );
       }
     } finally {
@@ -171,8 +175,8 @@ class _AdminFederalRuleFormState extends State<AdminFederalRuleForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const StandardAppBar(title: 'Federal Regulations'),
-      body: _loading
+      body: BookendedCanvas(
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
@@ -234,15 +238,21 @@ class _AdminFederalRuleFormState extends State<AdminFederalRuleForm> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      border: Border.all(color: Colors.blue[200]!),
+                      color: AppPaletteScope.of(context)
+                          .primary2
+                          .withValues(alpha: 0.12),
+                      border: Border.all(
+                          color: AppPaletteScope.of(context)
+                              .primary2
+                              .withValues(alpha: 0.5)),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(Icons.info_outline,
-                            color: Colors.blue[800], size: 20),
+                            color: AppPaletteScope.of(context).primary2,
+                            size: 20),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -250,7 +260,8 @@ class _AdminFederalRuleFormState extends State<AdminFederalRuleForm> {
                             'employer and employee tax obligations. Update annually when '
                             'IRS publishes new rates.',
                             style: TextStyle(
-                                fontSize: 13, color: Colors.blue[900]),
+                                fontSize: 13,
+                                color: AppPaletteScope.of(context).primary2),
                           ),
                         ),
                       ],
@@ -259,10 +270,19 @@ class _AdminFederalRuleFormState extends State<AdminFederalRuleForm> {
                 ],
               ),
             ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _handleSave,
-        isSaving: _saving,
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _handleSave,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
+          ),
+          const DetailsAppBar(title: 'Federal Regulations'),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }
@@ -286,6 +306,8 @@ class _AdminFederalRuleFormState extends State<AdminFederalRuleForm> {
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
       ],
+      textInputAction: TextInputAction.next,
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
     );
   }
 

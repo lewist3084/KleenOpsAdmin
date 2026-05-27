@@ -15,6 +15,7 @@ import 'package:kleenops_admin/theme/palette.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class FinanceBankingScreen extends StatelessWidget {
   const FinanceBankingScreen({super.key});
@@ -130,8 +131,8 @@ class _FinanceBankingContentState extends ConsumerState<FinanceBankingContent> {
                       ? 'Connecting...'
                       : 'Connect Bank Account'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: palette.primary1,
-                    foregroundColor: Colors.white,
+                    backgroundColor: palette.primary2,
+                    foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -214,16 +215,17 @@ class _FinanceBankingContentState extends ConsumerState<FinanceBankingContent> {
   Future<void> _connectBank(PlaidService service) async {
     setState(() => _connecting = true);
     try {
-      final success = await service.openPlaidLink();
+      final lang = Localizations.localeOf(context).languageCode;
+      final success = await service.openPlaidLink(language: lang);
       if (mounted && success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bank account connected successfully')),
+        SnackbarService.instance.showSnackBar(
+          const SnackBar(duration: Duration(seconds: 5), content: Text('Bank account connected successfully')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error connecting bank: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Error connecting bank: $e')),
         );
       }
     } finally {
@@ -239,16 +241,17 @@ class _FinanceBankingContentState extends ConsumerState<FinanceBankingContent> {
       if (mounted) {
         final added = result['added'] ?? 0;
         final modified = result['modified'] ?? 0;
-        ScaffoldMessenger.of(context).showSnackBar(
+        SnackbarService.instance.showSnackBar(
           SnackBar(
+            duration: const Duration(seconds: 5),
             content: Text('Synced: $added new, $modified updated transactions'),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sync error: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Sync error: $e')),
         );
       }
     } finally {
@@ -287,14 +290,14 @@ class _FinanceBankingContentState extends ConsumerState<FinanceBankingContent> {
       try {
         await service.removeInstitution(itemId);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$institutionName disconnected')),
+          SnackbarService.instance.showSnackBar(
+            SnackBar(duration: const Duration(seconds: 5), content: Text('$institutionName disconnected')),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error disconnecting: $e')),
+          SnackbarService.instance.showSnackBar(
+            SnackBar(duration: const Duration(seconds: 5), content: Text('Error disconnecting: $e')),
           );
         }
       }

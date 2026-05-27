@@ -24,6 +24,8 @@ Future<void> showAddChildAccountDialog({
             decoration: const InputDecoration(labelText: 'Name'),
             validator: (v) =>
                 v == null || v.trim().isEmpty ? 'Enter name' : null,
+            textInputAction: TextInputAction.done,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           ),
         ),
         cancelText: 'Cancel',

@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:kleenops_admin/services/storage_service.dart';
 import 'package:path/path.dart' as p;
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class HrEmployeeEdit extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> employeeRef;
@@ -69,14 +72,14 @@ class _HrEmployeeEditState extends State<HrEmployeeEdit> {
       await _syncProfileImageFile(imageUrl);
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Employee details updated')),
+        SnackbarService.instance.showSnackBar(
+          const SnackBar(duration: Duration(seconds: 5), content: Text('Employee details updated')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to update: $e')),
         );
       }
     } finally {
@@ -208,6 +211,8 @@ class _HrEmployeeEditState extends State<HrEmployeeEdit> {
                       onChanged: (_) => setState(() {}),
                       validator: (v) =>
                           (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      textInputAction: TextInputAction.next,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -219,6 +224,8 @@ class _HrEmployeeEditState extends State<HrEmployeeEdit> {
                       ),
                       validator: (v) =>
                           (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      textInputAction: TextInputAction.next,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -230,6 +237,8 @@ class _HrEmployeeEditState extends State<HrEmployeeEdit> {
                       ),
                       validator: (v) =>
                           (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      textInputAction: TextInputAction.done,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
                 ],
               ),
@@ -237,11 +246,18 @@ class _HrEmployeeEditState extends State<HrEmployeeEdit> {
           );
 
     return Scaffold(
-      appBar: const StandardAppBar(title: 'Edit Employee'),
-      body: form,
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _isLoading ? null : _updateEmployee,
+      body: BookendedCanvas(child: form),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _isLoading ? null : _updateEmployee,
+            reserveNavBarSpace: false,
+          ),
+          const DetailsAppBar(title: 'Edit Employee'),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

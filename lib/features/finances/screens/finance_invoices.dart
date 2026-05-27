@@ -151,6 +151,8 @@ class _FinanceInvoicesContentState
                       ),
                       onChanged: (v) =>
                           setState(() => _searchQuery = v.toLowerCase()),
+                      textInputAction: TextInputAction.done,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
                   ),
                   const SizedBox(width: 8),

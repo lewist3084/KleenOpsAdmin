@@ -368,6 +368,8 @@ class ObjectsInventoryFormState extends State<ObjectsInventoryForm> {
                       suffixText: '%',
                     ),
                     keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     validator: (v) {
                       final n = double.tryParse(v ?? '');
                       if (n == null) return loc.objectsInventoryEnterNumber;
@@ -383,6 +385,8 @@ class ObjectsInventoryFormState extends State<ObjectsInventoryForm> {
                       labelText: loc.objectsInventoryQuantityPerLocationLabel,
                     ),
                     keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     validator: (v) =>
                         int.tryParse(v ?? '') == null ? loc.objectsInventoryWholeNumber : null,
                     onSaved: (v) => _quantity = int.tryParse(v ?? ''),

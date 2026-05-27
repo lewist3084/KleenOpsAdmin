@@ -1,10 +1,13 @@
 ﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:shared_widgets/containers/container_action.dart';
 import 'package:kleenops_admin/services/ai_text_adapter.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class SalesCustomerForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -37,8 +40,8 @@ class _SalesCustomerFormState extends State<SalesCustomerForm> {
     final abbrev = _abbrevController.text.trim();
 
     if (name.isEmpty || abbrev.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please provide name and abbreviation.')),
+      SnackbarService.instance.showSnackBar(
+        const SnackBar(duration: Duration(seconds: 5), content: Text('Please provide name and abbreviation.')),
       );
       return;
     }
@@ -57,8 +60,8 @@ class _SalesCustomerFormState extends State<SalesCustomerForm> {
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save customer: $e')),
+      SnackbarService.instance.showSnackBar(
+        SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to save customer: $e')),
       );
       setState(() => _saving = false);
     }
@@ -67,8 +70,8 @@ class _SalesCustomerFormState extends State<SalesCustomerForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const StandardAppBar(title: 'New Customer'),
-      body: AbsorbPointer(
+      body: BookendedCanvas(
+        child: AbsorbPointer(
         absorbing: _saving,
         child: Stack(
           children: [
@@ -131,9 +134,18 @@ class _SalesCustomerFormState extends State<SalesCustomerForm> {
           ],
         ),
       ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _handleSave,
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _handleSave,
+            reserveNavBarSpace: false,
+          ),
+          const DetailsAppBar(title: 'New Customer'),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

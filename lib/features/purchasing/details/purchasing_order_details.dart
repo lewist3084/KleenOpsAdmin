@@ -31,6 +31,7 @@ import 'package:kleenops_admin/widgets/tiles/purchase_order_item_tile.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class PurchasingOrderDetailsScreen extends StatefulWidget {
   final String companyId;
@@ -144,6 +145,8 @@ class _PurchasingOrderDetailsScreenState
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(labelText: 'Price'),
+                textInputAction: TextInputAction.done,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
               Row(
                 children: [
@@ -279,8 +282,8 @@ class _PurchasingOrderDetailsScreenState
     final docs = snap.docs;
     if (docs.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No company objects found.')),
+        SnackbarService.instance.showSnackBar(
+          const SnackBar(duration: Duration(seconds: 5), content: Text('No company objects found.')),
         );
       }
       return;
@@ -327,8 +330,8 @@ class _PurchasingOrderDetailsScreenState
                       }
                     }
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Item not found')),
+                      SnackbarService.instance.showSnackBar(
+                        const SnackBar(duration: Duration(seconds: 5), content: Text('Item not found')),
                       );
                     }
                   },
@@ -372,8 +375,8 @@ class _PurchasingOrderDetailsScreenState
             actionText: 'Done',
             onAction: () async {
               if (selected == null) {
-                ScaffoldMessenger.of(ctx2).showSnackBar(
-                  const SnackBar(content: Text('Select item')),
+                SnackbarService.instance.showSnackBar(
+                  const SnackBar(duration: Duration(seconds: 5), content: Text('Select item')),
                 );
                 return;
               }
@@ -473,7 +476,7 @@ class _PurchasingOrderDetailsScreenState
     final ref = doc.reference;
     final oldData = doc.data();
     await ref.delete();
-    ScaffoldMessenger.of(context).showSnackBar(
+    SnackbarService.instance.showSnackBar(
       SnackBar(
         content: const Text('Item removed.'),
         duration: const Duration(seconds: 5),
@@ -542,8 +545,8 @@ class _PurchasingOrderDetailsScreenState
 
       final poSnap = await purchaseOrderRef.get();
       if (!poSnap.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Order not found.')),
+        SnackbarService.instance.showSnackBar(
+          const SnackBar(duration: Duration(seconds: 5), content: Text('Order not found.')),
         );
         return null;
       }
@@ -841,15 +844,15 @@ class _PurchasingOrderDetailsScreenState
           .set({'purchaseOrderPDF': url}, SetOptions(merge: true));
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PDF created successfully.')),
+        SnackbarService.instance.showSnackBar(
+          const SnackBar(duration: Duration(seconds: 5), content: Text('PDF created successfully.')),
         );
       }
       return url;
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating PDF: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Error creating PDF: $e')),
         );
       }
       return null;
@@ -947,8 +950,8 @@ class _PurchasingOrderDetailsScreenState
                       'sentAt': FieldValue.serverTimestamp(),
                     }, SetOptions(merge: true));
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Purchase order marked as sent.')),
+                      SnackbarService.instance.showSnackBar(
+                        const SnackBar(duration: Duration(seconds: 5), content: Text('Purchase order marked as sent.')),
                       );
                     }
                     setState(() => _sent = true);
@@ -970,8 +973,8 @@ class _PurchasingOrderDetailsScreenState
                     'receivedAt': FieldValue.serverTimestamp(),
                   }, SetOptions(merge: true));
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('PO marked as received.')),
+                    SnackbarService.instance.showSnackBar(
+                      const SnackBar(duration: Duration(seconds: 5), content: Text('PO marked as received.')),
                     );
                   }
                 },
@@ -1341,6 +1344,7 @@ class _PurchasingOrderDetailsScreenState
                                           keyboardType: const TextInputType
                                               .numberWithOptions(decimal: true),
                                           textInputAction: TextInputAction.done,
+                                          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                                           decoration: const InputDecoration(
                                             labelText: 'Shipping & Handling',
                                             border: OutlineInputBorder(),
@@ -1514,6 +1518,8 @@ class _PurchasingOrderDetailsScreenState
                                         TextField(
                                           controller: _notesCtrl,
                                           maxLines: null,
+                                          textInputAction: TextInputAction.newline,
+                                          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                                           decoration: const InputDecoration(
                                             labelText: 'Notes',
                                             border: OutlineInputBorder(),
@@ -1650,14 +1656,14 @@ class _CreateBillFromPOState extends State<_CreateBillFromPO> {
       }, SetOptions(merge: true));
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bill created from purchase order.')),
+      SnackbarService.instance.showSnackBar(
+        const SnackBar(duration: Duration(seconds: 5), content: Text('Bill created from purchase order.')),
       );
       Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create bill: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to create bill: $e')),
         );
       }
     } finally {

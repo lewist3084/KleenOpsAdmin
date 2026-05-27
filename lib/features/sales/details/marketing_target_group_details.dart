@@ -15,7 +15,7 @@ import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 
-class MarketingTargetGroupDetailsScreen extends StatelessWidget {
+class MarketingTargetGroupDetailsScreen extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
   final String docId;
   const MarketingTargetGroupDetailsScreen({
@@ -23,6 +23,15 @@ class MarketingTargetGroupDetailsScreen extends StatelessWidget {
     required this.companyRef,
     required this.docId,
   });
+
+  @override
+  State<MarketingTargetGroupDetailsScreen> createState() =>
+      _MarketingTargetGroupDetailsScreenState();
+}
+
+class _MarketingTargetGroupDetailsScreenState
+    extends State<MarketingTargetGroupDetailsScreen> {
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _targetGroupDocStream;
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -46,7 +55,7 @@ class MarketingTargetGroupDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final docRef = FirebaseFirestore.instance.collection('targetGroup').doc(docId);
+    final docRef = FirebaseFirestore.instance.collection('targetGroup').doc(widget.docId);
     final bool hideChrome = false;
 
     Widget buildBottomBar({
@@ -104,7 +113,7 @@ class MarketingTargetGroupDetailsScreen extends StatelessWidget {
             ),
       body: _wrapCanvas(
           StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: docRef.snapshots(),
+            stream: _targetGroupDocStream ??= docRef.snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));

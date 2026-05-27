@@ -16,6 +16,7 @@ import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class FinanceW2GenerationScreen extends StatelessWidget {
   const FinanceW2GenerationScreen({super.key});
@@ -133,8 +134,9 @@ class _W2ContentState extends State<_W2Content> {
 
       if ((w2Data['totalGross'] as num?)?.toDouble() == 0) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          SnackbarService.instance.showSnackBar(
             SnackBar(
+                duration: const Duration(seconds: 5),
                 content: Text(
                     'No payroll data found for $memberName in $_selectedYear')),
           );
@@ -163,8 +165,8 @@ class _W2ContentState extends State<_W2Content> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('W-2 error: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('W-2 error: $e')),
         );
       }
     } finally {

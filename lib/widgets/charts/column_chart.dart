@@ -82,7 +82,11 @@ class ColumnChart extends StatelessWidget {
               ),
             ]
           : [],
-      legend: Legend(isVisible: true),
+      legend: Legend(
+        isVisible: true,
+        position: LegendPosition.bottom,
+        overflowMode: LegendItemOverflowMode.wrap,
+      ),
       series: [
         ColumnSeries<ChartData, DateTime>(
           dataSource: data,

@@ -239,6 +239,8 @@ class _HrDocumentFormState extends State<HrDocumentForm> {
                     validator: (value) => value == null || value.trim().isEmpty
                         ? 'Document name is required'
                         : null,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -250,6 +252,8 @@ class _HrDocumentFormState extends State<HrDocumentForm> {
                     validator: (value) => value == null || value.trim().isEmpty
                         ? 'File URL is required'
                         : null,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   ListTile(
@@ -272,6 +276,8 @@ class _HrDocumentFormState extends State<HrDocumentForm> {
                       border: OutlineInputBorder(),
                     ),
                     maxLines: 4,
+                    textInputAction: TextInputAction.newline,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ],
               ),

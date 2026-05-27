@@ -15,7 +15,7 @@ import 'package:shared_widgets/containers/container_header.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
 
-class FinanceCustomerDetailsScreen extends ConsumerWidget {
+class FinanceCustomerDetailsScreen extends ConsumerStatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
   final String docId;
 
@@ -26,13 +26,26 @@ class FinanceCustomerDetailsScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FinanceCustomerDetailsScreen> createState() =>
+      _FinanceCustomerDetailsScreenState();
+}
+
+class _FinanceCustomerDetailsScreenState
+    extends ConsumerState<FinanceCustomerDetailsScreen> {
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _customerStream;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _invoicesStream;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: null,
       drawer: const UserDrawer(),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance.collection('customer').doc(docId).snapshots(),
+          stream: _customerStream ??= FirebaseFirestore.instance
+              .collection('customer')
+              .doc(widget.docId)
+              .snapshots(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
@@ -122,9 +135,10 @@ class FinanceCustomerDetailsScreen extends ConsumerWidget {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => FinanceInvoiceForm(
-                            companyRef: companyRef,
-                            initialCustomerRef:
-                                FirebaseFirestore.instance.collection('customer').doc(docId),
+                            companyRef: widget.companyRef,
+                            initialCustomerRef: FirebaseFirestore.instance
+                                .collection('customer')
+                                .doc(widget.docId),
                           ),
                         ),
                       );
@@ -157,8 +171,8 @@ class FinanceCustomerDetailsScreen extends ConsumerWidget {
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => FinanceCustomerForm(
-                        companyRef: companyRef,
-                        docId: docId,
+                        companyRef: widget.companyRef,
+                        docId: widget.docId,
                       ),
                     ),
                   );
@@ -171,9 +185,10 @@ class FinanceCustomerDetailsScreen extends ConsumerWidget {
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => FinanceInvoiceForm(
-                        companyRef: companyRef,
-                        initialCustomerRef:
-                            FirebaseFirestore.instance.collection('customer').doc(docId),
+                        companyRef: widget.companyRef,
+                        initialCustomerRef: FirebaseFirestore.instance
+                            .collection('customer')
+                            .doc(widget.docId),
                       ),
                     ),
                   );
@@ -202,9 +217,10 @@ class FinanceCustomerDetailsScreen extends ConsumerWidget {
   }
 
   Widget _buildInvoices(BuildContext context) {
-    final customerRef = FirebaseFirestore.instance.collection('customer').doc(docId);
+    final customerRef =
+        FirebaseFirestore.instance.collection('customer').doc(widget.docId);
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
+      stream: _invoicesStream ??= FirebaseFirestore.instance
           .collection('invoice')
           .where('customerId', isEqualTo: customerRef)
           .orderBy('createdAt', descending: true)
@@ -236,7 +252,7 @@ class FinanceCustomerDetailsScreen extends ConsumerWidget {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => FinanceInvoiceDetailsScreen(
-                      companyRef: companyRef,
+                      companyRef: widget.companyRef,
                       docId: doc.id,
                     ),
                   ),

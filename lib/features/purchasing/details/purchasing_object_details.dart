@@ -33,6 +33,7 @@ import 'package:shared_widgets/utils/location_display_utils.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class PurchasingObjectDetails extends ConsumerStatefulWidget {
   final String docId;
@@ -130,11 +131,15 @@ class _PurchasingObjectDetailsState
               TextField(
                 controller: nameCtl,
                 decoration: const InputDecoration(labelText: 'Local Name'),
+                textInputAction: TextInputAction.next,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: descCtl,
                 decoration: const InputDecoration(labelText: 'Description'),
+                textInputAction: TextInputAction.next,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
               const SizedBox(height: 16),
               StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -174,6 +179,8 @@ class _PurchasingObjectDetailsState
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(labelText: 'Current Price'),
+                textInputAction: TextInputAction.done,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
             ],
           ),
@@ -286,6 +293,11 @@ class _PurchasingObjectDetailsBody extends StatefulWidget {
 class _PurchasingObjectDetailsBodyState
     extends State<_PurchasingObjectDetailsBody> {
   bool _inventoryExpanded = false;
+  Future<DocumentSnapshot<Map<String, dynamic>>>? _companyFuture;
+  final Map<String, Future<DocumentSnapshot<Map<String, dynamic>>>>
+      _vendorFutureCache = {};
+  final Map<String, Future<DocumentSnapshot<Map<String, dynamic>>>>
+      _scalarFutureCache = {};
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +310,7 @@ class _PurchasingObjectDetailsBodyState
     final bottomPadding = hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0;
 
     return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      future: companyId.get(),
+      future: _companyFuture ??= companyId.get(),
       builder: (context, companySnapshot) {
         if (companySnapshot.hasError) {
           return Center(
@@ -360,7 +372,8 @@ class _PurchasingObjectDetailsBodyState
                       if (currentVendorRef != null) {
                         return FutureBuilder<
                             DocumentSnapshot<Map<String, dynamic>>>(
-                          future: currentVendorRef.get(),
+                          future: _vendorFutureCache[currentVendorRef.path] ??=
+                              currentVendorRef.get(),
                           builder: (context, vendorSnapshot) {
                             String vendorName = "N/A";
                             if (vendorSnapshot.hasData &&
@@ -543,7 +556,9 @@ class _PurchasingObjectDetailsBodyState
                                 } else {
                                   content = FutureBuilder<
                                       DocumentSnapshot<Map<String, dynamic>>>(
-                                    future: scalarRef.get(),
+                                    future:
+                                        _scalarFutureCache[scalarRef.path] ??=
+                                            scalarRef.get(),
                                     builder: (context, scalarSnapshot) {
                                       String extraDesc = qtyStr;
                                       String fourthLine = totalStr;
@@ -588,7 +603,7 @@ class _PurchasingObjectDetailsBodyState
                                     'elements':
                                         FieldValue.arrayRemove([deletedData])
                                   });
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackbarService.instance.showSnackBar(
                                     SnackBar(
                                       content: const Text('Element deleted.'),
                                       duration: const Duration(seconds: 5),
@@ -741,13 +756,11 @@ class _PurchasingObjectDetailsBodyState
                                       onDismissed: (_) async {
                                         final deletedData = processDoc.data();
                                         await processDoc.reference.delete();
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
+                                        SnackbarService.instance.showSnackBar(
                                           SnackBar(
                                             content:
                                                 const Text('Process deleted.'),
-                                            duration:
-                                                const Duration(seconds: 5),
+                                            duration: const Duration(seconds: 5),
                                             action: SnackBarAction(
                                               label: 'UNDO',
                                               onPressed: () async {
@@ -1153,6 +1166,8 @@ class _PurchasingObjectDetailsBodyState
                   onPressed: scan,
                 ),
               ),
+              textInputAction: TextInputAction.done,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             cancelText: 'Cancel',
             onCancel: () => Navigator.of(dialogCtx2).pop(),
@@ -1196,6 +1211,8 @@ class _PurchasingObjectDetailsBodyState
                   onPressed: scan,
                 ),
               ),
+              textInputAction: TextInputAction.done,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             cancelText: 'Cancel',
             onCancel: () => Navigator.of(dialogCtx2).pop(),
@@ -1240,6 +1257,8 @@ class _PurchasingObjectDetailsBodyState
                   onPressed: scan,
                 ),
               ),
+              textInputAction: TextInputAction.done,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             cancelText: 'Cancel',
             onCancel: () => Navigator.of(dialogCtx2).pop(),

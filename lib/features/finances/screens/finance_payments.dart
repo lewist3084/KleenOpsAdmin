@@ -15,6 +15,8 @@ import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
+import 'package:shared_widgets/tabs/lazy_tab_view.dart';
+import 'package:shared_widgets/tabs/standard_tab.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
 
 class FinancePaymentsScreen extends StatelessWidget {
@@ -129,12 +131,20 @@ class _FinancePaymentsContentState
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 child: Row(
                   children: [
-                    const Expanded(
-                      child: TabBar(
-                        tabs: [
-                          Tab(text: 'Received'),
-                          Tab(text: 'Made'),
-                        ],
+                    Expanded(
+                      child: Container(
+                        color: Colors.white,
+                        child: StandardTabBar(
+                          isScrollable: true,
+                          dividerColor: Colors.grey[300],
+                          indicatorWeight: 3,
+                          labelColor: Colors.black,
+                          unselectedLabelColor: Colors.grey[600],
+                          tabs: const [
+                            Tab(text: 'Received'),
+                            Tab(text: 'Made'),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -154,11 +164,14 @@ class _FinancePaymentsContentState
                 ),
               ),
               Expanded(
-                child: TabBarView(
-                  children: [
-                    _buildPaymentList(companyRef, 'received'),
-                    _buildPaymentList(companyRef, 'made'),
-                  ],
+                child: Builder(
+                  builder: (context) => LazyTabView(
+                    controller: DefaultTabController.of(context),
+                    children: [
+                      _buildPaymentList(companyRef, 'received'),
+                      _buildPaymentList(companyRef, 'made'),
+                    ],
+                  ),
                 ),
               ),
             ],

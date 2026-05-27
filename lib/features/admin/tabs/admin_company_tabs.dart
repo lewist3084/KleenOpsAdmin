@@ -177,7 +177,6 @@ class _AdminCompanyTabsState extends State<AdminCompanyTabs>
                 controller: _tabController,
                 isScrollable: true,
                 dividerColor: Colors.grey[300],
-                indicatorColor: Theme.of(context).primaryColor,
                 indicatorWeight: 3.0,
                 labelColor: Colors.black,
                 unselectedLabelColor: Colors.grey[600],

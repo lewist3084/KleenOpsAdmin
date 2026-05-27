@@ -107,11 +107,15 @@ Future<void> showDeliveryScheduleDialog({
               TextField(
                 controller: nameCtl,
                 decoration: const InputDecoration(labelText: 'Name'),
+                textInputAction: TextInputAction.next,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: descCtl,
                 decoration: const InputDecoration(labelText: 'Description'),
+                textInputAction: TextInputAction.next,
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
@@ -205,10 +209,9 @@ class _MarketingScheduleContentState
 
         final query = FirebaseFirestore.instance.collection('schedule').orderBy('frequency');
 
-        final list = StandardViewGroup(
-          queryStream: query.snapshots(),
-          groupBy: (_) => '',
-          itemBuilder: (doc) {
+        final list = StandardViewGroup.paginated(
+          query: query,
+          itemBuilder: (ctx, doc, _) {
             final data = doc.data();
             final days = List<String>.from(data['day'] ?? []);
             final weeks = List<String>.from(data['week'] ?? []);

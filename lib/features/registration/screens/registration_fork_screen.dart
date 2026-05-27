@@ -34,7 +34,7 @@ class _RegistrationForkScreenState extends State<RegistrationForkScreen> {
       icon: Icons.alt_route,
       title: 'Welcome to KleenOps',
       body: 'To get started, let us know how you want to set up your account.',
-      color: palette.primary1,
+      color: palette.primary2,
       options: [
         ForkOption(
           icon: Icons.qr_code_2,
@@ -53,7 +53,7 @@ class _RegistrationForkScreenState extends State<RegistrationForkScreen> {
           icon: Icons.add_business,
           label: 'Register a New Company',
           subtitle: 'Create a brand-new company account.',
-          color: palette.primary1,
+          color: palette.primary2,
           onTap: () {
             AnalyticsService.instance.logFunnelEvent(
               FunnelEvent.registrationForkPicked,

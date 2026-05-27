@@ -11,6 +11,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:shared_widgets/services/catalog_firebase_service.dart';
 import 'package:shared_widgets/lists/standardView.dart';
+import 'package:shared_widgets/tiles/standard_bubble_tile.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
 import 'package:kleenops_admin/features/catalog/details/marketplace_staging_review_details.dart';
 import 'package:kleenops_admin/features/catalog/details/website_details.dart';
@@ -138,43 +139,38 @@ class _WebsitesTab extends StatelessWidget {
             final lastScraped = data['lastScrapedAt'];
             final apiConfig = data['apiConfig'] is Map ? Map<String, dynamic>.from(data['apiConfig'] as Map) : <String, dynamic>{};
 
-            return Card(
-              child: ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.language)),
-                title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: StandardBubbleTile(
+                title: name,
+                description: baseUrl.isNotEmpty ? baseUrl : null,
+                leadingIcon: Icons.language,
+                metaWidget: Row(
                   children: [
-                    if (baseUrl.isNotEmpty) Text(baseUrl, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
-                    Row(
-                      children: [
-                        if (websiteType.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Text(websiteType, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                          ),
-                        if (apiConfig['webstoreId'] != null) ...[
-                          const SizedBox(width: 6),
-                          Icon(Icons.api, size: 14, color: Colors.green[400]),
-                          const SizedBox(width: 2),
-                          Text('API configured', style: TextStyle(fontSize: 10, color: Colors.green[600])),
-                        ],
-                        if (lastScraped != null) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            'Last: ${_fmtTs(lastScraped)}',
-                            style: const TextStyle(fontSize: 10, color: Colors.grey),
-                          ),
-                        ],
-                      ],
-                    ),
+                    if (websiteType.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Text(websiteType, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    if (apiConfig['webstoreId'] != null) ...[
+                      const SizedBox(width: 6),
+                      Icon(Icons.api, size: 14, color: Colors.green[400]),
+                      const SizedBox(width: 2),
+                      Text('API configured', style: TextStyle(fontSize: 10, color: Colors.green[600])),
+                    ],
+                    if (lastScraped != null) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        'Last: ${_fmtTs(lastScraped)}',
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                    ],
                   ],
                 ),
-                isThreeLine: true,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(

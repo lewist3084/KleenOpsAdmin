@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:kleenops_admin/features/sales/services/quote_generator_service.dart';
+import 'package:shared_widgets/theme/app_palette.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 /// Screen for generating a quote from scanned rooms and detected objects.
 ///
@@ -133,8 +135,8 @@ class _QuoteGeneratorScreenState extends ConsumerState<QuoteGeneratorScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingPreview = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load data: $e')),
+      SnackbarService.instance.showSnackBar(
+        SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to load data: $e')),
       );
     }
   }
@@ -175,8 +177,8 @@ class _QuoteGeneratorScreenState extends ConsumerState<QuoteGeneratorScreen> {
 
       if (lineItems.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No items to quote.')),
+          SnackbarService.instance.showSnackBar(
+            const SnackBar(duration: Duration(seconds: 5), content: Text('No items to quote.')),
           );
         }
         setState(() => _generating = false);
@@ -200,8 +202,8 @@ class _QuoteGeneratorScreenState extends ConsumerState<QuoteGeneratorScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _generating = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Quote generation failed: $e')),
+      SnackbarService.instance.showSnackBar(
+        SnackBar(duration: const Duration(seconds: 5), content: Text('Quote generation failed: $e')),
       );
     }
   }
@@ -565,7 +567,7 @@ class _QuoteGeneratorScreenState extends ConsumerState<QuoteGeneratorScreen> {
               child: Column(
                 children: [
                   Icon(Icons.check_circle,
-                      color: theme.colorScheme.primary, size: 48),
+                      color: AppPaletteScope.of(context).primary2, size: 48),
                   const SizedBox(height: 12),
                   Text(
                     'Draft invoice created',

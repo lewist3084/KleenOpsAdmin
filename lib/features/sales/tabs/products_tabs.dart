@@ -8,6 +8,7 @@ import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adap
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.dart';
+import 'package:shared_widgets/tabs/lazy_tab_view.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
@@ -144,7 +145,6 @@ class _ProductsTabsState extends ConsumerState<ProductsTabs>
               controller: _tabController,
               isScrollable: true,
               dividerColor: Colors.grey[300],
-              indicatorColor: Theme.of(context).primaryColor,
               indicatorWeight: 3.0,
               labelColor: Colors.black,
               unselectedLabelColor: Colors.grey[600],
@@ -157,7 +157,7 @@ class _ProductsTabsState extends ConsumerState<ProductsTabs>
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(bottom: bottomInset),
-              child: TabBarView(
+              child: LazyTabView(
                 physics: const NeverScrollableScrollPhysics(),
                 controller: _tabController,
                 children: [

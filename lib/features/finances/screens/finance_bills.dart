@@ -18,6 +18,7 @@ import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class FinanceBillsScreen extends StatelessWidget {
   const FinanceBillsScreen({super.key});
@@ -140,6 +141,8 @@ class _FinanceBillsContentState extends ConsumerState<FinanceBillsContent> {
                       ),
                       onChanged: (v) =>
                           setState(() => _searchQuery = v.toLowerCase()),
+                      textInputAction: TextInputAction.done,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -298,10 +301,10 @@ class _FinanceBillsContentState extends ConsumerState<FinanceBillsContent> {
         final oldData = data;
         await ref.delete();
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        SnackbarService.instance.showSnackBar(
           SnackBar(
             content: const Text('Bill deleted.'),
-            duration: const Duration(seconds: 8),
+            duration: const Duration(seconds: 5),
             action: SnackBarAction(
               label: 'UNDO',
               onPressed: () => ref.set(oldData),

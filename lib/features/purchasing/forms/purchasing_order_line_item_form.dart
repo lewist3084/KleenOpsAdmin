@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
 import 'package:shared_widgets/utils/process_localization_utils.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class PurchasingOrderLineItemForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> purchaseOrderRef;
@@ -111,8 +114,8 @@ class _PurchasingOrderLineItemFormState extends State<PurchasingOrderLineItemFor
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save line item: $e')),
+      SnackbarService.instance.showSnackBar(
+        SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to save line item: $e')),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -139,8 +142,8 @@ class _PurchasingOrderLineItemFormState extends State<PurchasingOrderLineItemFor
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: StandardAppBar(title: _isEditing ? 'Edit Line Item' : 'Add Line Item'),
-      body: _loading
+      body: BookendedCanvas(
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
@@ -156,6 +159,8 @@ class _PurchasingOrderLineItemFormState extends State<PurchasingOrderLineItemFor
                     validator: (value) => value == null || value.trim().isEmpty
                         ? 'Description is required'
                         : null,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -222,6 +227,8 @@ class _PurchasingOrderLineItemFormState extends State<PurchasingOrderLineItemFor
                       }
                       return null;
                     },
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -242,6 +249,8 @@ class _PurchasingOrderLineItemFormState extends State<PurchasingOrderLineItemFor
                       }
                       return null;
                     },
+                    textInputAction: TextInputAction.done,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   ValueListenableBuilder<TextEditingValue>(
@@ -264,10 +273,21 @@ class _PurchasingOrderLineItemFormState extends State<PurchasingOrderLineItemFor
                 ],
               ),
             ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _save,
-        isSaving: _saving,
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _save,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
+          ),
+          DetailsAppBar(
+            title: _isEditing ? 'Edit Line Item' : 'Add Line Item',
+          ),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

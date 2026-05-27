@@ -30,6 +30,8 @@ class VendorContactDetails extends StatefulWidget {
 }
 
 class _VendorContactDetailsState extends State<VendorContactDetails> {
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _contactStream;
+
   Future<void> _addPhoneNumber(
       DocumentReference<Map<String, dynamic>> contactRef,
       {Map<String, dynamic>? existing}) async {
@@ -67,6 +69,8 @@ class _VendorContactDetailsState extends State<VendorContactDetails> {
                   keyboardType: TextInputType.phone,
                   decoration:
                       const InputDecoration(labelText: 'Phone Number'),
+                  textInputAction: TextInputAction.next,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
@@ -132,6 +136,8 @@ class _VendorContactDetailsState extends State<VendorContactDetails> {
                   controller: emailCtrl,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(labelText: 'Email'),
+                  textInputAction: TextInputAction.next,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
@@ -173,6 +179,8 @@ class _VendorContactDetailsState extends State<VendorContactDetails> {
           controller: urlCtrl,
           keyboardType: TextInputType.url,
           decoration: const InputDecoration(labelText: 'URL'),
+          textInputAction: TextInputAction.done,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
       ),
     );
@@ -204,6 +212,8 @@ class _VendorContactDetailsState extends State<VendorContactDetails> {
         content: TextField(
           controller: noteCtrl,
           decoration: const InputDecoration(labelText: 'Note'),
+          textInputAction: TextInputAction.done,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
       ),
     );
@@ -215,7 +225,7 @@ class _VendorContactDetailsState extends State<VendorContactDetails> {
         widget.companyId.collection('contact').doc(widget.contactId);
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: contactRef.snapshots(),
+      stream: _contactStream ??= contactRef.snapshots(),
       builder: (context, snap) {
         if (!snap.hasData) {
           return const Scaffold(

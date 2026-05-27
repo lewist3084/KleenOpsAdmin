@@ -99,7 +99,8 @@ class HrBenefitPlanDetailsScreen extends ConsumerWidget {
               ),
         ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: palette.primary1.withAlpha(220),
+        backgroundColor: palette.primary2.withAlpha(220),
+        foregroundColor: Colors.black,
         tooltip: 'Edit Plan',
         child: const Icon(Icons.edit),
         onPressed: () {
@@ -145,7 +146,7 @@ class _PlanDetailsBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Plan summary card ──
-              _planSummaryCard(data),
+              _planSummaryCard(context, data),
               const SizedBox(height: 16),
 
               // ── Contributions ──
@@ -183,7 +184,8 @@ class _PlanDetailsBody extends StatelessWidget {
     );
   }
 
-  Widget _planSummaryCard(Map<String, dynamic> data) {
+  Widget _planSummaryCard(BuildContext context, Map<String, dynamic> data) {
+    final palette = AppPaletteScope.of(context);
     final type = (data['type'] ?? '').toString();
     final provider = (data['provider'] ?? '').toString();
     final planNumber = (data['planNumber'] ?? '').toString();
@@ -202,7 +204,7 @@ class _PlanDetailsBody extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(_iconForType(type), size: 28, color: Colors.blue[700]),
+              Icon(_iconForType(type), size: 28, color: palette.primary2),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -236,7 +238,7 @@ class _PlanDetailsBody extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           if (type.isNotEmpty)
-            _infoChip(_formatBenefitType(type)),
+            _infoChip(context, _formatBenefitType(type)),
           if (provider.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text('Provider: $provider',
@@ -252,17 +254,18 @@ class _PlanDetailsBody extends StatelessWidget {
     );
   }
 
-  Widget _infoChip(String label) {
+  Widget _infoChip(BuildContext context, String label) {
+    final palette = AppPaletteScope.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: palette.primary2.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[200]!),
+        border: Border.all(color: palette.primary2.withValues(alpha: 0.5)),
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 12, color: Colors.blue[800]),
+        style: TextStyle(fontSize: 12, color: palette.primary2),
       ),
     );
   }

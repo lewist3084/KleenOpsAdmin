@@ -241,6 +241,8 @@ class _HrOnboardingProfileFormState extends State<HrOnboardingProfileForm> {
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? 'Name is required'
                         : null,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -251,6 +253,8 @@ class _HrOnboardingProfileFormState extends State<HrOnboardingProfileForm> {
                     textCapitalization: TextCapitalization.sentences,
                     minLines: 1,
                     maxLines: 3,
+                    textInputAction: TextInputAction.newline,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
 
                   const SizedBox(height: 24),
@@ -350,6 +354,8 @@ class _HrOnboardingProfileFormState extends State<HrOnboardingProfileForm> {
                       }
                       return null;
                     },
+                    textInputAction: TextInputAction.done,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,

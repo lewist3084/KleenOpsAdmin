@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:shared_widgets/markup/image_markup.dart';
@@ -20,6 +22,7 @@ import 'package:shared_widgets/utils/process_localization_utils.dart';
 import 'package:kleenops_admin/features/objects/utils/object_element_file_images.dart';
 import 'package:kleenops_admin/features/objects/utils/company_object_file_images.dart';
 import 'package:kleenops_admin/l10n/app_localizations.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class ObjectElementForm extends ConsumerStatefulWidget {
   const ObjectElementForm({super.key, this.extraData});
@@ -582,8 +585,8 @@ class ObjectElementFormState extends ConsumerState<ObjectElementForm> {
   Future<void> _launchImageMarkup() async {
     final loc = AppLocalizations.of(context)!;
     if (_imageUrl == null || _imageUrl!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.objectElementFormNoImageToMarkup)),
+      SnackbarService.instance.showSnackBar(
+        SnackBar(duration: const Duration(seconds: 5), content: Text(loc.objectElementFormNoImageToMarkup)),
       );
       return;
     }
@@ -803,15 +806,7 @@ class ObjectElementFormState extends ConsumerState<ObjectElementForm> {
       unitLabel = _measurementSystem == 'Metric' ? 'm²' : 'sq ft';
     }
 
-    return Scaffold(
-      appBar: hideChrome
-          ? null
-          : StandardAppBar(
-              title: isEdit
-                  ? loc.objectElementFormTitleEdit
-                  : loc.objectElementFormTitleNew,
-            ),
-      body: SingleChildScrollView(
+    final Widget formBody = SingleChildScrollView(
         padding: EdgeInsets.only(bottom: hideChrome ? 16 : 80),
         child: Form(
           key: _formKey,
@@ -846,6 +841,8 @@ class ObjectElementFormState extends ConsumerState<ObjectElementForm> {
                         (v == null || v.trim().isEmpty)
                             ? loc.objectElementFormRequired
                             : null,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   if (_loadingMaterials) ...[
@@ -880,6 +877,8 @@ class ObjectElementFormState extends ConsumerState<ObjectElementForm> {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   validator: (v) {
                     final p = double.tryParse(v ?? '');
                     if (p == null || p < 0 || p > 100) {
@@ -930,6 +929,8 @@ class ObjectElementFormState extends ConsumerState<ObjectElementForm> {
                       ),
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
+                      textInputAction: TextInputAction.next,
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                       validator: (v) =>
                           double.tryParse(v ?? '') == null
                               ? loc.objectElementFormInvalid
@@ -958,6 +959,8 @@ class ObjectElementFormState extends ConsumerState<ObjectElementForm> {
                     ),
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     onSaved: (v) =>
                         _lengthFeet = double.tryParse(v ?? ''),
                   ),
@@ -972,6 +975,8 @@ class ObjectElementFormState extends ConsumerState<ObjectElementForm> {
                     ),
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     onSaved: (v) =>
                         _widthFeet = double.tryParse(v ?? ''),
                   ),
@@ -986,6 +991,8 @@ class ObjectElementFormState extends ConsumerState<ObjectElementForm> {
                     ),
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
+                    textInputAction: TextInputAction.done,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                     onSaved: (v) =>
                         _heightFeet = double.tryParse(v ?? ''),
                   ),
@@ -994,16 +1001,27 @@ class ObjectElementFormState extends ConsumerState<ObjectElementForm> {
             ),
           ]),
         ),
-      ),
+      );
+
+    return Scaffold(
+      body: hideChrome ? formBody : BookendedCanvas(child: formBody),
       bottomNavigationBar: hideChrome
           ? null
-          : SafeArea(
-              top: false,
-              minimum: const EdgeInsets.only(bottom: 8),
-              child: CancelSaveBar(
-                onCancel: () => context.pop(),
-                onSave: saveForm,
-              ),
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CancelSaveBar(
+                  onCancel: () => context.pop(),
+                  onSave: saveForm,
+                  reserveNavBarSpace: false,
+                ),
+                DetailsAppBar(
+                  title: isEdit
+                      ? loc.objectElementFormTitleEdit
+                      : loc.objectElementFormTitleNew,
+                ),
+                const HomeNavBarAdapter(),
+              ],
             ),
     );
   }

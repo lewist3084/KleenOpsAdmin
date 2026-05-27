@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
 
@@ -180,8 +182,8 @@ class _FinancePaymentFormState extends State<FinancePaymentForm> {
         : 'Record Payment Made';
 
     return Scaffold(
-      appBar: StandardAppBar(title: title),
-      body: Form(
+      body: BookendedCanvas(
+        child: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -231,6 +233,8 @@ class _FinancePaymentFormState extends State<FinancePaymentForm> {
                 if (double.tryParse(v.trim()) == null) return 'Invalid amount';
                 return null;
               },
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
 
@@ -271,6 +275,8 @@ class _FinancePaymentFormState extends State<FinancePaymentForm> {
                 labelText: 'Reference Number',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
 
@@ -324,15 +330,26 @@ class _FinancePaymentFormState extends State<FinancePaymentForm> {
                 border: OutlineInputBorder(),
               ),
               maxLines: 3,
+              textInputAction: TextInputAction.newline,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 80),
           ],
         ),
+        ),
       ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _save,
-        isSaving: _saving,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _save,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
+          ),
+          DetailsAppBar(title: title),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

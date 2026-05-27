@@ -6,8 +6,11 @@ import 'package:kleenops_admin/features/finances/details/finance_invoice_details
 import 'package:kleenops_admin/features/finances/services/finance_invoice_service.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class FinanceInvoiceForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -123,8 +126,8 @@ class _FinanceInvoiceFormState extends State<FinanceInvoiceForm> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_customerRef == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a customer')),
+      SnackbarService.instance.showSnackBar(
+        const SnackBar(duration: Duration(seconds: 5), content: Text('Please select a customer')),
       );
       return;
     }
@@ -200,8 +203,8 @@ class _FinanceInvoiceFormState extends State<FinanceInvoiceForm> {
     final title = isEdit ? 'Edit Invoice' : 'New Invoice';
 
     return Scaffold(
-      appBar: StandardAppBar(title: title),
-      body: Form(
+      body: BookendedCanvas(
+        child: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -290,6 +293,8 @@ class _FinanceInvoiceFormState extends State<FinanceInvoiceForm> {
                 }
                 return null;
               },
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
 
@@ -301,15 +306,26 @@ class _FinanceInvoiceFormState extends State<FinanceInvoiceForm> {
                 border: OutlineInputBorder(),
               ),
               maxLines: 3,
+              textInputAction: TextInputAction.newline,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 80),
           ],
         ),
+        ),
       ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _save,
-        isSaving: _saving,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _save,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
+          ),
+          DetailsAppBar(title: title),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

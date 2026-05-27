@@ -6,8 +6,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
+import 'package:shared_widgets/theme/app_palette.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class HrBenefitEnrollmentForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -183,8 +187,9 @@ class _HrBenefitEnrollmentFormState extends State<HrBenefitEnrollmentForm> {
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedPlanId == null || _selectedMemberId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      SnackbarService.instance.showSnackBar(
         const SnackBar(
+            duration: Duration(seconds: 5),
             content: Text('Please select both a plan and an employee')),
       );
       return;
@@ -241,8 +246,8 @@ class _HrBenefitEnrollmentFormState extends State<HrBenefitEnrollmentForm> {
       Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save enrollment: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Failed to save enrollment: $e')),
         );
       }
     } finally {
@@ -254,147 +259,161 @@ class _HrBenefitEnrollmentFormState extends State<HrBenefitEnrollmentForm> {
   Widget build(BuildContext context) {
     final title = _isEditing ? 'Edit Enrollment' : 'Enroll in Benefit Plan';
 
-    return Scaffold(
-      appBar: StandardAppBar(title: title),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-                children: [
-                  _sectionHeader('Benefit Plan'),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedPlanId,
-                    decoration:
-                        const InputDecoration(labelText: 'Select Plan'),
-                    items: _planDocs.map((doc) {
-                      final name =
-                          (doc.data()['name'] ?? doc.id).toString();
-                      final type =
-                          (doc.data()['type'] ?? '').toString();
-                      return DropdownMenuItem(
-                        value: doc.id,
-                        child: Text('$name ($type)'),
-                      );
-                    }).toList(),
-                    onChanged: (v) {
-                      if (v != null) {
-                        setState(() => _selectedPlanId = v);
-                        _loadPlanData(v);
-                      }
-                    },
-                    validator: (v) =>
-                        (v == null) ? 'Plan is required' : null,
-                  ),
-
-                  if (_planData != null) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'Provider: ${_planData!['provider'] ?? '—'} · '
-                        'Waiting: ${_planData!['waitingPeriodDays'] ?? 90} days · '
-                        'Eligibility: ${_planData!['eligibilityType'] ?? 'full-time'}',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.blue[800]),
-                      ),
+    final form = _loading
+        ? const Center(child: CircularProgressIndicator())
+        : Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+              children: [
+                _sectionHeader('Benefit Plan'),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedPlanId,
+                  decoration:
+                      const InputDecoration(labelText: 'Select Plan'),
+                  items: _planDocs.map((doc) {
+                    final name =
+                        (doc.data()['name'] ?? doc.id).toString();
+                    final type =
+                        (doc.data()['type'] ?? '').toString();
+                    return DropdownMenuItem(
+                      value: doc.id,
+                      child: Text('$name ($type)'),
+                    );
+                  }).toList(),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() => _selectedPlanId = v);
+                      _loadPlanData(v);
+                    }
+                  },
+                  validator: (v) =>
+                      (v == null) ? 'Plan is required' : null,
+                ),
+                if (_planData != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppPaletteScope.of(context)
+                          .primary2
+                          .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                  ],
-                  const SizedBox(height: 24),
-
-                  _sectionHeader('Employee'),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedMemberId,
-                    decoration: const InputDecoration(
-                        labelText: 'Select Employee'),
-                    items: _memberDocs.map((doc) {
-                      final name =
-                          (doc.data()['name'] ?? doc.id).toString();
-                      return DropdownMenuItem(
-                        value: doc.id,
-                        child: Text(name),
-                      );
-                    }).toList(),
-                    onChanged: (v) {
-                      if (v != null) {
-                        setState(() => _selectedMemberId = v);
-                      }
-                    },
-                    validator: (v) =>
-                        (v == null) ? 'Employee is required' : null,
-                  ),
-                  const SizedBox(height: 24),
-
-                  _sectionHeader('Enrollment Details'),
-                  DropdownButtonFormField<String>(
-                    initialValue: _status,
-                    decoration:
-                        const InputDecoration(labelText: 'Status'),
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'pending', child: Text('Pending')),
-                      DropdownMenuItem(
-                          value: 'active', child: Text('Active')),
-                      DropdownMenuItem(
-                          value: 'waived', child: Text('Waived')),
-                      DropdownMenuItem(
-                          value: 'terminated',
-                          child: Text('Terminated')),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setState(() => _status = v);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _effectiveDateCtrl,
-                    readOnly: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Effective Date',
-                      suffixIcon: Icon(Icons.calendar_today),
+                    child: Text(
+                      'Provider: ${_planData!['provider'] ?? '—'} · '
+                      'Waiting: ${_planData!['waitingPeriodDays'] ?? 90} days · '
+                      'Eligibility: ${_planData!['eligibilityType'] ?? 'full-time'}',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: AppPaletteScope.of(context).primary2),
                     ),
-                    onTap: _pickEffectiveDate,
-                  ),
-                  const SizedBox(height: 24),
-
-                  _sectionHeader('Contributions (per pay period)'),
-                  TextFormField(
-                    controller: _employerContribCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Employer Contribution',
-                      prefixText: '\$ ',
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _employeeContribCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Employee Contribution',
-                      prefixText: '\$ ',
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                    ],
                   ),
                 ],
-              ),
+                const SizedBox(height: 24),
+                _sectionHeader('Employee'),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedMemberId,
+                  decoration: const InputDecoration(
+                      labelText: 'Select Employee'),
+                  items: _memberDocs.map((doc) {
+                    final name =
+                        (doc.data()['name'] ?? doc.id).toString();
+                    return DropdownMenuItem(
+                      value: doc.id,
+                      child: Text(name),
+                    );
+                  }).toList(),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() => _selectedMemberId = v);
+                    }
+                  },
+                  validator: (v) =>
+                      (v == null) ? 'Employee is required' : null,
+                ),
+                const SizedBox(height: 24),
+                _sectionHeader('Enrollment Details'),
+                DropdownButtonFormField<String>(
+                  initialValue: _status,
+                  decoration:
+                      const InputDecoration(labelText: 'Status'),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'pending', child: Text('Pending')),
+                    DropdownMenuItem(
+                        value: 'active', child: Text('Active')),
+                    DropdownMenuItem(
+                        value: 'waived', child: Text('Waived')),
+                    DropdownMenuItem(
+                        value: 'terminated',
+                        child: Text('Terminated')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _status = v);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _effectiveDateCtrl,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Effective Date',
+                    suffixIcon: Icon(Icons.calendar_today),
+                  ),
+                  onTap: _pickEffectiveDate,
+                  textInputAction: TextInputAction.next,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                ),
+                const SizedBox(height: 24),
+                _sectionHeader('Contributions (per pay period)'),
+                TextFormField(
+                  controller: _employerContribCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Employer Contribution',
+                    prefixText: '\$ ',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+                  ],
+                  textInputAction: TextInputAction.next,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _employeeContribCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Employee Contribution',
+                    prefixText: '\$ ',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+                  ],
+                  textInputAction: TextInputAction.done,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                ),
+              ],
+            ),
+          );
+
+    return Scaffold(
+      body: BookendedCanvas(child: form),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _handleSave,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
           ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _handleSave,
-        isSaving: _saving,
+          DetailsAppBar(title: title),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

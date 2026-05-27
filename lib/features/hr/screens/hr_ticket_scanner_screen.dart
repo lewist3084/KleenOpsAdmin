@@ -417,6 +417,12 @@ class _HrTicketScannerScreenState extends State<HrTicketScannerScreen> {
       body: Stack(
         children: [
           MobileScanner(onDetect: _handleCapture),
+          if (_processing)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ColoredBox(color: Colors.black.withValues(alpha: 0.35)),
+              ),
+            ),
           if (_message != null)
             Positioned(
               bottom: 40,
@@ -425,12 +431,34 @@ class _HrTicketScannerScreenState extends State<HrTicketScannerScreen> {
               child: Center(
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.black.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(_message!, style: const TextStyle(color: Colors.white)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_processing) ...[
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Flexible(
+                        child: Text(
+                          _message!,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

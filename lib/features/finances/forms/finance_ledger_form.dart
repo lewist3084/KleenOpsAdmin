@@ -7,9 +7,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:shared_widgets/search/search_field_action.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class FinanceLedgerForm extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> companyId;
@@ -118,8 +121,9 @@ class FinanceLedgerFormState extends State<FinanceLedgerForm> {
     if (_saving) return;
     if (_processingReceipt) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      SnackbarService.instance.showSnackBar(
         const SnackBar(
+          duration: Duration(seconds: 5),
           content: Text('Please wait for the current analysis to finish.'),
         ),
       );
@@ -138,8 +142,8 @@ class FinanceLedgerFormState extends State<FinanceLedgerForm> {
       await _processReceiptBytes(bytes);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to capture receipt: $e')),
+      SnackbarService.instance.showSnackBar(
+        SnackBar(duration: const Duration(seconds: 5), content: Text('Unable to capture receipt: $e')),
       );
     }
   }
@@ -148,8 +152,9 @@ class FinanceLedgerFormState extends State<FinanceLedgerForm> {
     if (_saving) return;
     if (_processingReceipt) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      SnackbarService.instance.showSnackBar(
         const SnackBar(
+          duration: Duration(seconds: 5),
           content: Text('Please wait for the current analysis to finish.'),
         ),
       );
@@ -166,8 +171,8 @@ class FinanceLedgerFormState extends State<FinanceLedgerForm> {
       }
       if (bytes == null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unable to read selected file.')),
+        SnackbarService.instance.showSnackBar(
+          const SnackBar(duration: Duration(seconds: 5), content: Text('Unable to read selected file.')),
         );
         return;
       }
@@ -191,8 +196,8 @@ class FinanceLedgerFormState extends State<FinanceLedgerForm> {
       await _processReceiptBytes(bytes);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to attach file: $e')),
+      SnackbarService.instance.showSnackBar(
+        SnackBar(duration: const Duration(seconds: 5), content: Text('Unable to attach file: $e')),
       );
     }
   }
@@ -217,8 +222,9 @@ class FinanceLedgerFormState extends State<FinanceLedgerForm> {
         transactionDate: result.transactionDate,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      SnackbarService.instance.showSnackBar(
         SnackBar(
+          duration: const Duration(seconds: 5),
           content: Text(
             result.hasAnyData
                 ? 'Receipt details applied. Review before saving.'
@@ -228,13 +234,13 @@ class FinanceLedgerFormState extends State<FinanceLedgerForm> {
       );
     } on GeminiReceiptException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
+      SnackbarService.instance.showSnackBar(
+        SnackBar(duration: const Duration(seconds: 5), content: Text(e.message)),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Receipt processing failed: $e')),
+      SnackbarService.instance.showSnackBar(
+        SnackBar(duration: const Duration(seconds: 5), content: Text('Receipt processing failed: $e')),
       );
     } finally {
       if (mounted) {
@@ -305,8 +311,8 @@ class FinanceLedgerFormState extends State<FinanceLedgerForm> {
     }
 
     return Scaffold(
-      appBar: const StandardAppBar(title: 'Ledger Entry'),
-      body: Form(
+      body: BookendedCanvas(
+        child: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -355,6 +361,8 @@ class FinanceLedgerFormState extends State<FinanceLedgerForm> {
               validator: (v) => v == null || double.tryParse(v) == null
                   ? 'Enter amount'
                   : null,
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -363,6 +371,8 @@ class FinanceLedgerFormState extends State<FinanceLedgerForm> {
                 labelText: 'Memo',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.done,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
             StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -414,13 +424,19 @@ class FinanceLedgerFormState extends State<FinanceLedgerForm> {
             const SizedBox(height: 80),
           ],
         ),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: CancelSaveBar(
-          onCancel: () => Navigator.of(context).pop(),
-          onSave: _saving ? null : _save,
         ),
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _save,
+            reserveNavBarSpace: false,
+          ),
+          const DetailsAppBar(title: 'Ledger Entry'),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

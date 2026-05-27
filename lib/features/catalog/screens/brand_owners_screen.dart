@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_widgets/tiles/standard_bubble_tile.dart';
 
 class BrandOwnersScreen extends StatelessWidget {
   const BrandOwnersScreen({super.key});
@@ -29,38 +30,33 @@ class BrandOwnersScreen extends StatelessWidget {
               final websiteType = (data['websiteType'] ?? 'unknown').toString();
               final lastScraped = data['lastScrapedAt'];
 
-              return Card(
-                child: ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.business)),
-                  title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: StandardBubbleTile(
+                  title: name,
+                  description: baseUrl.isNotEmpty ? baseUrl : null,
+                  leadingIcon: Icons.business,
+                  metaWidget: Row(
                     children: [
-                      if (baseUrl.isNotEmpty)
-                        Text(baseUrl, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Text(websiteType, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                          ),
-                          if (lastScraped != null) ...[
-                            const SizedBox(width: 8),
-                            Text('Last scraped: ${_formatTimestamp(lastScraped)}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                          ],
-                        ],
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Text(websiteType, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
+                      if (lastScraped != null) ...[
+                        const SizedBox(width: 8),
+                        Text('Last scraped: ${_formatTimestamp(lastScraped)}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      ],
                     ],
                   ),
-                  isThreeLine: true,
                   trailing: IconButton(
                     icon: const Icon(Icons.edit_outlined),
                     onPressed: () => _showEditDialog(context, doc.id, data),
                   ),
+                  onTap: () => _showEditDialog(context, doc.id, data),
                 ),
               );
             },

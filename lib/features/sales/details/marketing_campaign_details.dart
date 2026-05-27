@@ -192,6 +192,8 @@ class _MarketingCampaignDetailsScreenState
                 labelText: 'Name',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.next,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -200,6 +202,8 @@ class _MarketingCampaignDetailsScreenState
                 labelText: 'Description',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.done,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             ),
           ],
         ),

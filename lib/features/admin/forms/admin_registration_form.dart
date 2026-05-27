@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
 class AdminRegistrationFormScreen extends ConsumerStatefulWidget {
   const AdminRegistrationFormScreen({super.key});
@@ -114,8 +117,8 @@ class _AdminRegistrationFormState
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Save failed: $e')),
         );
       }
     } finally {
@@ -126,8 +129,8 @@ class _AdminRegistrationFormState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const StandardAppBar(title: 'Edit Registration'),
-      body: _loading
+      body: BookendedCanvas(
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
@@ -141,6 +144,8 @@ class _AdminRegistrationFormState
                       hintText: 'XX-XXXXXXX',
                     ),
                     keyboardType: TextInputType.text,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
@@ -177,6 +182,8 @@ class _AdminRegistrationFormState
                       hintText: 'YYYY-MM-DD',
                     ),
                     keyboardType: TextInputType.datetime,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -184,6 +191,8 @@ class _AdminRegistrationFormState
                     decoration:
                         const InputDecoration(labelText: 'Website'),
                     keyboardType: TextInputType.url,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -191,6 +200,8 @@ class _AdminRegistrationFormState
                     decoration:
                         const InputDecoration(labelText: 'DUNS Number'),
                     keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -198,6 +209,8 @@ class _AdminRegistrationFormState
                     decoration:
                         const InputDecoration(labelText: 'SIC Code'),
                     keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -205,14 +218,25 @@ class _AdminRegistrationFormState
                     decoration:
                         const InputDecoration(labelText: 'NAICS Code'),
                     keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                 ],
               ),
             ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _saving ? null : _save,
-        isSaving: _saving,
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(),
+            onSave: _saving ? null : _save,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
+          ),
+          const DetailsAppBar(title: 'Edit Registration'),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

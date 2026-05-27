@@ -4,15 +4,23 @@ import 'package:flutter/material.dart';
 import 'package:qr_plugin/qr_plugin.dart';
 import 'package:shared_widgets/containers/container_header.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
-class SalesCustomerDetails extends StatelessWidget {
+class SalesCustomerDetails extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> customerRef;
   const SalesCustomerDetails({super.key, required this.customerRef});
 
   @override
+  State<SalesCustomerDetails> createState() => _SalesCustomerDetailsState();
+}
+
+class _SalesCustomerDetailsState extends State<SalesCustomerDetails> {
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _customerDocStream;
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: customerRef.snapshots(),
+      stream: _customerDocStream ??= widget.customerRef.snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -64,10 +72,10 @@ class SalesCustomerDetails extends StatelessWidget {
   Future<void> _generatePortalLink(BuildContext context) async {
     // Extract companyId and customerId from the reference path
     // Path: company/{companyId}/customer/{customerId}
-    final segments = customerRef.path.split('/');
+    final segments = widget.customerRef.path.split('/');
     if (segments.length < 4) return;
     final companyId = segments[1];
-    final customerId = customerRef.id;
+    final customerId = widget.customerRef.id;
 
     try {
       final result = await FirebaseFunctions.instance
@@ -113,14 +121,14 @@ class SalesCustomerDetails extends StatelessWidget {
       );
     } on FirebaseFunctionsException catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.message ?? e.code}')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Error: ${e.message ?? e.code}')),
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+        SnackbarService.instance.showSnackBar(
+          SnackBar(duration: const Duration(seconds: 5), content: Text('Error: $e')),
         );
       }
     }

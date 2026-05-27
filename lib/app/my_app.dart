@@ -7,6 +7,11 @@ import 'package:shared_widgets/theme/app_fonts.dart';
 import '../theme/palette.dart';
 import 'router.dart';
 
+/// Global key for showing SnackBars via ScaffoldMessenger from anywhere
+/// (services, providers) without needing a BuildContext.
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+
 class AdminApp extends ConsumerWidget {
   const AdminApp({super.key});
 
@@ -20,6 +25,7 @@ class AdminApp extends ConsumerWidget {
       child: MaterialApp.router(
         title: 'Kleenops Admin',
         debugShowCheckedModeBanner: false,
+        scaffoldMessengerKey: scaffoldMessengerKey,
         theme: ThemeData(
           colorScheme: ColorScheme.light(
             primary: palette.primary1,
