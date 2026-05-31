@@ -1,10 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/labels/header_info_icon_value.dart';
-import 'package:kleenops_admin/widgets/labels/text_value_inline.dart';
-import 'package:kleenops_admin/widgets/labels/text_value_inline_checkbox.dart';
+import 'package:shared_widgets/labels/text_value_inline.dart';
+import 'package:shared_widgets/labels/text_info_checkbox.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 
 const _mandatoryLunchKeys = <String>[
@@ -176,18 +176,30 @@ class AdminStandardsContent extends ConsumerWidget {
                           boldHeader: false,
                         ),
                         const SizedBox(height: 8),
-                        TextValueInlineCheckbox(
-                          header: 'Mandatory Lunch',
-                          value: mandatoryLunch,
-                          icon: Icons.restaurant_menu,
-                          boldHeader: false,
+                        TextInfoCheckbox(
+                          text: 'Mandatory Lunch',
+                          leadingIcon: Icons.restaurant_menu,
+                          trailingActions: [
+                            TextInfoAction(
+                              icon: mandatoryLunch
+                                  ? Icons.check_box
+                                  : Icons.check_box_outline_blank,
+                              active: mandatoryLunch,
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 8),
-                        TextValueInlineCheckbox(
-                          header: 'Mandatory Lunch Clockout',
-                          value: mandatoryLunchClockout,
-                          icon: Icons.punch_clock,
-                          boldHeader: false,
+                        TextInfoCheckbox(
+                          text: 'Mandatory Lunch Clockout',
+                          leadingIcon: Icons.punch_clock,
+                          trailingActions: [
+                            TextInfoAction(
+                              icon: mandatoryLunchClockout
+                                  ? Icons.check_box
+                                  : Icons.check_box_outline_blank,
+                              active: mandatoryLunchClockout,
+                            ),
+                          ],
                         ),
                       ],
                     ),

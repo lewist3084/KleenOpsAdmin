@@ -8,7 +8,7 @@ import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adap
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:shared_widgets/containers/container_header.dart';
-import 'package:kleenops_admin/widgets/labels/icon_text_checkbox.dart';
+import 'package:shared_widgets/labels/text_info_checkbox.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
@@ -181,31 +181,31 @@ class _MarketingDataDetailsScreenState
                           descriptionHeader: 'Description',
                           description: desc,
                           trailingChildren: [
-                            IconTextCheckbox(
+                            TextInfoCheckbox(
                               text: 'First Name',
                               value: firstName,
                               onChanged: (v) => widget.docRef
                                   .update({'firstName': v ?? false}),
                             ),
-                            IconTextCheckbox(
+                            TextInfoCheckbox(
                               text: 'Last Name',
                               value: lastName,
                               onChanged: (v) => widget.docRef
                                   .update({'lastName': v ?? false}),
                             ),
-                            IconTextCheckbox(
+                            TextInfoCheckbox(
                               text: 'Email',
                               value: email,
                               onChanged: (v) =>
                                   widget.docRef.update({'email': v ?? false}),
                             ),
-                            IconTextCheckbox(
+                            TextInfoCheckbox(
                               text: 'Phone Number',
                               value: phone,
                               onChanged: (v) => widget.docRef
                                   .update({'phoneNumber': v ?? false}),
                             ),
-                            IconTextCheckbox(
+                            TextInfoCheckbox(
                               text: 'Company',
                               value: company,
                               onChanged: (v) =>

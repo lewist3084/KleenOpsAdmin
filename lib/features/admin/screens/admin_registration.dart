@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/containers/container_action.dart';
-import 'package:kleenops_admin/widgets/labels/text_value_inline.dart';
+import 'package:shared_widgets/labels/text_value_inline.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 
 /// Content widget for the Registration tab within Admin Company tabs.

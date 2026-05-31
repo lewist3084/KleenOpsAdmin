@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
 import 'package:shared_widgets/tiles/standard_tile_large.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
-import 'package:kleenops_admin/widgets/labels/icon_text_checkbox.dart';
+import 'package:shared_widgets/labels/text_info_checkbox.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import '../details/marketing_data_details.dart';
@@ -82,27 +82,27 @@ class _MarketingDataContentState extends ConsumerState<MarketingDataContent> {
                   onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
                 const SizedBox(height: 16),
-                IconTextCheckbox(
+                TextInfoCheckbox(
                   text: 'First Name',
                   value: firstName,
                   onChanged: (v) => setDState(() => firstName = v ?? false),
                 ),
-                IconTextCheckbox(
+                TextInfoCheckbox(
                   text: 'Last Name',
                   value: lastName,
                   onChanged: (v) => setDState(() => lastName = v ?? false),
                 ),
-                IconTextCheckbox(
+                TextInfoCheckbox(
                   text: 'Email',
                   value: email,
                   onChanged: (v) => setDState(() => email = v ?? false),
                 ),
-                IconTextCheckbox(
+                TextInfoCheckbox(
                   text: 'Phone Number',
                   value: phoneNumber,
                   onChanged: (v) => setDState(() => phoneNumber = v ?? false),
                 ),
-                IconTextCheckbox(
+                TextInfoCheckbox(
                   text: 'Company',
                   value: company,
                   onChanged: (v) => setDState(() => company = v ?? false),
