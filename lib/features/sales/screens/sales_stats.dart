@@ -10,6 +10,8 @@ import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 
+import 'package:kleenops_admin/features/sales/widgets/platform_metrics_panel.dart';
+
 /// Top-level screen with its own Scaffold (app bar + content + bottom nav)
 class SalesStatsScreen extends StatelessWidget {
   const SalesStatsScreen({super.key});
@@ -98,8 +100,14 @@ class SalesStatsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Stats Content', style: TextStyle(fontSize: 20)),
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(
+        top: 16,
+        bottom: kBottomNavigationBarHeight +
+            16.0 +
+            MediaQuery.of(context).padding.bottom,
+      ),
+      child: const PlatformMetricsPanel(),
     );
   }
 }

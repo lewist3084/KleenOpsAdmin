@@ -33,10 +33,12 @@ import '../features/catalog/screens/scrape_jobs_wrapper.dart';
 import '../features/catalog/screens/brand_owners_wrapper.dart';
 import '../features/catalog/screens/staging_review_wrapper.dart';
 import '../features/device_registry/screens/device_registry_home.dart';
+import '../common/communications/phone/screens/call_history_screen.dart';
 import '../common/communications/screens/internal_messages_screen.dart';
+import '../features/files/screens/drives_screen.dart';
 import '../common/communications/screens/message_board_screen.dart';
 import '../common/communications/screens/comm_placeholder_screen.dart';
-import '../common/communications/screens/email_screen.dart';
+import '../common/communications/email/screens/email_inbox_screen.dart';
 import '../common/communications/screens/calendar_screen.dart';
 import '../common/communications/screens/directory_screen.dart';
 import '../common/communications/screens/intercom_screen.dart';
@@ -145,6 +147,7 @@ import '../features/safety/screens/safety_response.dart';
 import '../features/safety/screens/safety_stats.dart';
 import '../features/occupancy/screens/occupancy_home.dart';
 import '../features/engagement/screens/engagement_home.dart';
+import '../features/engagement/screens/engagement_platform_screen.dart';
 import '../features/engagement/screens/engagement_reports.dart' as engagement_reports;
 import '../features/engagement/screens/engagement_stats.dart' as engagement_stats;
 import '../features/compliance/screens/compliance_home.dart';
@@ -1205,6 +1208,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const EngagementHome(),
       ),
       GoRoute(
+        path: AppRoutePaths.engagementMobile,
+        name: AppRouteIds.engagementMobile,
+        builder: (_, __) =>
+            const EngagementPlatformScreen(platform: 'mobile', title: 'Mobile'),
+      ),
+      GoRoute(
+        path: AppRoutePaths.engagementWeb,
+        name: AppRouteIds.engagementWeb,
+        builder: (_, __) =>
+            const EngagementPlatformScreen(platform: 'web', title: 'Web'),
+      ),
+      GoRoute(
         path: AppRoutePaths.engagementReports,
         name: AppRouteIds.engagementReports,
         builder: (_, __) => const engagement_reports.EngagementReportsScreen(),
@@ -1261,7 +1276,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.commEmail,
         name: AppRouteIds.commEmail,
-        builder: (_, __) => const AdminEmailScreen(),
+        builder: (_, __) => const EmailInboxScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.commCalendar,
@@ -1279,16 +1294,23 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const AdminIntercomScreen(),
       ),
       GoRoute(
+        path: AppRoutePaths.commPhone,
+        name: AppRouteIds.commPhone,
+        builder: (_, __) =>
+            const AdminCallHistoryScreen(kind: CallHistoryKind.voice),
+      ),
+      GoRoute(
         path: AppRoutePaths.commVideoCall,
         name: AppRouteIds.commVideoCall,
-        builder: (_, __) => const CommPlaceholderScreen(
-          title: 'Video Call',
-          icon: Icons.video_camera_front,
-          description:
-              'Video conferencing uses the same WebRTC infrastructure '
-              'as the Intercom. Select Intercom > Voice Call for '
-              'audio-only calls.',
-        ),
+        builder: (_, __) =>
+            const AdminCallHistoryScreen(kind: CallHistoryKind.video),
+      ),
+
+      // ── Resource routes ───────────────────────────────────────────────
+      GoRoute(
+        path: AppRoutePaths.drawerFiles,
+        name: AppRouteIds.drawerFiles,
+        builder: (_, __) => const DrivesScreen(),
       ),
     ],
   );

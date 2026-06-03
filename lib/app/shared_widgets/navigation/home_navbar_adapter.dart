@@ -181,6 +181,8 @@ const HomeNavConfig _navConfig = {
   ],
   'engagement': [
     HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Mobile', icon: Icons.phone_iphone, route: AppRoutePaths.engagementMobile),
+    HomeNavItem(label: 'Web', icon: Icons.language, route: AppRoutePaths.engagementWeb),
     HomeNavItem(label: 'Reports', icon: Icons.headset_mic, route: AppRoutePaths.engagementReports),
   ],
   'inventory': [

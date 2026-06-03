@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
@@ -8,10 +9,20 @@ import '../services/setup_wizard_service.dart';
 ///
 /// Allows the user to search for available numbers by area code,
 /// preview results, provision a number, and configure call forwarding.
+///
+/// By default it provisions for the signed-in overlord's own entity
+/// ([companyIdProvider]). Pass [companyOverride] to provision FOR a specific
+/// customer company instead — this is how the platform-admin sells a phone
+/// number to a company from that company's detail screen.
 class PhoneProvisioningDialog extends ConsumerStatefulWidget {
   final Map<String, dynamic> itemData;
+  final DocumentReference<Map<String, dynamic>>? companyOverride;
 
-  const PhoneProvisioningDialog({super.key, required this.itemData});
+  const PhoneProvisioningDialog({
+    super.key,
+    required this.itemData,
+    this.companyOverride,
+  });
 
   @override
   ConsumerState<PhoneProvisioningDialog> createState() =>
@@ -22,6 +33,11 @@ class _PhoneProvisioningDialogState
     extends ConsumerState<PhoneProvisioningDialog> {
   final _phoneService = PhoneProvisioningService.instance;
   final _wizardService = SetupWizardService.instance;
+
+  /// Target company: the explicit override (customer company) when selling
+  /// for a company, else the signed-in overlord's own entity.
+  DocumentReference<Map<String, dynamic>>? get _targetCompany =>
+      widget.companyOverride ?? ref.read(companyIdProvider).asData?.value;
 
   final _areaCodeCtrl = TextEditingController();
   final _stateCtrl = TextEditingController();
@@ -55,7 +71,7 @@ class _PhoneProvisioningDialogState
   }
 
   Future<void> _loadExistingNumbers() async {
-    final companyRef = ref.read(companyIdProvider).asData?.value;
+    final companyRef = _targetCompany;
     if (companyRef == null) {
       setState(() => _loadingExisting = false);
       return;
@@ -78,7 +94,7 @@ class _PhoneProvisioningDialogState
   }
 
   Future<void> _search() async {
-    final companyRef = ref.read(companyIdProvider).asData?.value;
+    final companyRef = _targetCompany;
     if (companyRef == null) return;
 
     setState(() {
@@ -113,7 +129,7 @@ class _PhoneProvisioningDialogState
   }
 
   Future<void> _provision() async {
-    final companyRef = ref.read(companyIdProvider).asData?.value;
+    final companyRef = _targetCompany;
     if (companyRef == null || _selectedNumber == null) return;
 
     setState(() {
@@ -133,13 +149,17 @@ class _PhoneProvisioningDialogState
             : null,
       );
 
-      // Mark wizard step complete
-      await _wizardService.completeItem('business_phone', data: {
-        'number': _selectedNumber!['phoneNumber'],
-        'forwardTo': _forwardToCtrl.text.trim(),
-        'label': _labelCtrl.text.trim(),
-        'provisionedVia': 'twilio',
-      });
+      // Mark the overlord's own setup-wizard step complete — but only when
+      // provisioning for the overlord itself, not when selling a number to a
+      // customer company (the singleton wizard belongs to the overlord).
+      if (widget.companyOverride == null) {
+        await _wizardService.completeItem('business_phone', data: {
+          'number': _selectedNumber!['phoneNumber'],
+          'forwardTo': _forwardToCtrl.text.trim(),
+          'label': _labelCtrl.text.trim(),
+          'provisionedVia': 'twilio',
+        });
+      }
 
       if (mounted) {
         setState(() {
@@ -196,7 +216,9 @@ class _PhoneProvisioningDialogState
         _DialogStep.search => [
           TextButton(
             onPressed: () {
-              _wizardService.skipItem('business_phone');
+              if (widget.companyOverride == null) {
+                _wizardService.skipItem('business_phone');
+              }
               Navigator.pop(context);
             },
             child: const Text('Skip'),

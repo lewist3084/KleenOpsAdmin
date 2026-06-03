@@ -8,7 +8,6 @@ import 'package:kleenops_admin/features/sales/screens/sales_product.dart';
 import 'package:kleenops_admin/app/routes.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
-import 'package:kleenops_admin/app/shared_widgets/navigation/home_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
@@ -142,10 +141,11 @@ class _SalesTabsState extends ConsumerState<SalesTabs>
 
   @override
   Widget build(BuildContext context) {
-    final bool hideChrome = false;
-    final bottomInset =
-        (hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0) +
-            MediaQuery.of(context).padding.bottom;
+    // Scaffold.bottomNavigationBar already reserves the chrome (DetailsAppBar +
+    // HomeNavBar) height and safe-area, so the tab body only needs a small gap.
+    // The old `kBottomNavigationBarHeight + 16 + safeArea` math double-reserved
+    // that space and floated the Products FAB well above the chrome.
+    const bottomInset = 16.0;
 
     return DefaultTabController(
       length: 2,

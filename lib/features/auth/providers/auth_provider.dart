@@ -305,3 +305,61 @@ final memberDocRefProvider =
         });
   },
 );
+
+/// Member document reference under the *company* collection (NOT the
+/// `kleenops` overlord entity) for the current user.
+///
+/// Inbound mail is written by `emailInboundWebhook` to
+/// `company/{cid}/member/{mid}/email`, so any feature that reads the
+/// signed-in user's real mailbox (email inbox, etc.) must resolve the
+/// company membership here. [memberDocRefProvider] instead prefers the
+/// overlord membership under `kleenops/{id}`, whose `member/email`
+/// subcollection never receives mail.
+///
+/// Falls back to any active membership if no `company`-scoped membership
+/// exists, so the behaviour degrades to the old (empty) inbox rather than
+/// erroring.
+final mailboxMemberRefProvider =
+    StreamProvider.autoDispose<DocumentReference<Map<String, dynamic>>?>(
+  (ref) {
+    final user = ref.watch(authStateChangesProvider).value;
+    if (user == null) {
+      return Stream.value(null)
+          .cast<DocumentReference<Map<String, dynamic>>?>();
+    }
+
+    final uid = user.uid;
+
+    return FirebaseFirestore.instance
+        .collectionGroup(colMemberByUid)
+        .where('uid', isEqualTo: uid)
+        .snapshots(includeMetadataChanges: true)
+        .map((q) {
+          if (q.docs.isEmpty) return null;
+
+          // Prefer the active membership under the `company` collection —
+          // that is where inbound mail lands.
+          final indexDoc = q.docs.cast<QueryDocumentSnapshot<Map<String, dynamic>>?>().firstWhere(
+                (d) =>
+                    d!.data()['active'] == true &&
+                    d.reference.parent.parent?.parent.id == colCompany,
+                orElse: () => null,
+              ) ??
+              q.docs.cast<QueryDocumentSnapshot<Map<String, dynamic>>?>().firstWhere(
+                (d) => d!.data()['active'] == true,
+                orElse: () => null,
+              );
+
+          if (indexDoc == null) return null;
+          final indexData = indexDoc.data();
+          final memberId = indexData['memberId'] as String?;
+          if (memberId == null || memberId.isEmpty) return null;
+          final companyRef = indexDoc.reference.parent.parent!;
+          return companyRef.collection(colMember).doc(memberId)
+              .withConverter<Map<String, dynamic>>(
+            fromFirestore: (s, _) => s.data()!,
+            toFirestore: (m, _) => m,
+          );
+        });
+  },
+);

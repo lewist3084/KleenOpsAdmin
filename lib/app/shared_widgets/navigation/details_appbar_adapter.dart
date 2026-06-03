@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kleenops_admin/common/resources/resources_menu.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/navigation/details_appbar.dart' as shared;
 
@@ -68,6 +69,26 @@ class DetailsAppBar extends ConsumerWidget implements PreferredSizeWidget {
         (communicationItems?.isNotEmpty ?? false);
     final effectiveShowMenu = showMenu || hasMenuItems;
 
+    // Whenever a menu is shown, fold the caller's sections together and
+    // auto-inject the canonical Resources list (Files) if the screen didn't
+    // supply one — mirrors the main app's `withFilesInSections`.
+    MenuDrawerSections? effectiveSections;
+    if (effectiveShowMenu) {
+      final base = menuSections ??
+          MenuDrawerSections(
+            actions: actionItems ?? const <ContentMenuItem>[],
+            resources: resourceItems ?? const <ContentMenuItem>[],
+            communications: communicationItems ?? const <ContentMenuItem>[],
+          );
+      effectiveSections = base.resources.isEmpty
+          ? MenuDrawerSections(
+              actions: base.actions,
+              resources: buildAdminResourceMenuItems(context),
+              communications: base.communications,
+            )
+          : base;
+    }
+
     return shared.StandardAppBar(
       title: title,
       onAiPressed: onAiPressed,
@@ -78,10 +99,7 @@ class DetailsAppBar extends ConsumerWidget implements PreferredSizeWidget {
       rightAction1: rightAction1,
       rightIcon2: rightIcon2,
       rightAction2: rightAction2,
-      menuSections: menuSections,
-      actionItems: actionItems,
-      resourceItems: resourceItems,
-      communicationItems: communicationItems,
+      menuSections: effectiveSections,
       onMenuPressed: onMenuPressed,
       showMenu: effectiveShowMenu,
       onSearchToggle: onSearchToggle,

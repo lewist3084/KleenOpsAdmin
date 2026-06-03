@@ -199,6 +199,8 @@ class AppRouteIds {
 
   // Engagement
   static const engagementHome = 'engagementHome';
+  static const engagementMobile = 'engagementMobile';
+  static const engagementWeb = 'engagementWeb';
   static const engagementReports = 'engagementReports';
   static const engagementStats = 'engagementStats';
 
@@ -222,6 +224,10 @@ class AppRouteIds {
   static const commDirectory = 'commDirectory';
   static const commIntercom = 'commIntercom';
   static const commVideoCall = 'commVideoCall';
+  static const commPhone = 'commPhone';
+
+  // Resources
+  static const drawerFiles = 'drawerFiles';
 }
 
 class AppRoutePaths {
@@ -408,6 +414,8 @@ class AppRoutePaths {
 
   // Engagement
   static const engagementHome = '/engagement/home';
+  static const engagementMobile = '/engagement/mobile';
+  static const engagementWeb = '/engagement/web';
   static const engagementReports = '/engagement/reports';
   static const engagementStats = '/engagement/stats';
   static const engagementSurvey = '/engagement/survey';
@@ -435,4 +443,8 @@ class AppRoutePaths {
   static const commDirectory = '/comm/directory';
   static const commIntercom = '/comm/intercom';
   static const commVideoCall = '/comm/video-call';
+  static const commPhone = '/comm/phone';
+
+  // Resources
+  static const drawerFiles = '/drawer/files';
 }

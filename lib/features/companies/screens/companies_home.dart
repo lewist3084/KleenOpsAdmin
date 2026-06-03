@@ -7,11 +7,48 @@ import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/tiles/standard_bubble_tile.dart';
 
 import '../../../app/routes.dart';
+import '../../../features/sales/services/platform_catalog_service.dart';
 import '../../../services/admin_firebase_service.dart';
 import '../../../theme/palette.dart';
 
 class CompaniesHome extends StatelessWidget {
   const CompaniesHome({super.key});
+
+  /// Backfill: hardwire every active platform product onto every existing
+  /// company as a `service/{productKey}` doc, so costs can accrue. New
+  /// companies are wired automatically by the onCompanyCreated trigger.
+  Future<void> _provisionAll(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hardwire services?'),
+        content: const Text(
+            'This writes the platform-product services onto every company so '
+            'their costs can be tracked. Existing services keep their accrued '
+            'totals. Continue?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Hardwire all')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    messenger.showSnackBar(
+        const SnackBar(content: Text('Hardwiring services…')));
+    try {
+      final count =
+          await PlatformCatalogService.instance.provisionAllCompanies();
+      messenger.showSnackBar(
+          SnackBar(content: Text('Hardwired services onto $count companies.')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +63,13 @@ class CompaniesHome extends StatelessWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go(AppRoutePaths.dashboard),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Hardwire services onto all companies',
+            icon: const Icon(Icons.cable_outlined),
+            onPressed: () => _provisionAll(context),
+          ),
+        ],
       ),
       body: StandardCanvas(
         child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
