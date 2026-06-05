@@ -7,6 +7,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -71,10 +72,11 @@ class DriveActions {
     DocumentReference<Map<String, dynamic>>? parentFolderRef,
     List<String> parentAncestorIds = const [],
   }) async {
-    final picked = await FilePicker.platform.pickFiles(withData: false);
+    // On web request the bytes (no filesystem path); on mobile a path is fine.
+    final picked = await FilePicker.platform.pickFiles(withData: kIsWeb);
     if (picked == null || picked.files.isEmpty) return;
     final pf = picked.files.single;
-    if (pf.path == null) return;
+    if (kIsWeb ? pf.bytes == null : pf.path == null) return;
     if (!context.mounted) return;
 
     showDialog<void>(
@@ -88,8 +90,11 @@ class DriveActions {
       final docRef = repo.fileCollection(companyId).doc();
       final ext = p.extension(pf.name);
       final storagePath = 'file/${docRef.id}$ext';
-      final downloadUrl =
-          await StorageService().uploadFile(File(pf.path!), storagePath);
+      // Web uses putData(bytes); mobile streams the file with putFile. Avoids
+      // the `dart:io` File ops that throw `_Namespace` in the browser.
+      final downloadUrl = kIsWeb
+          ? await StorageService().uploadData(pf.bytes!, storagePath)
+          : await StorageService().uploadFile(File(pf.path!), storagePath);
       final principal = _refs(ref);
       await repo.createFile(
         companyId: companyId,

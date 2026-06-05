@@ -29,10 +29,16 @@ class DomainProvisioningService {
   /// [registrant] sets the customer as the legal owner of the domain.
   /// Should contain: firstName, lastName, organization, email, phone,
   /// address1, city, state, zip, country.
+  ///
+  /// When [charge] is true (the default) the company's saved card is charged
+  /// for the domain product and the purchase is booked to both ledgers
+  /// (KleenOps revenue + the company's expense). Pass false when billing is
+  /// handled elsewhere (e.g. a basket checkout that already charges).
   Future<Map<String, dynamic>> register({
     required String companyId,
     required String domainName,
     bool autoRenew = true,
+    bool charge = true,
     Map<String, dynamic>? registrant,
   }) async {
     final callable = _functions.httpsCallable('domainRegister');
@@ -40,6 +46,7 @@ class DomainProvisioningService {
       'companyId': companyId,
       'domainName': domainName,
       'autoRenew': autoRenew,
+      'charge': charge,
       if (registrant != null) 'registrant': registrant,
     });
     return Map<String, dynamic>.from(result.data);

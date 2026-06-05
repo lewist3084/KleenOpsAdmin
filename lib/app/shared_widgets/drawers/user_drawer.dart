@@ -1,7 +1,7 @@
 // Kleenops Admin adapter for the shared AppBarLogout user drawer.
 //
-// Wires the shared widget to:
-//   - Settings -> no-op (just closes drawer for now)
+// Mirrors the kleenops `appbar_logout_adapter.dart`. Wires the shared widget to:
+//   - Settings ("Me") -> /me/info
 //   - Report Issue -> AppOwnerReport cloud function
 //   - Log out -> FirebaseAuth.signOut + /login
 //   - Delete account -> deleteUserAccount callable
@@ -13,6 +13,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kleenops_admin/app/routes.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/import_actions.dart';
 import 'package:shared_widgets/dialogs/report_issue_dialog.dart';
 import 'package:shared_widgets/drawers/appbar_logout.dart' as shared;
 
@@ -29,12 +30,34 @@ class UserDrawer extends StatelessWidget {
 
     return shared.AppBarLogout(
       headerTitle: headerTitle,
-      settingsLabel: 'Settings',
+      settingsLabel: 'Me',
+      settingsIcon: Icons.person_outline,
       logoutLabel: 'Logout',
       popOnSettingsTap: false,
       popOnLogoutTap: false,
+      // Meeting Minutes, Notes and Import are always available here,
+      // independent of which screen the user is on.
+      extraItems: [
+        shared.UserDrawerItem(
+          icon: Icons.record_voice_over_outlined,
+          label: 'Meeting Minutes',
+          onTap: (ctx) => ctx.push(AppRoutePaths.drawerMeetingMinutes),
+        ),
+        shared.UserDrawerItem(
+          icon: Icons.note_alt_outlined,
+          label: 'Notes',
+          onTap: (ctx) => ctx.push(AppRoutePaths.drawerNotes),
+        ),
+        shared.UserDrawerItem(
+          icon: kImportActionIcon,
+          label: kImportActionLabel,
+          onTap: (ctx) => showImportDialog(ctx),
+        ),
+      ],
       onSettingsTap: (ctx) async {
         Navigator.of(ctx).pop();
+        await Future.microtask(() {});
+        if (ctx.mounted) ctx.go(AppRoutePaths.meInfo);
       },
       onReportIssueTap: (ctx) async {
         // Drawer is already popped by the shared widget.

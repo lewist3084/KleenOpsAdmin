@@ -19,11 +19,31 @@ String _plaidPlatform() {
 }
 
 class PlaidService {
-  PlaidService({required this.companyRef});
+  /// Overlord scope — the KleenOps platform's own books, stored in **top-level**
+  /// collections beside the `company` collection (the admin app's own business).
+  PlaidService.overlord() : companyRef = null;
 
-  final DocumentReference<Map<String, dynamic>> companyRef;
+  /// Per-company scope — a specific company's books under `company/{id}/…`
+  /// (used for overlord drill-in into a customer's books).
+  PlaidService.forCompany(this.companyRef);
 
-  String get _companyId => companyRef.id;
+  /// Null in overlord scope; the company doc otherwise.
+  final DocumentReference<Map<String, dynamic>>? companyRef;
+
+  bool get _isOverlord => companyRef == null;
+
+  /// Scope selector sent to every finance callable: `{overlord:true}` or
+  /// `{companyId: …}`.
+  Map<String, dynamic> get _scopeArgs =>
+      _isOverlord ? {'overlord': true} : {'companyId': companyRef!.id};
+
+  FirebaseFirestore get _booksDb =>
+      companyRef?.firestore ?? FirebaseFirestore.instance;
+
+  /// A collection at the active books root: top-level for overlord, or a
+  /// subcollection under the company doc otherwise.
+  CollectionReference<Map<String, dynamic>> _col(String name) =>
+      _isOverlord ? _booksDb.collection(name) : companyRef!.collection(name);
 
   /// Creates a Plaid Link token via Cloud Functions.
   /// [language] is the BCP-47 / Plaid language code (en, es, fr, …) used to
@@ -32,7 +52,21 @@ class PlaidService {
     final callable =
         FirebaseFunctions.instance.httpsCallable('financeCreateLinkToken');
     final result = await callable.call({
-      'companyId': _companyId,
+      ..._scopeArgs,
+      'platform': _plaidPlatform(),
+      'language': language,
+    });
+    return result.data['linkToken'] as String;
+  }
+
+  /// Creates a Plaid Link token in *update mode* to repair a broken Item.
+  Future<String> createUpdateLinkToken(String plaidItemId,
+      {String language = 'en'}) async {
+    final callable = FirebaseFunctions.instance
+        .httpsCallable('financeCreateUpdateLinkToken');
+    final result = await callable.call({
+      ..._scopeArgs,
+      'plaidItemId': plaidItemId,
       'platform': _plaidPlatform(),
       'language': language,
     });
@@ -48,7 +82,7 @@ class PlaidService {
     final callable =
         FirebaseFunctions.instance.httpsCallable('financeExchangePublicToken');
     final result = await callable.call({
-      'companyId': _companyId,
+      ..._scopeArgs,
       'publicToken': publicToken,
       'institutionId': institutionId ?? '',
       'institutionName': institutionName ?? '',
@@ -61,7 +95,7 @@ class PlaidService {
     final callable =
         FirebaseFunctions.instance.httpsCallable('financeSyncTransactions');
     final result = await callable.call({
-      'companyId': _companyId,
+      ..._scopeArgs,
       'plaidItemId': plaidItemId,
     });
     return Map<String, dynamic>.from(result.data as Map);
@@ -72,7 +106,7 @@ class PlaidService {
     final callable =
         FirebaseFunctions.instance.httpsCallable('financeGetBalances');
     final result = await callable.call({
-      'companyId': _companyId,
+      ..._scopeArgs,
       'plaidItemId': plaidItemId,
     });
     return Map<String, dynamic>.from(result.data as Map);
@@ -83,7 +117,7 @@ class PlaidService {
     final callable =
         FirebaseFunctions.instance.httpsCallable('financeRemoveInstitution');
     await callable.call({
-      'companyId': _companyId,
+      ..._scopeArgs,
       'plaidItemId': plaidItemId,
     });
   }
@@ -99,9 +133,30 @@ class PlaidService {
       if (kIsWeb) oauth_state.saveLinkToken(linkToken);
 
       final linkConfig = LinkTokenConfiguration(token: linkToken);
-      return _runPlaidSession(linkConfig);
+      return _runPlaidSession(linkConfig, _exchangeOnSuccess);
     } catch (e) {
       debugPrint('PlaidService.openPlaidLink error: $e');
+      return false;
+    }
+  }
+
+  /// Re-authenticates a broken Item via Plaid Link *update mode*.
+  /// On success there is no public-token exchange; instead we run a sync,
+  /// which clears the error state (status→active, needsReauth→false) and
+  /// pulls any transactions missed while the Item was down.
+  /// Returns true if the Item was successfully reconnected.
+  Future<bool> reconnectInstitution(String plaidItemId,
+      {String language = 'en'}) async {
+    try {
+      final linkToken =
+          await createUpdateLinkToken(plaidItemId, language: language);
+      if (kIsWeb) oauth_state.saveLinkToken(linkToken);
+      final linkConfig = LinkTokenConfiguration(token: linkToken);
+      return _runPlaidSession(linkConfig, (_) async {
+        await syncTransactions(plaidItemId);
+      });
+    } catch (e) {
+      debugPrint('PlaidService.reconnectInstitution error: $e');
       return false;
     }
   }
@@ -110,9 +165,7 @@ class PlaidService {
   /// `oauth_state_id` query param, re-open Plaid Link with
   /// `receivedRedirectUri` so the session resumes where the user left off.
   /// Returns true if a resume was attempted and succeeded.
-  static Future<bool> resumePlaidOauthIfPending({
-    DocumentReference<Map<String, dynamic>>? companyRef,
-  }) async {
+  static Future<bool> resumePlaidOauthIfPending() async {
     if (!kIsWeb) return false;
     final redirectUri = oauth_state.readOauthRedirectUri();
     if (redirectUri == null) return false;
@@ -127,16 +180,9 @@ class PlaidService {
         token: savedToken,
         receivedRedirectUri: redirectUri,
       );
-      if (companyRef != null) {
-        final service = PlaidService(companyRef: companyRef);
-        return service._runPlaidSession(linkConfig);
-      }
-      // No companyRef — at minimum, hand the redirect to Plaid so it can
-      // clean up its in-memory state; the caller is responsible for
-      // exchanging on success once a companyRef is known.
-      await PlaidLink.create(configuration: linkConfig);
-      await PlaidLink.open();
-      return false;
+      // The admin app's banking is the overlord (platform) scope.
+      final service = PlaidService.overlord();
+      return service._runPlaidSession(linkConfig, service._exchangeOnSuccess);
     } catch (e) {
       debugPrint('PlaidService.resumePlaidOauthIfPending error: $e');
       return false;
@@ -145,21 +191,32 @@ class PlaidService {
     }
   }
 
-  Future<bool> _runPlaidSession(LinkTokenConfiguration linkConfig) async {
+  /// Exchanges the public token after a successful *initial* Plaid Link.
+  Future<void> _exchangeOnSuccess(LinkSuccess success) async {
+    await exchangePublicToken(
+      publicToken: success.publicToken,
+      institutionId: success.metadata.institution?.id ?? '',
+      institutionName: success.metadata.institution?.name ?? '',
+    );
+  }
+
+  /// Drives a Plaid Link session, running [onSuccess] when the user completes
+  /// it. Used for both initial connect (exchange) and update-mode re-auth
+  /// (sync). Returns true on success, false on exit/error.
+  Future<bool> _runPlaidSession(
+    LinkTokenConfiguration linkConfig,
+    Future<void> Function(LinkSuccess success) onSuccess,
+  ) async {
     await PlaidLink.create(configuration: linkConfig);
 
     final completer = Completer<bool>();
 
     final successSub = PlaidLink.onSuccess.listen((success) async {
       try {
-        await exchangePublicToken(
-          publicToken: success.publicToken,
-          institutionId: success.metadata.institution?.id ?? '',
-          institutionName: success.metadata.institution?.name ?? '',
-        );
+        await onSuccess(success);
         if (!completer.isCompleted) completer.complete(true);
       } catch (e) {
-        debugPrint('PlaidService exchange error: $e');
+        debugPrint('PlaidService session onSuccess error: $e');
         if (!completer.isCompleted) completer.complete(false);
       }
     });
@@ -178,18 +235,26 @@ class PlaidService {
     return result;
   }
 
-  /// Stream of connected Plaid Items for this company.
+  /// Stream of connected Plaid Items at the active books root (top-level for
+  /// the overlord/platform, or `company/{id}/plaidItem` for a company).
   Stream<QuerySnapshot<Map<String, dynamic>>> watchPlaidItems() {
-    return FirebaseFirestore.instance
-        .collection('plaidItem')
+    return _col('plaidItem')
         .orderBy('createdAt', descending: true)
         .snapshots();
   }
 
-  /// Stream of bank accounts for this company.
+  /// Stream of active bank accounts at the active books root.
   Stream<QuerySnapshot<Map<String, dynamic>>> watchBankAccounts() {
-    return FirebaseFirestore.instance
-        .collection('bankAccount')
+    return _col('bankAccount')
+        .where('active', isEqualTo: true)
+        .snapshots();
+  }
+
+  /// Stream of active bank accounts under a given Plaid Item.
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchAccountsForItem(
+      String plaidItemId) {
+    return _col('bankAccount')
+        .where('plaidItemId', isEqualTo: plaidItemId)
         .where('active', isEqualTo: true)
         .snapshots();
   }
@@ -197,27 +262,22 @@ class PlaidService {
   /// Designates a bank account as the payroll disbursement account.
   /// Clears any previous payroll designation first.
   Future<void> setPayrollAccount(String bankAccountId) async {
+    final accounts = _col('bankAccount');
     // Clear existing payroll designations
-    final existing = await FirebaseFirestore.instance
-        .collection('bankAccount')
-        .where('isPayrollAccount', isEqualTo: true)
-        .get();
-    final batch = FirebaseFirestore.instance.batch();
+    final existing =
+        await accounts.where('isPayrollAccount', isEqualTo: true).get();
+    final batch = _booksDb.batch();
     for (final doc in existing.docs) {
       batch.update(doc.reference, {'isPayrollAccount': false});
     }
     // Set the new one
-    batch.update(
-      FirebaseFirestore.instance.collection('bankAccount').doc(bankAccountId),
-      {'isPayrollAccount': true},
-    );
+    batch.update(accounts.doc(bankAccountId), {'isPayrollAccount': true});
     await batch.commit();
   }
 
   /// Gets the designated payroll account, if any.
   Future<DocumentSnapshot<Map<String, dynamic>>?> getPayrollAccount() async {
-    final snap = await FirebaseFirestore.instance
-        .collection('bankAccount')
+    final snap = await _col('bankAccount')
         .where('isPayrollAccount', isEqualTo: true)
         .where('active', isEqualTo: true)
         .limit(1)
@@ -228,8 +288,7 @@ class PlaidService {
   /// Stream of bank transactions for a specific account.
   Stream<QuerySnapshot<Map<String, dynamic>>> watchBankTransactions(
       String bankAccountId) {
-    return FirebaseFirestore.instance
-        .collection('bankTransaction')
+    return _col('bankTransaction')
         .where('bankAccountId', isEqualTo: bankAccountId)
         .orderBy('date', descending: true)
         .limit(100)

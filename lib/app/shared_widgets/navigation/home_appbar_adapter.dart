@@ -3,7 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kleenops_admin/common/resources/resources_menu.dart';
+import 'package:kleenops_admin/common/menu_sections.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/navigation/details_appbar.dart';
 
@@ -54,33 +54,26 @@ class ContentAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
     final scaffoldContext = Scaffold.maybeOf(context)?.context ?? context;
 
-    // Auto-inject the canonical Resources list (Files) when a screen didn't
-    // supply one, so the Files browser appears in every drawer — mirrors the
-    // main app's `withFilesInSections` behaviour.
-    MenuDrawerSections withResources(MenuDrawerSections s) {
-      if (s.resources.isNotEmpty) return s;
-      return MenuDrawerSections(
-        actions: s.actions,
-        resources: buildAdminResourceMenuItems(scaffoldContext),
-        communications: s.communications,
-      );
-    }
+    // Inject the universal drawer items (My Tasks, Agent Tasks, Files, the 7
+    // Communications, Reminders) so the same fixed set appears on every screen.
+    MenuDrawerSections withUniversal(MenuDrawerSections s) =>
+        withAdminUniversalSections(scaffoldContext, s);
 
     MenuDrawerSections buildSections() {
       if (menuSectionsBuilder != null) {
-        return withResources(menuSectionsBuilder!(scaffoldContext));
+        return withUniversal(menuSectionsBuilder!(scaffoldContext));
       } else if (menuSections != null) {
-        return withResources(menuSections!);
+        return withUniversal(menuSections!);
       } else if (actionItems != null ||
           resourceItems != null ||
           communicationItems != null) {
-        return withResources(MenuDrawerSections(
+        return withUniversal(MenuDrawerSections(
           actions: actionItems ?? const <ContentMenuItem>[],
           resources: resourceItems ?? const <ContentMenuItem>[],
           communications: communicationItems ?? const <ContentMenuItem>[],
         ));
       }
-      return withResources(const MenuDrawerSections());
+      return withUniversal(const MenuDrawerSections());
     }
 
     Widget buildDrawer() {

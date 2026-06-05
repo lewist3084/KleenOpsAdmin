@@ -1,5 +1,6 @@
 // finance_banking.dart
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -64,6 +65,11 @@ class FinanceBankingScreen extends StatelessWidget {
                 label: 'Accounts',
                 onTap: () => context.push(AppRoutePaths.financeAccounts),
               ),
+              ContentMenuItem(
+                icon: Icons.fact_check_outlined,
+                label: 'Reconciliation',
+                onTap: () => context.push(AppRoutePaths.financeReconciliation),
+              ),
             ],
           );
           return Column(
@@ -93,6 +99,7 @@ class FinanceBankingContent extends ConsumerStatefulWidget {
 class _FinanceBankingContentState extends ConsumerState<FinanceBankingContent> {
   bool _connecting = false;
   bool _syncing = false;
+  bool _attemptedOauthResume = false;
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +114,19 @@ class _FinanceBankingContentState extends ConsumerState<FinanceBankingContent> {
           return const Center(child: Text('No company found'));
         }
 
-        final plaidService = PlaidService(companyRef: companyRef);
+        // Admin banking = the overlord/platform's own books (top-level).
+        final plaidService = PlaidService.overlord();
+
+        // Web OAuth resume: if the browser returned from a bank's OAuth
+        // redirect (kleenops-admin.web.app/plaid-oauth?oauth_state_id=...)
+        // with a pending link_token in sessionStorage, re-open Plaid Link
+        // with receivedRedirectUri to finish the session. No-op otherwise.
+        if (kIsWeb && !_attemptedOauthResume) {
+          _attemptedOauthResume = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            PlaidService.resumePlaidOauthIfPending();
+          });
+        }
 
         return Column(
           children: [
@@ -191,9 +210,9 @@ class _FinanceBankingContentState extends ConsumerState<FinanceBankingContent> {
                         itemId: item.id,
                         data: data,
                         plaidService: plaidService,
-                        companyRef: companyRef,
                         syncing: _syncing,
                         onSync: () => _syncItem(plaidService, item.id),
+                        onReconnect: () => _reconnectItem(plaidService, item.id),
                         onRemove: () => _removeItem(
                           context,
                           plaidService,
@@ -259,6 +278,33 @@ class _FinanceBankingContentState extends ConsumerState<FinanceBankingContent> {
     }
   }
 
+  Future<void> _reconnectItem(PlaidService service, String itemId) async {
+    setState(() => _connecting = true);
+    try {
+      final lang = Localizations.localeOf(context).languageCode;
+      final ok = await service.reconnectInstitution(itemId, language: lang);
+      if (mounted && ok) {
+        SnackbarService.instance.showSnackBar(
+          const SnackBar(
+            duration: Duration(seconds: 5),
+            content: Text('Bank reconnected'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarService.instance.showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 5),
+            content: Text('Reconnect error: $e'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _connecting = false);
+    }
+  }
+
   Future<void> _removeItem(
     BuildContext context,
     PlaidService service,
@@ -310,18 +356,18 @@ class _InstitutionCard extends StatelessWidget {
     required this.itemId,
     required this.data,
     required this.plaidService,
-    required this.companyRef,
     required this.syncing,
     required this.onSync,
+    required this.onReconnect,
     required this.onRemove,
   });
 
   final String itemId;
   final Map<String, dynamic> data;
   final PlaidService plaidService;
-  final DocumentReference<Map<String, dynamic>> companyRef;
   final bool syncing;
   final VoidCallback onSync;
+  final VoidCallback onReconnect;
   final VoidCallback onRemove;
 
   @override
@@ -329,6 +375,8 @@ class _InstitutionCard extends StatelessWidget {
     final institutionName = data['institutionName'] ?? 'Unknown Institution';
     final status = data['status'] ?? 'unknown';
     final lastSynced = data['lastSynced'] as Timestamp?;
+    final needsReauth = data['needsReauth'] == true ||
+        (status != 'active' && status != 'unknown');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -350,7 +398,7 @@ class _InstitutionCard extends StatelessWidget {
                   ? (lastSynced != null
                       ? 'Last synced: ${_formatDate(lastSynced)}'
                       : 'Never synced')
-                  : 'Status: $status',
+                  : (needsReauth ? 'Reconnect required' : 'Status: $status'),
             ),
             trailing: PopupMenuButton<String>(
               onSelected: (value) {
@@ -381,13 +429,32 @@ class _InstitutionCard extends StatelessWidget {
             ),
           ),
 
+          // Re-auth banner when the Item's connection is broken.
+          if (needsReauth)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      color: Colors.orange, size: 18),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Connection needs attention — please reconnect.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: onReconnect,
+                    child: const Text('Reconnect'),
+                  ),
+                ],
+              ),
+            ),
+
           // Bank accounts under this institution
           StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection('bankAccount')
-                .where('plaidItemId', isEqualTo: itemId)
-                .where('active', isEqualTo: true)
-                .snapshots(),
+            stream: plaidService.watchAccountsForItem(itemId),
             builder: (context, snap) {
               final accounts = snap.data?.docs ?? [];
               if (accounts.isEmpty) {

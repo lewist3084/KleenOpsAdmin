@@ -120,6 +120,29 @@ class EmailRoutingService {
     return Map<String, dynamic>.from(result.data);
   }
 
+  /// Auto-provision `first_last@domain` mailboxes for the company's active
+  /// members on its active (or specified) domain. This is the manual companion
+  /// to the `onMemberCreatedProvisionEmail` trigger (which covers FUTURE
+  /// members). Pass [dryRun] true to preview without writing.
+  ///
+  /// Mailbox creation is free (it only writes `emailAddress` docs + appends to
+  /// member docs) — no Stripe charge, unlike domain registration.
+  Future<Map<String, dynamic>> backfillMemberEmails({
+    required String companyId,
+    String? domainDocId,
+    String? domainName,
+    bool dryRun = false,
+  }) async {
+    final callable = _functions.httpsCallable('backfillMemberEmails');
+    final result = await callable.call<Map<String, dynamic>>({
+      'companyId': companyId,
+      if (domainDocId != null) 'domainDocId': domainDocId,
+      if (domainName != null) 'domainName': domainName,
+      'dryRun': dryRun,
+    });
+    return Map<String, dynamic>.from(result.data);
+  }
+
   /// Watch email addresses for a company in real time.
   Stream<QuerySnapshot<Map<String, dynamic>>> watchRoutes(
     DocumentReference<Map<String, dynamic>> companyRef,

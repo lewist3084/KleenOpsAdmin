@@ -12,6 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
+import 'package:shared_widgets/tiles/standard_tile_medium.dart';
 
 import '../data/platform_products_catalog.dart';
 import '../services/platform_catalog_service.dart';
@@ -41,31 +42,17 @@ class _PlatformCatalogBodyState extends State<PlatformCatalogBody> {
 
     return Stack(
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-              child: Text(
-                'Products you sell to companies, grouped by service. Tap to '
-                'edit or view usage; the + adds a new product.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-            Expanded(
-              child: StandardViewGroup(
-                queryStream: query.snapshots(),
-                padding: const EdgeInsets.fromLTRB(8, 4, 8, 88),
-                emptyMessage: 'No products yet — pull to refresh or tap +.',
-                groupBy: (doc) => resolveProductGroup(doc.data()),
-                groupSort: (a, b) => platformGroupSortIndex(a)
-                    .compareTo(platformGroupSortIndex(b)),
-                groupCollapsible: true,
-                headerIcon: Icons.sell_outlined,
-                itemBuilder: (doc) => _ProductCard(doc: doc),
-              ),
-            ),
-          ],
+        StandardViewGroup(
+          queryStream: query.snapshots(),
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 88),
+          emptyMessage: 'No products yet — pull to refresh or tap +.',
+          groupBy: (doc) => resolveProductGroup(doc.data()),
+          groupSort: (a, b) =>
+              platformGroupSortIndex(a).compareTo(platformGroupSortIndex(b)),
+          groupCollapsible: true,
+          headerIcon: Icons.sell_outlined,
+          enableReorder: false,
+          itemBuilder: (doc) => _ProductTile(doc: doc),
         ),
         Positioned(
           right: 16,
@@ -81,8 +68,12 @@ class _PlatformCatalogBodyState extends State<PlatformCatalogBody> {
   }
 }
 
-class _ProductCard extends StatelessWidget {
-  const _ProductCard({required this.doc});
+/// One catalog product rendered as the shared three-row medium tile:
+///   • row 1 — product label, with a status dot (green active / grey inactive)
+///   • row 2 — price (or "Metered" for usage-billed products)
+///   • row 3 — provider + billing cadence
+class _ProductTile extends StatelessWidget {
+  const _ProductTile({required this.doc});
 
   final QueryDocumentSnapshot<Map<String, dynamic>> doc;
 
@@ -90,85 +81,46 @@ class _ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = doc.data();
     final label = data['label'] as String? ?? doc.id;
-    final description = data['description'] as String? ?? '';
     final priceCents = (data['priceCents'] as num?)?.toInt() ?? 0;
     final interval = data['interval'] as String? ?? '';
     final provider = data['provider'] as String? ?? '';
     final billingType = data['billingType'] as String? ?? 'one_time';
     final usageKey = data['usageKey'] as String?;
+    final unitLabel = data['unitLabel'] as String?;
     final active = data['active'] as bool? ?? false;
+    final metered = usageKey != null && usageKey.isNotEmpty;
 
-    final price = '\$${(priceCents / 100).toStringAsFixed(2)}'
-        '${interval.isNotEmpty ? ' / $interval' : ''}';
+    // Row 2 — what it costs.
+    final String priceLine = metered
+        ? 'Metered${unitLabel != null && unitLabel.isNotEmpty ? ' · per $unitLabel' : ''}'
+        : '\$${(priceCents / 100).toStringAsFixed(2)}'
+            '${interval.isNotEmpty ? ' / $interval' : ''}';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => PlatformProductDetailsScreen(productKey: doc.id),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(label,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 16)),
-                  ),
-                  _chip(active ? 'Active' : 'Inactive',
-                      active ? Colors.green : Colors.grey),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(price,
-                  style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w600)),
-              if (description.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(description,
-                    style: TextStyle(
-                        fontSize: 12.5, color: Colors.grey.shade700)),
-              ],
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  _chip(doc.id, Colors.blueGrey),
-                  if (provider.isNotEmpty) _chip(provider, Colors.indigo),
-                  if (usageKey != null && usageKey.isNotEmpty)
-                    _chip('metered: $usageKey', Colors.deepPurple)
-                  else
-                    _chip(
-                        billingType == 'recurring' ? 'subscription' : 'one-time',
-                        billingType == 'recurring'
-                            ? Colors.deepPurple
-                            : Colors.teal),
-                ],
-              ),
-            ],
-          ),
+    // Row 3 — provider + how it's billed.
+    final String cadence = metered
+        ? 'metered'
+        : billingType == 'recurring'
+            ? 'subscription'
+            : 'one-time';
+    final String detailLine =
+        provider.isNotEmpty ? '$provider · $cadence' : cadence;
+
+    return StandardTileMediumDart(
+      imageUrl: '',
+      showImage: false,
+      title: label,
+      titleIcon: active ? Icons.circle : Icons.circle_outlined,
+      titleIconColor: active ? Colors.green : Colors.grey,
+      subTitle: priceLine,
+      subTitleIcon: metered ? Icons.bolt_outlined : Icons.attach_money,
+      thirdLine: detailLine,
+      thirdLineIcon: Icons.sell_outlined,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PlatformProductDetailsScreen(productKey: doc.id),
         ),
       ),
-    );
-  }
-
-  Widget _chip(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 11, color: color, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -201,6 +153,7 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
   late final TextEditingController _label;
   late final TextEditingController _desc;
   late final TextEditingController _price;
+  late final TextEditingController _cost;
   late final TextEditingController _provider;
   late final TextEditingController _usageKey;
   late final TextEditingController _usageMetric;
@@ -222,6 +175,9 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
     _desc = TextEditingController(text: d['description'] as String? ?? '');
     final cents = (d['priceCents'] as num?)?.toInt() ?? 0;
     _price = TextEditingController(text: (cents / 100).toStringAsFixed(2));
+    // Default cost to existing costCents, falling back to the price (0% markup).
+    final costCents = (d['costCents'] as num?)?.toInt() ?? cents;
+    _cost = TextEditingController(text: (costCents / 100).toStringAsFixed(2));
     _provider = TextEditingController(text: d['provider'] as String? ?? '');
     _usageKey = TextEditingController(text: d['usageKey'] as String? ?? '');
     _usageMetric = TextEditingController(
@@ -240,6 +196,7 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
     _label.dispose();
     _desc.dispose();
     _price.dispose();
+    _cost.dispose();
     _provider.dispose();
     _usageKey.dispose();
     _usageMetric.dispose();
@@ -267,6 +224,7 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
       'label': label,
       'description': _desc.text.trim(),
       'priceCents': (dollars * 100).round(),
+      'costCents': ((double.tryParse(_cost.text.trim()) ?? 0) * 100).round(),
       'currency': 'usd',
       'interval': _interval,
       'billingType': usageKey.isNotEmpty ? 'metered' : 'one_time',
@@ -292,6 +250,32 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
       if (mounted) setState(() => _saving = false);
       messenger.showSnackBar(SnackBar(content: Text('Save failed: $e')));
     }
+  }
+
+  /// Live markup readout computed from the Cost + Price fields.
+  Widget _markupLine() {
+    final cost = double.tryParse(_cost.text.trim()) ?? 0;
+    final price = double.tryParse(_price.text.trim()) ?? 0;
+    final profit = price - cost;
+    final pct = cost > 0 ? (profit / cost * 100) : null;
+    final color = profit > 0
+        ? Colors.green.shade700
+        : (profit < 0 ? Colors.red.shade700 : Colors.grey.shade600);
+    final text = cost <= 0
+        ? 'Enter a cost to see markup'
+        : 'Markup ${pct!.toStringAsFixed(1)}%  ·  profit \$${profit.toStringAsFixed(2)}'
+            '${price > 0 ? '' : ' (price \$0)'}';
+    return Row(
+      children: [
+        Icon(Icons.trending_up, size: 16, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(text,
+              style: TextStyle(
+                  fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+        ),
+      ],
+    );
   }
 
   @override
@@ -347,11 +331,13 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _price,
+                    controller: _cost,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
-                        labelText: 'Price (USD)',
+                        labelText: 'Cost (USD)',
+                        helperText: 'What we pay',
                         prefixText: '\$ ',
                         border: OutlineInputBorder(),
                         isDense: true),
@@ -359,22 +345,36 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _interval,
+                  child: TextField(
+                    controller: _price,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
-                        labelText: 'Interval',
+                        labelText: 'Price (USD)',
+                        helperText: 'What we charge',
+                        prefixText: '\$ ',
                         border: OutlineInputBorder(),
                         isDense: true),
-                    items: const [
-                      DropdownMenuItem(value: 'month', child: Text('month')),
-                      DropdownMenuItem(value: 'year', child: Text('year')),
-                      DropdownMenuItem(value: 'once', child: Text('once')),
-                    ],
-                    onChanged: (v) =>
-                        setState(() => _interval = v ?? _interval),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            _markupLine(),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              initialValue: _interval,
+              decoration: const InputDecoration(
+                  labelText: 'Interval',
+                  border: OutlineInputBorder(),
+                  isDense: true),
+              items: const [
+                DropdownMenuItem(value: 'month', child: Text('month')),
+                DropdownMenuItem(value: 'year', child: Text('year')),
+                DropdownMenuItem(value: 'once', child: Text('once')),
+              ],
+              onChanged: (v) => setState(() => _interval = v ?? _interval),
             ),
             const SizedBox(height: 10),
             TextField(

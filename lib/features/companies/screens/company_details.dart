@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 
+import '../../../features/admin/services/email_routing_service.dart';
 import '../../../features/admin/widgets/phone_provisioning_dialog.dart';
 import '../../../features/sales/services/platform_catalog_service.dart';
 import '../../../services/admin_firebase_service.dart';
@@ -25,6 +26,65 @@ class CompanyDetails extends StatelessWidget {
     }
   }
 
+  /// Dry-run, confirm, then auto-mint `first_last@domain` mailboxes for all
+  /// active members on the company's active domain (companion to the
+  /// `onMemberCreatedProvisionEmail` trigger for future members). Mailbox
+  /// creation is free — no Stripe charge.
+  Future<void> _provisionMailboxes(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final svc = EmailRoutingService.instance;
+    try {
+      final preview =
+          await svc.backfillMemberEmails(companyId: companyId, dryRun: true);
+      final domain = preview['domainName'] as String? ?? '(domain)';
+      final toCreate = (preview['created'] as num?)?.toInt() ?? 0;
+      final skipped = (preview['skipped'] as num?)?.toInt() ?? 0;
+      final total = (preview['totalMembers'] as num?)?.toInt() ?? 0;
+
+      if (!context.mounted) return;
+      if (toCreate == 0) {
+        messenger.showSnackBar(SnackBar(
+          content: Text(
+              'Nothing to provision on $domain — $skipped/$total members already have a mailbox.'),
+        ));
+        return;
+      }
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Provision member mailboxes'),
+          content: Text(
+            'Create $toCreate new mailbox(es) on $domain for active members '
+            '($skipped already provisioned, $total total). No charge.',
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text('Create $toCreate')),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      final result = await svc.backfillMemberEmails(companyId: companyId);
+      final created = (result['created'] as num?)?.toInt() ?? 0;
+      final errors = (result['errors'] as num?)?.toInt() ?? 0;
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+            'Provisioned $created mailbox(es) on $domain${errors > 0 ? ' ($errors errors)' : ''}.'),
+      ));
+    } catch (e) {
+      final msg = e.toString().contains('failed-precondition')
+          ? 'No active domain for this company — register one first.'
+          : 'Failed: $e';
+      messenger.showSnackBar(SnackBar(content: Text(msg)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const palette = adminPalette;
@@ -36,6 +96,11 @@ class CompanyDetails extends StatelessWidget {
         backgroundColor: palette.primary1,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            tooltip: 'Provision member mailboxes on the company domain',
+            icon: const Icon(Icons.alternate_email),
+            onPressed: () => _provisionMailboxes(context),
+          ),
           IconButton(
             tooltip: 'Hardwire platform services onto this company',
             icon: const Icon(Icons.cable_outlined),

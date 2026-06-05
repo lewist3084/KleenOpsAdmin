@@ -405,8 +405,10 @@ class PayrollService {
     required DocumentReference<Map<String, dynamic>> companyRef,
     required String runId,
   }) async {
-    // Look up designated payroll bank account
-    final payrollAcct = await FirebaseFirestore.instance
+    // Look up designated payroll bank account. Bank accounts live under
+    // `company/{id}/bankAccount` (written by finance.js), so read via
+    // companyRef rather than the top-level collection.
+    final payrollAcct = await companyRef
         .collection('bankAccount')
         .where('isPayrollAccount', isEqualTo: true)
         .where('active', isEqualTo: true)

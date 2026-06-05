@@ -13,6 +13,7 @@ class AppRouteIds {
 
   // Billing
   static const billingHome = 'billingHome';
+  static const corpToolsInvoices = 'corpToolsInvoices';
 
   // AI Usage
   static const aiUsageHome = 'aiUsageHome';
@@ -55,6 +56,8 @@ class AppRouteIds {
   static const financeAccounts = 'financeAccounts';
   static const financeStats = 'financeStats';
   static const financeBanking = 'financeBanking';
+  static const financeReconciliation = 'financeReconciliation';
+  static const financeClassify = 'financeClassify';
   static const financeSetupWizard = 'financeSetupWizard';
   static const financePayroll = 'financePayroll';
   static const financePayrollRunDetails = 'financePayrollRunDetails';
@@ -228,6 +231,14 @@ class AppRouteIds {
 
   // Resources
   static const drawerFiles = 'drawerFiles';
+  static const drawerMyTasks = 'drawerMyTasks';
+  static const drawerReminders = 'drawerReminders';
+  static const drawerNotes = 'drawerNotes';
+  static const drawerNotesFolder = 'drawerNotesFolder';
+  static const drawerNotesContent = 'drawerNotesContent';
+  static const drawerMeetingMinutes = 'drawerMeetingMinutes';
+  static const agentTasks = 'agentTasks';
+  static const drawerCalendarForm = 'drawerCalendarForm';
 }
 
 class AppRoutePaths {
@@ -236,6 +247,7 @@ class AppRoutePaths {
   static const companies = '/companies';
   static const companiesDetails = '/companies/details';
   static const billing = '/billing';
+  static const corpToolsInvoices = '/billing/wholesale-invoices';
   static const aiUsage = '/ai-usage';
   static const storage = '/storage';
   static const users = '/users';
@@ -268,6 +280,8 @@ class AppRoutePaths {
   static const financeAccounts = '/finance/accounts';
   static const financeStats = '/finance/stats';
   static const financeBanking = '/finance/banking';
+  static const financeReconciliation = '/finance/reconciliation';
+  static const financeClassify = '/finance/classify';
   static const financeSetupWizard = '/finance/setup-wizard';
   static const financePayroll = '/finance/payroll';
   static const financePayrollRunDetails = '/finance/payroll/details';
@@ -447,4 +461,20 @@ class AppRoutePaths {
 
   // Resources
   static const drawerFiles = '/drawer/files';
+  static const drawerMyTasks = '/drawer/my-tasks';
+  static const drawerReminders = '/drawer/reminders';
+  static const drawerNotes = '/drawer/notes';
+  static const drawerNotesFolder = '/drawer/notes/folder';
+  static const drawerNotesContent = '/drawer/notes/content';
+  static const drawerMeetingMinutes = '/drawer/meeting-minutes';
+  static const agentTasks = '/admin/agent-tasks';
+  static const drawerCalendarForm = '/comm/calendar/form';
+}
+
+/// Compatibility shim for screens ported from kleenops that reference
+/// `AppRoutes.*`. Maps the route names those screens use to the admin paths.
+class AppRoutes {
+  static const drawerTextConversations = AppRoutePaths.commInternalMessages;
+  static const drawerMessageBoard = AppRoutePaths.commMessageBoard;
+  static const drawerCalendarForm = AppRoutePaths.drawerCalendarForm;
 }

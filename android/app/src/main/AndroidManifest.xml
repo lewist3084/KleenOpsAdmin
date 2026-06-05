@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Network for the streaming-STT WebSocket. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Microphone capture + background streaming for Meeting Minutes. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <application
         android:label="kleenops_admin"
         android:name="${applicationName}"
@@ -25,6 +31,12 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Foreground service used by the record plugin for background
+             streaming capture (Meeting Minutes). Mandatory on Android 14+. -->
+        <service
+            android:name="com.llfbandit.record.service.AudioRecordingService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

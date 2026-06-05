@@ -21,12 +21,27 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Product group keys — these become the `group` field on each product and the
 /// section headers in the grouped Products tab. Ordered as they should appear.
+///
+///   • Subscriptions    — recurring platform/seat fees (company + user).
+///   • AI               — metered Gemini token/request usage.
+///   • Telephony         — phone line rental + metered voice/video.
+///   • Business Services — formation filing, EIN, registered agent, domain,
+///                         virtual address.
+///   • Accounting Services — bank connection (and future bookkeeping/payroll).
 const List<String> kPlatformProductGroupOrder = <String>[
-  'Platform',
-  'Business Formation',
-  'Banking',
+  'Subscriptions',
+  'AI',
   'Telephony',
-  'AI Usage',
+  'Business Services',
+  'Accounting Services',
+];
+
+/// Legacy `platformProduct` doc ids that earlier seeds created but the current
+/// catalog has retired. The version-gated seed deletes these so they stop
+/// showing up under an "Other" group (e.g. the combined `voice_video` doc that
+/// the split `voice_minutes` + `video_minutes` products replaced).
+const List<String> kRetiredPlatformProductKeys = <String>[
+  'voice_video',
 ];
 
 /// A single sellable platform product. Field names mirror the `platformProduct`
@@ -38,6 +53,7 @@ class PlatformProductDef {
     required this.label,
     required this.description,
     this.priceCents = 0,
+    this.costCents = 0,
     this.interval = 'month',
     this.billingType = 'one_time',
     this.provider = '',
@@ -53,8 +69,13 @@ class PlatformProductDef {
   final String label;
   final String description;
 
-  /// Flat/recurring price in cents (0 for the zero-cost platform products).
+  /// Flat/recurring RETAIL price in cents — what the company is charged.
   final int priceCents;
+
+  /// Our wholesale/base COST in cents — what we pay the upstream provider.
+  /// The margin/markup is (priceCents - costCents). Seeded to the wholesale
+  /// rate (so markup starts at 0%); editable in Sales → Products.
+  final int costCents;
 
   /// 'month' | 'year' | 'once'.
   final String interval;
@@ -89,6 +110,7 @@ class PlatformProductDef {
       'label': label,
       'description': description,
       'priceCents': priceCents,
+      'costCents': costCents,
       'currency': 'usd',
       'interval': interval,
       'billingType': billingType,
@@ -133,15 +155,15 @@ class PlatformProductDef {
 /// Schema version of the catalog — bump when the product set changes so the
 /// auto-seed knows to re-write docs (mirrors the `_seedVersion` pattern used
 /// elsewhere in these apps).
-const int kPlatformCatalogSeedVersion = 4;
+const int kPlatformCatalogSeedVersion = 7;
 
-/// The full catalog, grouped by the old dashboard sections.
+/// The full catalog, grouped by the sections shown in the Products tab.
 const List<PlatformProductDef> kPlatformProductCatalog = <PlatformProductDef>[
-  // ── Platform (was "Companies & Users") ──────────────────────────────
+  // ── Subscriptions (recurring platform + per-seat fees) ──────────────
   PlatformProductDef(
     key: 'company_platform',
-    group: 'Platform',
-    label: 'Company Platform',
+    group: 'Subscriptions',
+    label: 'Company Subscription',
     description:
         'The complete KleenOps platform for one company. Provisioned when a '
         'company is created — currently no charge.',
@@ -152,7 +174,7 @@ const List<PlatformProductDef> kPlatformProductCatalog = <PlatformProductDef>[
   ),
   PlatformProductDef(
     key: 'user_seat',
-    group: 'Platform',
+    group: 'Subscriptions',
     label: 'User Seat',
     description:
         'A platform user / member seat. Currently no charge; metered seat '
@@ -163,62 +185,24 @@ const List<PlatformProductDef> kPlatformProductCatalog = <PlatformProductDef>[
     provider: 'KleenOps',
   ),
 
-  // ── Business Formation (file papers / EIN / registered agent) ───────
+  // ── AI (metered Gemini usage) ───────────────────────────────────────
   PlatformProductDef(
-    key: 'business_formation_filing',
-    group: 'Business Formation',
-    label: 'Business Formation Filing',
+    key: 'ai_usage',
+    group: 'AI',
+    label: 'AI Usage',
     description:
-        'File the company\'s formation papers (Articles of Organization / '
-        'Incorporation). Cost = a \$75 filing fee + the state\'s filing fee, '
-        'which varies by jurisdiction — priced per state via API at purchase '
-        'time, so the catalog price stays \$0.',
-    priceCents: 0,
-    interval: 'once',
-    billingType: 'one_time',
-    provider: 'Northwest Registered Agent',
-  ),
-  PlatformProductDef(
-    key: 'ein_registration',
-    group: 'Business Formation',
-    label: 'EIN Registration',
-    description:
-        'Obtain the company\'s federal Employer Identification Number from '
-        'the IRS. One-time service fee.',
-    priceCents: 0,
-    interval: 'once',
-    billingType: 'one_time',
-    provider: 'IRS',
-  ),
-  PlatformProductDef(
-    key: 'registered_agent',
-    group: 'Business Formation',
-    label: 'Registered Agent',
-    description:
-        'Registered-agent service (receives legal/state correspondence) via '
-        'Northwest Registered Agent. Wholesale base rate \$65 per entity, per '
-        'state, per year; auto-renews annually.',
-    priceCents: 6500,
-    interval: 'year',
-    billingType: 'recurring',
-    provider: 'Northwest Registered Agent',
-  ),
-
-  // ── Banking (was "Service Adoption → Bank") ─────────────────────────
-  PlatformProductDef(
-    key: 'bank_connection',
-    group: 'Banking',
-    label: 'Bank Connection',
-    description:
-        'Plaid-backed bank account connection. No charge to connect; a place '
-        'to track linked-account costs as they appear.',
-    priceCents: 0,
+        'Gemini AI requests across the company. Metered per request against '
+        'the company\'s rolled-up AI usage.',
+    billingType: 'metered',
     interval: 'month',
-    billingType: 'recurring',
-    provider: 'Plaid',
+    provider: 'Gemini',
+    usageKey: 'ai',
+    usageMetric: 'totalRequestCount',
+    unitPriceCents: 0,
+    unitLabel: 'request',
   ),
 
-  // ── Telephony (was "Service Adoption → Phone" + "Voice & Video") ────
+  // ── Telephony (phone line rental + metered voice/video) ─────────────
   PlatformProductDef(
     key: 'phone_number',
     group: 'Telephony',
@@ -228,6 +212,7 @@ const List<PlatformProductDef> kPlatformProductCatalog = <PlatformProductDef>[
         'month for a US local number (toll-free is \$2.15); per-minute voice '
         'and SMS usage are billed separately. No upcharge.',
     priceCents: 115,
+    costCents: 115,
     interval: 'month',
     billingType: 'recurring',
     provider: 'Twilio',
@@ -263,21 +248,86 @@ const List<PlatformProductDef> kPlatformProductCatalog = <PlatformProductDef>[
     unitLabel: 'second',
   ),
 
-  // ── AI Usage (was "AI Usage") ───────────────────────────────────────
+  // ── Business Services (formation, EIN, agent, domain, address) ──────
   PlatformProductDef(
-    key: 'ai_usage',
-    group: 'AI Usage',
-    label: 'AI Usage',
+    key: 'business_formation_filing',
+    group: 'Business Services',
+    label: 'Business Formation Filing',
     description:
-        'Gemini AI requests across the company. Metered per request against '
-        'the company\'s rolled-up AI usage.',
-    billingType: 'metered',
+        'File the company\'s formation papers (Articles of Organization / '
+        'Incorporation). Cost = a \$75 filing fee + the state\'s filing fee, '
+        'which varies by jurisdiction — priced per state via API at purchase '
+        'time, so the catalog price stays \$0.',
+    priceCents: 0,
+    costCents: 7500, // our $75 NWRA filing fee; the state fee is added per-state at purchase
+    interval: 'once',
+    billingType: 'one_time',
+    provider: 'Northwest Registered Agent',
+  ),
+  PlatformProductDef(
+    key: 'ein_registration',
+    group: 'Business Services',
+    label: 'EIN Registration',
+    description:
+        'Obtain the company\'s federal Employer Identification Number from '
+        'the IRS. One-time service fee.',
+    priceCents: 0,
+    interval: 'once',
+    billingType: 'one_time',
+    provider: 'IRS',
+  ),
+  PlatformProductDef(
+    key: 'registered_agent',
+    group: 'Business Services',
+    label: 'Registered Agent',
+    description:
+        'Registered-agent service (receives legal/state correspondence) via '
+        'Northwest Registered Agent. Wholesale base rate \$65 per entity, per '
+        'state, per year; auto-renews annually.',
+    priceCents: 6500,
+    costCents: 6500,
+    interval: 'year',
+    billingType: 'recurring',
+    provider: 'Northwest Registered Agent',
+  ),
+  PlatformProductDef(
+    key: 'domain_registration',
+    group: 'Business Services',
+    label: 'Domain Registration',
+    description:
+        'Annual domain registration via Cloudflare Registrar. The customer '
+        'remains the registrant of record (WHOIS); auto-renews annually.',
+    priceCents: 999,
+    costCents: 999,
+    interval: 'year',
+    billingType: 'one_time',
+    provider: 'Cloudflare',
+  ),
+  PlatformProductDef(
+    key: 'virtual_address',
+    group: 'Business Services',
+    label: 'Virtual Business Address',
+    description:
+        'Non-legal business mailing address for invoices, the website and '
+        'bank applications. Mail is scanned and forwarded on request.',
+    priceCents: 2900,
+    costCents: 2900,
     interval: 'month',
-    provider: 'Gemini',
-    usageKey: 'ai',
-    usageMetric: 'totalRequestCount',
-    unitPriceCents: 0,
-    unitLabel: 'request',
+    billingType: 'recurring',
+    provider: 'Northwest Registered Agent',
+  ),
+  // ── Accounting Services (banking; bookkeeping/payroll to follow) ────
+  PlatformProductDef(
+    key: 'bank_connection',
+    group: 'Accounting Services',
+    label: 'Bank Connection',
+    description:
+        'Plaid-backed bank account connection. No charge to connect; a place '
+        'to track linked-account costs as they appear.',
+    priceCents: 0,
+    interval: 'month',
+    billingType: 'recurring',
+    provider: 'Plaid',
   ),
 ];
 
@@ -295,7 +345,7 @@ String resolveProductGroup(Map<String, dynamic> data) {
   if (explicit != null && explicit.isNotEmpty) return explicit;
   // Legacy fallback: bucket by what we can infer from the doc.
   final usageKey = (data['usageKey'] as String?)?.trim() ?? '';
-  if (usageKey == 'ai') return 'AI Usage';
+  if (usageKey == 'ai') return 'AI';
   if (usageKey == 'voice' || usageKey == 'video') return 'Telephony';
   return 'Other';
 }

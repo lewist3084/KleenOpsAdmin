@@ -15,6 +15,7 @@ import '../features/dashboard/screens/dashboard_home.dart';
 import '../features/companies/screens/companies_home.dart';
 import '../features/companies/screens/company_details.dart';
 import '../features/billing/screens/billing_home.dart';
+import '../features/billing/screens/corp_tools_invoices_screen.dart';
 import '../features/ai_usage/screens/ai_usage_home.dart';
 import '../features/storage_usage/screens/storage_home.dart';
 import '../features/users/screens/users_home.dart';
@@ -34,12 +35,20 @@ import '../features/catalog/screens/brand_owners_wrapper.dart';
 import '../features/catalog/screens/staging_review_wrapper.dart';
 import '../features/device_registry/screens/device_registry_home.dart';
 import '../common/communications/phone/screens/call_history_screen.dart';
-import '../common/communications/screens/internal_messages_screen.dart';
+import '../common/communications/texting/screens/text_conversations_screen.dart';
+import '../common/communications/messageboard/screens/message_board_screen.dart';
+import '../common/communications/calendar/communications_calendar_screen.dart';
+import '../common/communications/calendar/calendar_event_form_screen.dart';
+import '../features/me/screens/my_tasks_screen.dart';
+import '../features/me/screens/reminders_screen.dart';
+import '../features/occupancy/screens/agent_tasks_list_screen.dart';
 import '../features/files/screens/drives_screen.dart';
-import '../common/communications/screens/message_board_screen.dart';
+import '../features/notes/screens/notes_home_screen.dart';
+import '../features/notes/screens/notes_folder_screen.dart';
+import '../features/notes/screens/notes_content_detail_screen.dart';
+import '../features/notes/screens/meeting_minutes_screen.dart';
 import '../common/communications/screens/comm_placeholder_screen.dart';
 import '../common/communications/email/screens/email_inbox_screen.dart';
-import '../common/communications/screens/calendar_screen.dart';
 import '../common/communications/screens/directory_screen.dart';
 import '../common/communications/screens/intercom_screen.dart';
 import '../features/onboarding/guides/setup_guide_data.dart';
@@ -53,6 +62,8 @@ import '../features/finances/tabs/ledger_tabs.dart';
 import '../features/finances/screens/finance_accounts.dart';
 import '../features/finances/screens/finance_stats.dart';
 import '../features/finances/screens/finance_banking.dart';
+import '../features/finances/screens/finance_reconciliation.dart';
+import '../features/finances/screens/finance_classify_transactions.dart';
 import '../features/finances/screens/finance_setup_wizard.dart';
 import '../features/finances/screens/finance_payroll.dart';
 import '../features/finances/details/finance_payroll_run_details.dart';
@@ -272,6 +283,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const BillingHome(),
       ),
       GoRoute(
+        path: AppRoutePaths.corpToolsInvoices,
+        name: AppRouteIds.corpToolsInvoices,
+        builder: (context, state) => const CorpToolsInvoicesScreen(),
+      ),
+      GoRoute(
         path: AppRoutePaths.aiUsage,
         name: AppRouteIds.aiUsageHome,
         builder: (context, state) => const AiUsageHome(),
@@ -417,6 +433,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutePaths.financeBanking,
         name: AppRouteIds.financeBanking,
         builder: (_, __) => const FinanceBankingScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.financeReconciliation,
+        name: AppRouteIds.financeReconciliation,
+        builder: (_, __) => const FinanceReconciliationScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.financeClassify,
+        name: AppRouteIds.financeClassify,
+        builder: (_, __) => const FinanceClassifyTransactionsScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.financeSetupWizard,
@@ -1255,12 +1281,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.commInternalMessages,
         name: AppRouteIds.commInternalMessages,
-        builder: (_, __) => const InternalMessagesScreen(),
+        builder: (_, __) => const TextConversationsScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.commMessageBoard,
         name: AppRouteIds.commMessageBoard,
-        builder: (_, __) => const AdminMessageBoardScreen(),
+        builder: (_, __) => const MessageBoardScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.commExternalMessages,
@@ -1281,7 +1307,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutePaths.commCalendar,
         name: AppRouteIds.commCalendar,
-        builder: (_, __) => const AdminCalendarScreen(),
+        builder: (_, __) => const CommunicationsCalendarScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.commDirectory,
@@ -1311,6 +1337,63 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutePaths.drawerFiles,
         name: AppRouteIds.drawerFiles,
         builder: (_, __) => const DrivesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.drawerMyTasks,
+        name: AppRouteIds.drawerMyTasks,
+        builder: (_, __) => const MyTasksScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.drawerReminders,
+        name: AppRouteIds.drawerReminders,
+        builder: (_, __) => const RemindersScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.agentTasks,
+        name: AppRouteIds.agentTasks,
+        builder: (_, __) => const AgentTasksListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.drawerCalendarForm,
+        name: AppRouteIds.drawerCalendarForm,
+        builder: (context, state) {
+          final docId = state.uri.queryParameters['docId'];
+          final dateRaw = state.uri.queryParameters['date'];
+          final initialDate =
+              dateRaw == null ? null : DateTime.tryParse(dateRaw);
+          return CalendarEventFormScreen(
+            docId: docId,
+            initialDate: initialDate,
+          );
+        },
+      ),
+
+      // ── Notes + Meeting Minutes routes ────────────────────────────────
+      GoRoute(
+        path: AppRoutePaths.drawerNotes,
+        name: AppRouteIds.drawerNotes,
+        builder: (_, __) => const NotesHomeScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.drawerNotesFolder,
+        name: AppRouteIds.drawerNotesFolder,
+        builder: (context, state) {
+          final folderId = state.uri.queryParameters['folderId'] ?? '';
+          return NotesFolderScreen(folderId: folderId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutePaths.drawerNotesContent,
+        name: AppRouteIds.drawerNotesContent,
+        builder: (context, state) {
+          final contentId = state.uri.queryParameters['contentId'] ?? '';
+          return NotesContentDetailScreen(contentId: contentId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutePaths.drawerMeetingMinutes,
+        name: AppRouteIds.drawerMeetingMinutes,
+        builder: (_, __) => const MeetingMinutesScreen(),
       ),
     ],
   );

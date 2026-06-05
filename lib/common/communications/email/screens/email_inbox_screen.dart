@@ -1,7 +1,9 @@
 // lib/common/communications/email/screens/email_inbox_screen.dart
 // Ported from the kleenops app. ADMIN ADAPTATIONS: no AI canvas / BookendedCanvas
-// / client-side Gemini summarizer / directory archive-link; navigation via
-// Navigator.push; snackbars via ScaffoldMessenger.
+// / directory archive-link; navigation via Navigator.push; snackbars via
+// ScaffoldMessenger. The client-side Gemini summarizer fallback IS included so
+// the same emails get summaries/junk-routing in both apps (it writes back to the
+// shared `company/{cid}/member/{mid}/email` docs).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +17,7 @@ import '../models/email_account.dart';
 import '../models/email_message.dart';
 import '../models/email_thread.dart';
 import '../providers/email_providers.dart';
+import '../services/gemini_email_analyzer.dart';
 import '../widgets/email_thread_tile.dart';
 import '../widgets/email_tile.dart';
 import 'email_compose_screen.dart';
@@ -213,6 +216,28 @@ class _EmailListTab extends ConsumerWidget {
               ],
             ),
           );
+        }
+
+        // Summarize INBOX/Sent messages lacking a usable summary. Re-runs the
+        // ones the old engine left empty (but not hard-'failed' ones, to avoid
+        // looping). Never touches trash/junk/archive. This is a fallback for
+        // emails the server-side summarizer trigger hasn't stamped yet, and
+        // writes back to the shared member/email docs so both apps see results.
+        for (final email in working) {
+          if (email.folder != 'INBOX' && email.folder != 'Sent') continue;
+          final needs =
+              (email.emailSummary == null || email.emailSummary!.isEmpty) &&
+                  email.emailSummaryEngine != 'failed';
+          if (needs && email.ref != null) {
+            GeminiEmailAnalyzer.instance.analyzeAndPersist(
+              emailRef: email.ref!,
+              subject: email.subject,
+              from: email.from,
+              snippet: email.preview,
+              body: email.bodyPlain.isNotEmpty ? email.bodyPlain : null,
+              isSent: email.folder == 'Sent',
+            );
+          }
         }
 
         // Collapse "Re: Re: Re:" chains into one expandable conversation tile.

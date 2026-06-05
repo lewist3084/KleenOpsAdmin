@@ -60,6 +60,48 @@ final unreadBulletinBadgeProvider = Provider.autoDispose<int>(
   (ref) => _count(ref.watch(_memberBadgeDocProvider), 'unreadBulletinCount'),
 );
 
+/// Pending "My Tasks" action items assigned to the signed-in member
+/// (`kleenops/{id}/member/{mid}/myTask` where status == 'pending').
+final myTasksBadgeProvider = StreamProvider.autoDispose<int>((ref) {
+  final memberRef = ref.watch(memberDocRefProvider).value;
+  if (memberRef == null) return Stream<int>.value(0);
+  return memberRef
+      .collection('myTask')
+      .where('status', isEqualTo: 'pending')
+      .snapshots()
+      .map((snap) => snap.docs.length);
+});
+
+/// Plain-int view of [myTasksBadgeProvider] for the menu drawer badge.
+final myTasksPendingCountProvider = Provider.autoDispose<int>(
+  (ref) => ref.watch(myTasksBadgeProvider).maybeWhen(
+        data: (value) => value,
+        orElse: () => 0,
+      ),
+);
+
+/// Scheduled reminders owned by the signed-in member
+/// (`kleenops/{id}/reminder` where ownerMemberId == me && status == 'scheduled').
+final remindersBadgeProvider = StreamProvider.autoDispose<int>((ref) {
+  final memberRef = ref.watch(memberDocRefProvider).value;
+  final companyRef = ref.watch(companyIdProvider).value;
+  if (memberRef == null || companyRef == null) return Stream<int>.value(0);
+  return companyRef
+      .collection('reminder')
+      .where('ownerMemberId', isEqualTo: memberRef.id)
+      .where('status', isEqualTo: 'scheduled')
+      .snapshots()
+      .map((snap) => snap.docs.length);
+});
+
+/// Plain-int view of [remindersBadgeProvider] for the menu drawer badge.
+final remindersPendingCountProvider = Provider.autoDispose<int>(
+  (ref) => ref.watch(remindersBadgeProvider).maybeWhen(
+        data: (value) => value,
+        orElse: () => 0,
+      ),
+);
+
 /// Builds a reactive red badge widget for a [ContentMenuItem.badge] slot,
 /// bound to one of the badge providers above. The drawer overlays it on
 /// the top-right corner of the row's icon.

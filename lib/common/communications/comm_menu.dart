@@ -4,6 +4,21 @@ import 'package:kleenops_admin/app/routes.dart';
 import 'package:kleenops_admin/common/resources/menu_badges.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 
+/// Inject the canonical 7 communication items into the drawer's Communications
+/// section (mirrors kleenops `withCommunicationsInSections`). Idempotent — if a
+/// screen already supplied communications, they're kept as-is.
+MenuDrawerSections withCommunicationsInSections(
+  BuildContext context,
+  MenuDrawerSections sections,
+) {
+  if (sections.communications.isNotEmpty) return sections;
+  return MenuDrawerSections(
+    actions: sections.actions,
+    resources: sections.resources,
+    communications: buildAdminCommunicationMenuItems(context),
+  );
+}
+
 /// Communication menu items for the admin app menu drawer.
 /// Mirrors the main KleenOps app's communication section exactly — 7 items in
 /// the same order, each (except Calendar/Directory) carrying a live red badge

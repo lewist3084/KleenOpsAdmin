@@ -51,6 +51,7 @@ class PlatformProductDetailsScreen extends StatelessWidget {
             final label = data['label'] as String? ?? productKey;
             final description = data['description'] as String? ?? '';
             final priceCents = (data['priceCents'] as num?)?.toInt() ?? 0;
+            final costCents = (data['costCents'] as num?)?.toInt() ?? priceCents;
             final interval = data['interval'] as String? ?? '';
             final usageKey = (data['usageKey'] as String?)?.trim();
             final usageMetric =
@@ -86,6 +87,25 @@ class PlatformProductDetailsScreen extends StatelessWidget {
                 Text(price,
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Builder(builder: (_) {
+                  final cost = costCents / 100;
+                  final priceD = priceCents / 100;
+                  final profit = priceD - cost;
+                  final markup =
+                      cost > 0 ? '${(profit / cost * 100).toStringAsFixed(1)}%' : '—';
+                  return Text(
+                    'Base cost \$${cost.toStringAsFixed(2)}   ·   '
+                    'Markup $markup   ·   Profit \$${profit.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: profit > 0
+                          ? Colors.green.shade700
+                          : (profit < 0 ? Colors.red.shade700 : Colors.grey.shade600),
+                    ),
+                  );
+                }),
                 if (description.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(description,

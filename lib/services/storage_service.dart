@@ -3,6 +3,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -104,6 +105,59 @@ class StorageService {
           : null,
     );
     return await ref.getDownloadURL();
+  }
+
+  /// Web-safe upload from a cross-platform [XFile]: bytes+putData on web,
+  /// putFile on mobile. Avoids the `dart:io` File ops that throw
+  /// `Unsupported operation: _Namespace` in the browser.
+  Future<String> uploadXFile(
+    XFile file,
+    String storagePath, {
+    String? contentType,
+  }) async {
+    final ref = _storage.ref().child(storagePath);
+    final meta = contentType != null
+        ? firebase_storage.SettableMetadata(contentType: contentType)
+        : null;
+    if (kIsWeb) {
+      await ref.putData(await file.readAsBytes(), meta);
+    } else {
+      await ref.putFile(File(file.path), meta);
+    }
+    return ref.getDownloadURL();
+  }
+
+  /// Like [pickAndCompressImage] but returns a cross-platform [XFile] (never a
+  /// `dart:io` File), so it's safe to upload on web via [uploadXFile].
+  Future<XFile?> pickAndCompressImageX(
+    ImageSource source, {
+    ImageQualitySetting qualitySetting = ImageQualitySetting.standard,
+    int quality = 80,
+  }) async {
+    final picker = ImagePicker();
+    if (qualitySetting == ImageQualitySetting.max) {
+      return picker.pickImage(source: source);
+    }
+    final targetSize =
+        qualitySetting == ImageQualitySetting.high ? 1600.0 : 1080.0;
+    return picker.pickImage(
+      source: source,
+      imageQuality: quality,
+      maxWidth: targetSize,
+      maxHeight: targetSize,
+    );
+  }
+
+  /// Upload a video [file]. The admin app has no client-side video compression
+  /// (video_compress is mobile-only and not a dependency here), so this is a
+  /// straight upload — kept as a named method for parity with the kleenops
+  /// StorageService API used by the texting attachment flow.
+  Future<String> uploadVideo(
+    File file,
+    String storagePath, {
+    String? contentType,
+  }) async {
+    return uploadFile(file, storagePath, contentType: contentType);
   }
 
   /// Uploads [data] (as bytes) to Firebase Storage at [storagePath] and returns the download URL.

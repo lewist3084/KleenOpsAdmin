@@ -50,6 +50,18 @@ class BillingHome extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 8),
+            Card(
+              child: ListTile(
+                leading: Icon(Icons.request_quote_outlined, color: _palette.primary3),
+                title: const Text('Wholesale Invoices'),
+                subtitle: const Text(
+                    'Invoices Northwest bills us for registered agent & filings — '
+                    'our cost side. Review and pay.'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push(AppRoutePaths.corpToolsInvoices),
+              ),
+            ),
             const SizedBox(height: 16),
             Text('Recent platform sales',
                 style: Theme.of(context).textTheme.titleMedium),

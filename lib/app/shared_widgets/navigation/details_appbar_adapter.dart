@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kleenops_admin/common/resources/resources_menu.dart';
+import 'package:kleenops_admin/common/menu_sections.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/navigation/details_appbar.dart' as shared;
 
@@ -63,31 +63,19 @@ class DetailsAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasMenuItems = menuSections != null ||
-        (actionItems?.isNotEmpty ?? false) ||
-        (resourceItems?.isNotEmpty ?? false) ||
-        (communicationItems?.isNotEmpty ?? false);
-    final effectiveShowMenu = showMenu || hasMenuItems;
-
-    // Whenever a menu is shown, fold the caller's sections together and
-    // auto-inject the canonical Resources list (Files) if the screen didn't
-    // supply one — mirrors the main app's `withFilesInSections`.
-    MenuDrawerSections? effectiveSections;
-    if (effectiveShowMenu) {
-      final base = menuSections ??
-          MenuDrawerSections(
-            actions: actionItems ?? const <ContentMenuItem>[],
-            resources: resourceItems ?? const <ContentMenuItem>[],
-            communications: communicationItems ?? const <ContentMenuItem>[],
-          );
-      effectiveSections = base.resources.isEmpty
-          ? MenuDrawerSections(
-              actions: base.actions,
-              resources: buildAdminResourceMenuItems(context),
-              communications: base.communications,
-            )
-          : base;
-    }
+    // Fold the caller's sections together and inject the universal drawer set
+    // (My Tasks, Agent Tasks, Files, the 7 Communications, Reminders) so the
+    // same fixed items appear on every screen. The universal items always
+    // exist, so the menu always shows.
+    final base = menuSections ??
+        MenuDrawerSections(
+          actions: actionItems ?? const <ContentMenuItem>[],
+          resources: resourceItems ?? const <ContentMenuItem>[],
+          communications: communicationItems ?? const <ContentMenuItem>[],
+        );
+    final MenuDrawerSections effectiveSections =
+        withAdminUniversalSections(context, base);
+    const effectiveShowMenu = true;
 
     return shared.StandardAppBar(
       title: title,

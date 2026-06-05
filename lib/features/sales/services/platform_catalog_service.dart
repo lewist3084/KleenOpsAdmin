@@ -47,6 +47,11 @@ class PlatformCatalogService {
         SetOptions(merge: true),
       );
     }
+    // Drop catalog docs that earlier seeds created but we've since retired, so
+    // they stop lingering under an "Other" group.
+    for (final retiredKey in kRetiredPlatformProductKeys) {
+      batch.delete(col.doc(retiredKey));
+    }
     batch.set(
       metaRef,
       {
