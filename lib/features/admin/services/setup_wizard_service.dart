@@ -84,6 +84,26 @@ class SetupWizardService {
   Future<void> completeItem(String itemKey, {Map<String, dynamic>? data}) =>
       updateItemStatus(itemKey, WizardItemStatus.complete, data: data);
 
+  /// Reconciles a connection step's status with whether it is actually
+  /// connected (a matching bank/card account exists). Writes only when the
+  /// status differs, so it's safe to call repeatedly from a stream listener.
+  /// This makes "Connect Your Bank Account" / "Connect a Credit Card" reflect
+  /// reality: linking both in one Plaid session checks both; disconnecting
+  /// unchecks them.
+  Future<void> syncConnectionStep(String itemKey, bool connected) async {
+    final snap = await _doc.get();
+    final items = (snap.data()?['items'] as Map<String, dynamic>?) ?? {};
+    final item = items[itemKey] as Map<String, dynamic>?;
+    if (item == null) return;
+    final current = item['status'] as String?;
+    final desired = connected ? 'complete' : 'not_started';
+    if (current == desired) return;
+    await updateItemStatus(
+      itemKey,
+      connected ? WizardItemStatus.complete : WizardItemStatus.notStarted,
+    );
+  }
+
   /// Hide the wizard from auto-display surfaces. The wizard remains
   /// reachable from the side menu.
   Future<void> dismiss() async {

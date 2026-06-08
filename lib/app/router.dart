@@ -64,6 +64,8 @@ import '../features/finances/screens/finance_stats.dart';
 import '../features/finances/screens/finance_banking.dart';
 import '../features/finances/screens/finance_reconciliation.dart';
 import '../features/finances/screens/finance_classify_transactions.dart';
+import '../features/finances/screens/finance_ai_bookkeeper.dart';
+import '../features/finances/screens/plaid_oauth_screen.dart';
 import '../features/finances/screens/finance_setup_wizard.dart';
 import '../features/finances/screens/finance_payroll.dart';
 import '../features/finances/details/finance_payroll_run_details.dart';
@@ -196,6 +198,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final isRegistrationRoute = here.startsWith('/registration');
 
       if (!isLoggedIn && !isLoginRoute) return AppRoutePaths.login;
+      // Plaid OAuth callback — always let an authenticated session land here so
+      // resumePlaidOauthIfPending() can finish the bank link, never bounce it.
+      if (here == AppRoutePaths.plaidOauth) return null;
       if (isLoggedIn && isLoginRoute) return AppRoutePaths.dashboard;
 
       if (isLoggedIn) {
@@ -443,6 +448,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutePaths.financeClassify,
         name: AppRouteIds.financeClassify,
         builder: (_, __) => const FinanceClassifyTransactionsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.financeAiBookkeeper,
+        name: AppRouteIds.financeAiBookkeeper,
+        builder: (_, __) => const FinanceAiBookkeeperScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.plaidOauth,
+        name: AppRouteIds.plaidOauth,
+        builder: (_, __) => const PlaidOauthScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.financeSetupWizard,

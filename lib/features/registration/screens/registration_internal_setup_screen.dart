@@ -349,7 +349,7 @@ class _RegistrationInternalSetupScreenState
                     ElevatedButton(
                       onPressed: _saving ? null : _save,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: palette.primary2,
+                        backgroundColor: palette.primary1,
                         foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(

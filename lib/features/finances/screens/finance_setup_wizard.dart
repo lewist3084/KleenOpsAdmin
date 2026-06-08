@@ -57,7 +57,8 @@ class _FinanceSetupWizardScreenState
       DocumentReference<Map<String, dynamic>> companyRef) async {
     if (_service != null) return;
     _service = FinanceSetupWizardService(companyRef: companyRef);
-    _plaidService = PlaidService(companyRef: companyRef);
+    // The admin app's banking is the overlord/platform scope (top-level books).
+    _plaidService = PlaidService.overlord();
     await _service!.initializeIfNeeded();
     if (mounted) setState(() => _initialized = true);
   }
@@ -233,7 +234,7 @@ class _ProgressHeader extends StatelessWidget {
                   valueColor: AlwaysStoppedAnimation<Color>(
                     progress >= 1.0
                         ? Colors.green
-                        : AppPaletteScope.of(context).primary2,
+                        : AppPaletteScope.of(context).primary1,
                   ),
                 ),
                 Center(
@@ -339,7 +340,7 @@ class _WizardTile extends StatelessWidget {
       leadingIcon: item.icon,
       leadingIconColor: status == WizardItemStatus.complete
           ? Colors.green
-          : AppPaletteScope.of(context).primary2,
+          : AppPaletteScope.of(context).primary1,
       trailingIcon1:
           status == WizardItemStatus.complete ? Icons.check_circle : null,
       onTap: () => _onTileTap(context, status),
@@ -484,7 +485,7 @@ class _StepDialogState extends State<_StepDialog> {
     return AlertDialog(
       title: Row(
         children: [
-          Icon(widget.item.icon, color: AppPaletteScope.of(context).primary2),
+          Icon(widget.item.icon, color: AppPaletteScope.of(context).primary1),
           const SizedBox(width: 12),
           Expanded(
             child: Text(widget.item.label,

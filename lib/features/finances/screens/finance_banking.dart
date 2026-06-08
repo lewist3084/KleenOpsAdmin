@@ -213,6 +213,8 @@ class _FinanceBankingContentState extends ConsumerState<FinanceBankingContent> {
                         syncing: _syncing,
                         onSync: () => _syncItem(plaidService, item.id),
                         onReconnect: () => _reconnectItem(plaidService, item.id),
+                        onAddAccounts: () =>
+                            _addAccountsItem(plaidService, item.id),
                         onRemove: () => _removeItem(
                           context,
                           plaidService,
@@ -305,6 +307,33 @@ class _FinanceBankingContentState extends ConsumerState<FinanceBankingContent> {
     }
   }
 
+  Future<void> _addAccountsItem(PlaidService service, String itemId) async {
+    setState(() => _connecting = true);
+    try {
+      final lang = Localizations.localeOf(context).languageCode;
+      final ok = await service.addAccounts(itemId, language: lang);
+      if (mounted && ok) {
+        SnackbarService.instance.showSnackBar(
+          const SnackBar(
+            duration: Duration(seconds: 5),
+            content: Text('Accounts updated'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarService.instance.showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 5),
+            content: Text('Add accounts error: $e'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _connecting = false);
+    }
+  }
+
   Future<void> _removeItem(
     BuildContext context,
     PlaidService service,
@@ -360,6 +389,7 @@ class _InstitutionCard extends StatelessWidget {
     required this.onSync,
     required this.onReconnect,
     required this.onRemove,
+    required this.onAddAccounts,
   });
 
   final String itemId;
@@ -369,6 +399,7 @@ class _InstitutionCard extends StatelessWidget {
   final VoidCallback onSync;
   final VoidCallback onReconnect;
   final VoidCallback onRemove;
+  final VoidCallback onAddAccounts;
 
   @override
   Widget build(BuildContext context) {
@@ -403,6 +434,7 @@ class _InstitutionCard extends StatelessWidget {
             trailing: PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'sync') onSync();
+                if (value == 'addAccounts') onAddAccounts();
                 if (value == 'remove') onRemove();
               },
               itemBuilder: (_) => [
@@ -411,6 +443,15 @@ class _InstitutionCard extends StatelessWidget {
                   child: ListTile(
                     leading: Icon(Icons.sync),
                     title: Text('Sync Now'),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'addAccounts',
+                  child: ListTile(
+                    leading: Icon(Icons.add_circle_outline),
+                    title: Text('Add accounts'),
                     dense: true,
                     contentPadding: EdgeInsets.zero,
                   ),

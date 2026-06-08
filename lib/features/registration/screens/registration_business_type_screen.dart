@@ -36,7 +36,7 @@ class _RegistrationBusinessTypeScreenState
       icon: Icons.alt_route,
       title: 'How will you use KleenOps?',
       body: 'Tell us a bit about your business so we can tailor the setup.',
-      color: palette.primary2,
+      color: palette.primary1,
       onBack: () => context.go(AppRoutePaths.registrationFork),
       options: [
         ForkOption(
@@ -58,7 +58,7 @@ class _RegistrationBusinessTypeScreenState
           subtitle:
               'For companies selling cleaning/maintenance services to '
               'other businesses.',
-          color: palette.primary2,
+          color: palette.primary1,
           onTap: () {
             AnalyticsService.instance.logFunnelEvent(
               FunnelEvent.businessTypePicked,

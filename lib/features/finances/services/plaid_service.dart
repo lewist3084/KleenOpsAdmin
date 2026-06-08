@@ -54,6 +54,7 @@ class PlaidService {
     final result = await callable.call({
       ..._scopeArgs,
       'platform': _plaidPlatform(),
+      'androidPackageName': 'com.kleenops.kleenops_admin',
       'language': language,
     });
     return result.data['linkToken'] as String;
@@ -61,14 +62,16 @@ class PlaidService {
 
   /// Creates a Plaid Link token in *update mode* to repair a broken Item.
   Future<String> createUpdateLinkToken(String plaidItemId,
-      {String language = 'en'}) async {
+      {String language = 'en', bool accountSelection = false}) async {
     final callable = FirebaseFunctions.instance
         .httpsCallable('financeCreateUpdateLinkToken');
     final result = await callable.call({
       ..._scopeArgs,
       'plaidItemId': plaidItemId,
       'platform': _plaidPlatform(),
+      'androidPackageName': 'com.kleenops.kleenops_admin',
       'language': language,
+      'accountSelection': accountSelection,
     });
     return result.data['linkToken'] as String;
   }
@@ -159,6 +162,37 @@ class PlaidService {
       debugPrint('PlaidService.reconnectInstitution error: $e');
       return false;
     }
+  }
+
+  /// Add-accounts: re-open the existing connection in update mode with account
+  /// selection, so the user can add accounts they didn't link the first time
+  /// (e.g. a second card/checking) — without creating a duplicate connection.
+  /// On success, the new accounts are stored and their transactions synced.
+  Future<bool> addAccounts(String plaidItemId, {String language = 'en'}) async {
+    try {
+      final linkToken = await createUpdateLinkToken(plaidItemId,
+          language: language, accountSelection: true);
+      if (kIsWeb) oauth_state.saveLinkToken(linkToken);
+      final linkConfig = LinkTokenConfiguration(token: linkToken);
+      return _runPlaidSession(linkConfig, (_) async {
+        await refreshAccounts(plaidItemId);
+        await syncTransactions(plaidItemId);
+      });
+    } catch (e) {
+      debugPrint('PlaidService.addAccounts error: $e');
+      return false;
+    }
+  }
+
+  /// Re-fetches + stores any newly-added accounts for an Item.
+  Future<Map<String, dynamic>> refreshAccounts(String plaidItemId) async {
+    final callable =
+        FirebaseFunctions.instance.httpsCallable('financeRefreshAccounts');
+    final result = await callable.call({
+      ..._scopeArgs,
+      'plaidItemId': plaidItemId,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
   }
 
   /// Web-only: if the current URL is the Plaid OAuth redirect target with an

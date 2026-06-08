@@ -1,0 +1,18 @@
+# Automated dependency vulnerability scanning + version updates for the
+# KleenOps admin/overlord app. See kleenops/.github/dependabot.yml for rationale.
+version: 2
+updates:
+  - package-ecosystem: "pub"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"

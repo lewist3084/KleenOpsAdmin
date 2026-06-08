@@ -219,6 +219,14 @@ class _TransactionListState extends State<_TransactionList> {
               .limit(25)
               .snapshots(),
           builder: (context, creditSnap) {
+            if (debitSnap.hasError || creditSnap.hasError) {
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'Couldn\'t load transactions: ${debitSnap.error ?? creditSnap.error}',
+                ),
+              );
+            }
             if (!debitSnap.hasData || !creditSnap.hasData) {
               return const Center(child: CircularProgressIndicator());
             }

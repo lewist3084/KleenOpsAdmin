@@ -281,7 +281,7 @@ class _ProgressCard extends StatelessWidget {
                     strokeWidth: 6,
                     backgroundColor: Colors.grey.shade200,
                     valueColor: AlwaysStoppedAnimation(
-                        AppPaletteScope.of(context).primary2),
+                        AppPaletteScope.of(context).primary1),
                   ),
                   Center(
                     child: Text(
@@ -325,7 +325,7 @@ class _SectionCard extends StatelessWidget {
       leadingIconColor = Colors.grey.shade500;
     } else {
       leadingIcon = section.icon;
-      leadingIconColor = AppPaletteScope.of(context).primary2;
+      leadingIconColor = AppPaletteScope.of(context).primary1;
     }
 
     return StandardBubbleTile(
@@ -424,7 +424,7 @@ class _CostFooter extends StatelessWidget {
                 ElevatedButton(
                   onPressed: null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppPaletteScope.of(context).primary2,
+                    backgroundColor: AppPaletteScope.of(context).primary1,
                     foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 14),

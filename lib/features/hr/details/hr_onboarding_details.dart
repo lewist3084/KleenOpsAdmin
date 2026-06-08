@@ -181,7 +181,7 @@ class _OnboardingDetailsBody extends StatelessWidget {
                               valueColor: AlwaysStoppedAnimation<Color>(
                                 progress == 1.0
                                     ? Colors.green[600]!
-                                    : AppPaletteScope.of(context).primary2,
+                                    : AppPaletteScope.of(context).primary1,
                               ),
                             ),
                           ),

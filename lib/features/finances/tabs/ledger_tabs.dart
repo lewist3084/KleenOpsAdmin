@@ -15,6 +15,8 @@ import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/tabs/lazy_tab_view.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:kleenops_admin/services/firebase_ai/gemini_translation_service.dart';
 
 /// Top-level screen with its own Scaffold (app bar + content + bottom nav)
 class FinanceLedgerTabsScreen extends StatefulWidget {
@@ -27,8 +29,74 @@ class FinanceLedgerTabsScreen extends StatefulWidget {
 
 class _FinanceLedgerTabsScreenState extends State<FinanceLedgerTabsScreen> {
   bool _searchVisible = false;
-
   void _toggleSearch() => setState(() => _searchVisible = !_searchVisible);
+
+  /// Backfills `nameLocalized` (all supported languages) on every account +
+  /// section that doesn't have it yet, so the P&L / Balance Sheet / Ledger
+  /// render localized. New accounts created by the AI Bookkeeper are translated
+  /// at creation; this covers the existing/standard chart.
+  Future<void> _localizeChart() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(
+      duration: Duration(minutes: 2),
+      content: Text('Translating accounts into all languages…'),
+    ));
+    try {
+      final db = FirebaseFirestore.instance;
+      const cols = [
+        'account',
+        'companyProfitLossSection',
+        'companyBalanceSheetSection',
+      ];
+      final docRefs = <DocumentReference<Map<String, dynamic>>, String>{};
+      final names = <String>{};
+      for (final c in cols) {
+        final snap = await db.collection(c).get();
+        for (final d in snap.docs) {
+          final data = d.data();
+          final name = (data['name'] ?? '').toString();
+          if (name.isEmpty) continue;
+          final existing = data['nameLocalized'];
+          if (existing is Map && existing.length > 1) continue; // done already
+          docRefs[d.reference] = name;
+          names.add(name);
+        }
+      }
+      if (names.isEmpty) {
+        if (!mounted) return;
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(const SnackBar(
+          duration: Duration(seconds: 4),
+          content: Text('Accounts are already localized.'),
+        ));
+        return;
+      }
+      final translations =
+          await GeminiTranslationService().translateNames(names.toList());
+      var count = 0;
+      for (final entry in docRefs.entries) {
+        final t = translations[entry.value];
+        if (t == null) continue;
+        await entry.key.set({'nameLocalized': t}, SetOptions(merge: true));
+        count++;
+      }
+      if (!mounted) return;
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(
+        duration: const Duration(seconds: 5),
+        backgroundColor: Colors.green,
+        content: Text('Localized $count account(s)/section(s) into '
+            '${kAccountLocales.length + 1} languages.'),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(
+        duration: const Duration(seconds: 6),
+        content: Text('Localization failed: $e'),
+      ));
+    }
+  }
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -84,21 +152,16 @@ class _FinanceLedgerTabsScreenState extends State<FinanceLedgerTabsScreen> {
       bottomNavigationBar: Consumer(
         builder: (context, ref, _) {
           final menuSections = MenuDrawerSections(
-            actions: [
-              ContentMenuItem(
-                icon: Icons.home_outlined,
-                label: 'Finances Home',
-                onTap: () => context.push(AppRoutePaths.financeHome),
-              ),
+            resources: [
               ContentMenuItem(
                 icon: Icons.account_balance_outlined,
                 label: 'Accounts',
                 onTap: () => context.push(AppRoutePaths.financeAccounts),
               ),
               ContentMenuItem(
-                icon: Icons.bar_chart_outlined,
-                label: 'Stats',
-                onTap: () => context.push(AppRoutePaths.financeStats),
+                icon: Icons.translate_outlined,
+                label: 'Localize Accounts',
+                onTap: () => _localizeChart(),
               ),
             ],
           );

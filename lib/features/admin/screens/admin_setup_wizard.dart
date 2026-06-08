@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:kleenops_admin/app/routes.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.dart';
+import 'package:kleenops_admin/features/finances/services/plaid_service.dart';
+import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
@@ -37,6 +41,7 @@ class AdminSetupWizardScreen extends StatefulWidget {
 class _AdminSetupWizardScreenState extends State<AdminSetupWizardScreen> {
   final _service = SetupWizardService.instance;
   bool _initialized = false;
+  StreamSubscription? _bankSub;
 
   @override
   void initState() {
@@ -44,9 +49,37 @@ class _AdminSetupWizardScreenState extends State<AdminSetupWizardScreen> {
     _init();
   }
 
+  @override
+  void dispose() {
+    _bankSub?.cancel();
+    super.dispose();
+  }
+
   Future<void> _init() async {
     await _service.initializeIfNeeded();
     if (mounted) setState(() => _initialized = true);
+    _startBankAccountSync();
+  }
+
+  /// Keeps the connection steps in sync with what's actually connected: any
+  /// depository account → "Connect Your Bank Account" complete; any credit
+  /// account → "Connect a Credit Card" complete. So linking both in one Plaid
+  /// session checks both, and disconnecting unchecks them automatically.
+  void _startBankAccountSync() {
+    _bankSub = PlaidService.overlord().watchBankAccounts().listen((snap) {
+      var hasDepository = false;
+      var hasCredit = false;
+      for (final doc in snap.docs) {
+        final type = (doc.data()['type'] ?? '').toString().toLowerCase();
+        if (type == 'credit') {
+          hasCredit = true;
+        } else if (type == 'depository') {
+          hasDepository = true;
+        }
+      }
+      _service.syncConnectionStep('link_bank_plaid', hasDepository);
+      _service.syncConnectionStep('link_credit_card', hasCredit);
+    });
   }
 
   Widget _wrapCanvas(Widget child) {
@@ -261,7 +294,9 @@ class _CategorySectionState extends State<_CategorySection> {
     final total = visibleItems.length;
     final isComplete = total > 0 && completedCount >= total;
     final percent = total > 0 ? ((completedCount / total) * 100).round() : 0;
-    final accent = isComplete ? Colors.green : color;
+    // Leading icons / card stay navy; the right-side check mark is the only
+    // green completion signal.
+    final accent = color;
 
     return Material(
       color: Colors.white,
@@ -338,7 +373,7 @@ class _CategorySectionState extends State<_CategorySection> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Divider(height: 1),
+                    Divider(height: 1, color: Colors.grey.shade300),
                     const SizedBox(height: 4),
                     for (final item in visibleItems)
                       _WizardTile(
@@ -455,8 +490,8 @@ class _WizardTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = AppPaletteScope.of(context).primary1;
     final status = parseWizardStatus(itemData['status'] as String?);
-    final isComplete = status == WizardItemStatus.complete;
-    final tileColor = isComplete ? Colors.green : color;
+    // Leading icon stays navy; completion is shown only by the status check.
+    final tileColor = color;
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
@@ -571,6 +606,13 @@ class _WizardTile extends StatelessWidget {
     final domainItemData =
         (itemsData['business_website'] as Map<String, dynamic>?) ?? const {};
 
+    // Bank / credit-card connection launches the Plaid Link flow (overlord /
+    // platform scope) instead of the generic step dialog.
+    if (item.key == 'link_bank_plaid' || item.key == 'link_credit_card') {
+      _launchPlaidLink(context);
+      return;
+    }
+
     // Route to specialized dialogs for automated steps.
     final Widget dialog;
     switch (item.key) {
@@ -652,6 +694,42 @@ class _WizardTile extends StatelessWidget {
     }
 
     showDialog(context: context, builder: (_) => dialog);
+  }
+
+  Future<void> _launchPlaidLink(BuildContext context) async {
+    // Overlord/platform scope — the admin app connects KleenOps's own bank.
+    final plaid = PlaidService.overlord();
+    try {
+      final lang = Localizations.localeOf(context).languageCode;
+      final ok = await plaid.openPlaidLink(language: lang);
+      if (!context.mounted) return;
+      if (ok) {
+        await service.completeItem(item.key, data: {'connectedViaPlaid': true});
+        SnackbarService.instance.showSnackBar(
+          const SnackBar(
+            duration: Duration(seconds: 5),
+            backgroundColor: Colors.green,
+            content: Text('Account linked successfully!'),
+          ),
+        );
+      } else {
+        SnackbarService.instance.showSnackBar(
+          const SnackBar(
+            duration: Duration(seconds: 5),
+            content: Text('Linking cancelled. You can try again anytime.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        SnackbarService.instance.showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 5),
+            content: Text('Bank linking failed: $e'),
+          ),
+        );
+      }
+    }
   }
 }
 

@@ -6,6 +6,9 @@ import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:kleenops_admin/app/shared_widgets/search/search_control_strip_adapter.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:kleenops_admin/widgets/tiles/account_item.dart';
+import 'package:kleenops_admin/features/finances/details/finance_account_details.dart';
+import 'package:kleenops_admin/services/firebase_ai/gemini_translation_service.dart'
+    show localizedAccountName;
 import '../dialogs/add_child_account_dialog.dart';
 import '../dialogs/add_account_dialog.dart';
 
@@ -97,7 +100,8 @@ class _FinanceProfitLossContentState
     double indent = 0.0,
   }) {
     final data = doc.data();
-    final name = data['name'] ?? '';
+    final name = localizedAccountName(
+        data, Localizations.localeOf(context).toLanguageTag());
     final accountRef = doc.reference;
 
     final childrenQuery = FirebaseFirestore.instance
@@ -144,6 +148,14 @@ class _FinanceProfitLossContentState
                 hasChildren: childDocs.isNotEmpty,
                 initiallyExpanded: childDocs.isNotEmpty,
                 children: children,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => FinanceAccountDetailsScreen(
+                      companyRef: companyRef,
+                      docId: accountRef.id,
+                    ),
+                  ),
+                ),
               ),
             );
           },
@@ -188,7 +200,7 @@ class _FinanceProfitLossContentState
               final posByPath = <String, int>{};
               for (final doc in sectionSnap.data?.docs ?? []) {
                 final pos = doc.data()['position'] as int? ?? 0;
-                posByPath[doc.reference.path] = pos;
+                posByPath[doc.reference.toString()] = pos;
               }
 
               // Only accounts flagged for Profit & Loss are displayed.

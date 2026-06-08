@@ -6,6 +6,7 @@ import 'package:shared_widgets/containers/standard_canvas.dart';
 
 import '../../../features/admin/services/email_routing_service.dart';
 import '../../../features/admin/widgets/phone_provisioning_dialog.dart';
+import '../../../features/auth/widgets/mfa/mfa_gate.dart';
 import '../../../features/sales/services/platform_catalog_service.dart';
 import '../../../services/admin_firebase_service.dart';
 import '../../../theme/palette.dart';
@@ -108,7 +109,10 @@ class CompanyDetails extends StatelessWidget {
           ),
         ],
       ),
-      body: StandardCanvas(
+      // MFA gate: an admin must pass TOTP this session before viewing a
+      // customer's books/consumer data in this internal tool.
+      body: MfaGate(
+        child: StandardCanvas(
         child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: svc.companyStream(companyId),
           builder: (context, snapshot) {
@@ -178,6 +182,13 @@ class CompanyDetails extends StatelessWidget {
                   _CompanyServicesSection(companyId: companyId),
                   const Divider(height: 32),
 
+                  // Finance — read-only oversight of this company's books.
+                  Text('Finance',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  _CompanyFinanceSection(companyId: companyId),
+                  const Divider(height: 32),
+
                   // Recent activity
                   Text('Recent Activity',
                       style: Theme.of(context).textTheme.titleMedium),
@@ -211,6 +222,7 @@ class CompanyDetails extends StatelessWidget {
               ),
             );
           },
+        ),
         ),
       ),
     );
@@ -286,6 +298,83 @@ class _CompanyServicesSection extends StatelessWidget {
               icon: Icons.receipt_long_outlined,
               title: 'Invoice #$number  ·  \$${total.toStringAsFixed(2)}',
               status: d['status'] as String? ?? '',
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// Read-only oversight of a company's own books: bank accounts (balances) and
+/// recent transactions, read from `company/{companyId}` subcollections. The
+/// overlord views but does not edit a customer's books.
+class _CompanyFinanceSection extends StatelessWidget {
+  const _CompanyFinanceSection({required this.companyId});
+
+  final String companyId;
+
+  CollectionReference<Map<String, dynamic>> _col(String name) =>
+      FirebaseFirestore.instance
+          .collection('company')
+          .doc(companyId)
+          .collection(name);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SubList(
+          title: 'Bank accounts',
+          stream: _col('bankAccount').where('active', isEqualTo: true).snapshots(),
+          builder: (d) {
+            final name = (d['name'] ?? '(account)').toString();
+            final mask = (d['mask'] ?? '').toString();
+            final bal = d['currentBalance'];
+            final balStr =
+                bal is num ? '\$${bal.toStringAsFixed(2)}' : '—';
+            return _ServiceTile(
+              icon: Icons.account_balance,
+              title: '$name${mask.isNotEmpty ? ' ••$mask' : ''}  ·  $balStr',
+              status: '',
+            );
+          },
+        ),
+        _SubList(
+          title: 'Recent transactions',
+          stream: _col('bankTransaction')
+              .orderBy('date', descending: true)
+              .limit(12)
+              .snapshots(),
+          builder: (d) {
+            final merchant =
+                (d['merchantName'] ?? d['name'] ?? 'Unknown').toString();
+            final amount = (d['amount'] as num?)?.toDouble() ?? 0.0;
+            final reconciled = d['reconciled'] == true;
+            final isIncome = amount < 0;
+            final amtStr =
+                '${isIncome ? '+' : '-'}\$${amount.abs().toStringAsFixed(2)}';
+            return ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                reconciled ? Icons.check_circle : Icons.schedule,
+                size: 18,
+                color: reconciled ? Colors.green : Colors.orange,
+              ),
+              title: Text(merchant,
+                  style: const TextStyle(fontSize: 13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+              trailing: Text(
+                amtStr,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isIncome ? Colors.green.shade700 : Colors.black87,
+                ),
+              ),
             );
           },
         ),

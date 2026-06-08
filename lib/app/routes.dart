@@ -58,6 +58,8 @@ class AppRouteIds {
   static const financeBanking = 'financeBanking';
   static const financeReconciliation = 'financeReconciliation';
   static const financeClassify = 'financeClassify';
+  static const financeAiBookkeeper = 'financeAiBookkeeper';
+  static const plaidOauth = 'plaidOauth';
   static const financeSetupWizard = 'financeSetupWizard';
   static const financePayroll = 'financePayroll';
   static const financePayrollRunDetails = 'financePayrollRunDetails';
@@ -282,6 +284,8 @@ class AppRoutePaths {
   static const financeBanking = '/finance/banking';
   static const financeReconciliation = '/finance/reconciliation';
   static const financeClassify = '/finance/classify';
+  static const financeAiBookkeeper = '/finance/ai-bookkeeper';
+  static const plaidOauth = '/plaid-oauth';
   static const financeSetupWizard = '/finance/setup-wizard';
   static const financePayroll = '/finance/payroll';
   static const financePayrollRunDetails = '/finance/payroll/details';

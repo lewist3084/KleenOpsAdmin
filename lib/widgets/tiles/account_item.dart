@@ -21,6 +21,7 @@ class AccountItem extends StatefulWidget {
   final bool hasChildren;
   final List<Widget> children;
   final bool initiallyExpanded;
+  final VoidCallback? onTap;
 
   const AccountItem({
     super.key,
@@ -42,6 +43,7 @@ class AccountItem extends StatefulWidget {
     this.hasChildren = false,
     this.children = const [],
     this.initiallyExpanded = false,
+    this.onTap,
   });
 
   @override
@@ -194,6 +196,7 @@ class _AccountItemState extends State<AccountItem> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0.0),
       tileColor: Colors.white,
       visualDensity: VisualDensity.compact,
+      onTap: widget.onTap,
     );
 
     if (!widget.hasChildren || widget.children.isEmpty) {
