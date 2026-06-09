@@ -1,4 +1,10 @@
 // lib/features/finances/details/finance_account_details.dart
+//
+// Account detail: the account name + type (header), its current balance as a
+// plain inline label inside a ContainerActionWidget, then a second
+// ContainerActionWidget listing the account's ledger transactions with the same
+// tile used on the Ledger — each tappable through to the entry detail (which has
+// its own edit FAB for changing the debit/credit assignment).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,14 +13,19 @@ import 'package:intl/intl.dart';
 
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
-import 'package:kleenops_admin/app/shared_widgets/navigation/home_appbar_adapter.dart';
-import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.dart';
 import 'package:kleenops_admin/features/finances/forms/finance_account_form.dart';
+import 'package:kleenops_admin/features/finances/details/ledger_entry_details.dart';
+import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
+import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/containers/container_header.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
-import 'package:shared_widgets/tiles/standard_tile_small.dart';
+import 'package:shared_widgets/finance/account_math.dart';
+import 'package:shared_widgets/finance/finance_books_root.dart';
+import 'package:shared_widgets/finance/ledger_entry_tile.dart';
+import 'package:shared_widgets/labels/text_value_inline.dart';
+import 'package:shared_widgets/lists/standardViewGroup.dart';
 
 class FinanceAccountDetailsScreen extends StatelessWidget {
   final DocumentReference<Map<String, dynamic>> companyRef;
@@ -51,8 +62,8 @@ class FinanceAccountDetailsScreen extends StatelessWidget {
       appBar: null,
       drawer: const UserDrawer(),
       body: _wrapCanvas(
-          _AccountDetailsContent(companyRef: companyRef, docId: docId),
-        ),
+        _AccountDetailsContent(companyRef: companyRef, docId: docId),
+      ),
       bottomNavigationBar: Consumer(
         builder: (context, ref, _) {
           final menuSections = MenuDrawerSections(
@@ -103,7 +114,22 @@ class _AccountDetailsContent extends StatefulWidget {
 }
 
 class _AccountDetailsContentState extends State<_AccountDetailsContent> {
+  static final NumberFormat _money = NumberFormat.currency(symbol: '\$');
+
   Stream<DocumentSnapshot<Map<String, dynamic>>>? _accountStream;
+  LedgerBalances _balances = LedgerBalances.empty;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBalances();
+  }
+
+  Future<void> _loadBalances() async {
+    final balances = await LedgerBalances.load(OverlordBooksRoot());
+    if (!mounted) return;
+    setState(() => _balances = balances);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +145,11 @@ class _AccountDetailsContentState extends State<_AccountDetailsContent> {
         final data = snap.data!.data() ?? {};
         final name = (data['name'] ?? 'Unnamed').toString();
         final type = (data['type'] ?? '').toString();
-        final balance = (data['balance'] as num?)?.toDouble() ?? 0.0;
+        // Computed from the posted ledger (the stored `balance` field is never
+        // maintained); falls back to 0 while balances are still loading.
+        final balance = _balances.balanceFor(accountRef.path) ??
+            (data['balance'] as num?)?.toDouble() ??
+            0.0;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.only(bottom: 120),
@@ -132,49 +162,21 @@ class _AccountDetailsContentState extends State<_AccountDetailsContent> {
                 descriptionHeader: 'Type',
                 description: type.isEmpty ? '—' : type,
               ),
-              Card(
-                margin: const EdgeInsets.all(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Balance',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        '\$${balance.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: balance >= 0 ? Colors.green[700] : Colors.red[700],
-                        ),
-                      ),
-                    ],
-                  ),
+              ContainerActionWidget(
+                actionText: '',
+                content: TextValueInline(
+                  header: 'Balance',
+                  value: _money.format(balance),
+                  icon: Icons.account_balance_wallet_outlined,
+                  boldValue: true,
+                  color: balance >= 0
+                      ? Colors.green.shade700
+                      : Colors.red.shade700,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Recent Transactions',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ),
-              ),
-              _TransactionList(
-                companyRef: widget.companyRef,
+              _AccountTransactions(
                 accountRef: accountRef,
+                balances: _balances,
               ),
             ],
           ),
@@ -184,109 +186,113 @@ class _AccountDetailsContentState extends State<_AccountDetailsContent> {
   }
 }
 
-class _TransactionList extends StatefulWidget {
-  final DocumentReference<Map<String, dynamic>> companyRef;
+/// Lists the ledger entries that touch [accountRef] (on either the debit or the
+/// credit side) using the shared ledger tile, grouped by date, inside a
+/// ContainerActionWidget. Tapping an entry opens its detail screen.
+class _AccountTransactions extends StatefulWidget {
   final DocumentReference<Map<String, dynamic>> accountRef;
+  final LedgerBalances balances;
 
-  const _TransactionList({
-    required this.companyRef,
+  const _AccountTransactions({
     required this.accountRef,
+    required this.balances,
   });
 
   @override
-  State<_TransactionList> createState() => _TransactionListState();
+  State<_AccountTransactions> createState() => _AccountTransactionsState();
 }
 
-class _TransactionListState extends State<_TransactionList> {
+class _AccountTransactionsState extends State<_AccountTransactions> {
   Stream<QuerySnapshot<Map<String, dynamic>>>? _debitStream;
   Stream<QuerySnapshot<Map<String, dynamic>>>? _creditStream;
 
   @override
   Widget build(BuildContext context) {
+    final timeline = FirebaseFirestore.instance.collection('timeline');
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _debitStream ??= FirebaseFirestore.instance
-          .collection('timeline')
+      stream: _debitStream ??= timeline
           .where('debitAccountId', isEqualTo: widget.accountRef)
           .orderBy('createdAt', descending: true)
-          .limit(25)
+          .limit(100)
           .snapshots(),
       builder: (context, debitSnap) {
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: _creditStream ??= FirebaseFirestore.instance
-              .collection('timeline')
+          stream: _creditStream ??= timeline
               .where('creditAccountId', isEqualTo: widget.accountRef)
               .orderBy('createdAt', descending: true)
-              .limit(25)
+              .limit(100)
               .snapshots(),
           builder: (context, creditSnap) {
+            Widget content;
             if (debitSnap.hasError || creditSnap.hasError) {
-              return Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Couldn\'t load transactions: ${debitSnap.error ?? creditSnap.error}',
+              content = Text(
+                'Couldn\'t load transactions: '
+                '${debitSnap.error ?? creditSnap.error}',
+              );
+            } else if (!debitSnap.hasData || !creditSnap.hasData) {
+              content = const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(),
                 ),
               );
+            } else {
+              // Merge + de-dupe the two sides into one list (an entry can never
+              // touch the same account on both sides, but de-dupe defensively).
+              final seen = <String>{};
+              final docs = [
+                ...debitSnap.data!.docs,
+                ...creditSnap.data!.docs,
+              ].where((d) => seen.add(d.id)).toList();
+
+              content = docs.isEmpty
+                  ? const Text('No transactions found.')
+                  : StandardViewGroup.buildViewFromDocs(
+                      docs: docs,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      groupBy: (doc) {
+                        final ts = doc.data()['createdAt'] as Timestamp?;
+                        return ts == null
+                            ? 'Undated'
+                            : DateFormat('yMMMd').format(ts.toDate());
+                      },
+                      groupSort: (a, b) {
+                        try {
+                          return DateFormat('yMMMd')
+                              .parse(b)
+                              .compareTo(DateFormat('yMMMd').parse(a));
+                        } catch (_) {
+                          return b.compareTo(a);
+                        }
+                      },
+                      itemSort: (a, b) {
+                        final ta = a.data()['createdAt'] as Timestamp?;
+                        final tb = b.data()['createdAt'] as Timestamp?;
+                        if (ta == null || tb == null) return 0;
+                        return tb.compareTo(ta);
+                      },
+                      onTap: (doc) => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => LedgerEntryDetailsScreen(
+                            docId: doc.id,
+                            data: doc.data(),
+                            balances: widget.balances,
+                          ),
+                        ),
+                      ),
+                      itemBuilder: (doc) => LedgerEntryTile(
+                        data: doc.data(),
+                        balances: widget.balances,
+                        entryId: doc.id,
+                      ),
+                    );
             }
-            if (!debitSnap.hasData || !creditSnap.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
 
-            final allDocs = [
-              ...debitSnap.data!.docs,
-              ...creditSnap.data!.docs,
-            ];
-
-            // Deduplicate
-            final seen = <String>{};
-            final unique = allDocs.where((d) => seen.add(d.id)).toList();
-
-            unique.sort((a, b) {
-              final tsA = a.data()['createdAt'] as Timestamp?;
-              final tsB = b.data()['createdAt'] as Timestamp?;
-              if (tsA == null && tsB == null) return 0;
-              if (tsA == null) return 1;
-              if (tsB == null) return -1;
-              return tsB.compareTo(tsA);
-            });
-
-            if (unique.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No transactions found.'),
-              );
-            }
-
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: unique.length,
-              itemBuilder: (context, index) {
-                final data = unique[index].data();
-                final entryName = (data['name'] ?? 'Entry').toString();
-                final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
-                final ts = data['createdAt'] as Timestamp?;
-                final date = ts != null
-                    ? DateFormat('MMM d, y').format(ts.toDate())
-                    : '';
-                final isDebit = data['debitAccountId'] == widget.accountRef;
-
-                return StandardTileSmallDart(
-                  label: entryName,
-                  secondaryText: date,
-                  leadingIcon: isDebit
-                      ? Icons.arrow_upward
-                      : Icons.arrow_downward,
-                  leadingIconColor: isDebit ? Colors.red : Colors.green,
-                  trailingWidget: Text(
-                    '${isDebit ? "-" : "+"}\$${amount.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: isDebit ? Colors.red : Colors.green,
-                    ),
-                  ),
-                );
-              },
+            return ContainerActionWidget(
+              title: 'Transactions',
+              actionText: '',
+              content: content,
             );
           },
         );

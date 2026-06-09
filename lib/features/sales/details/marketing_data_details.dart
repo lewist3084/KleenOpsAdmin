@@ -165,9 +165,7 @@ class _MarketingDataDetailsScreenState
               final email = data['email'] as bool? ?? false;
               final phone = data['phoneNumber'] as bool? ?? false;
               final company = data['company'] as bool? ?? false;
-              final bottomPadding =
-                  (hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0) +
-                      MediaQuery.of(context).padding.bottom;
+              const bottomPadding = 16.0;
 
               return Stack(
                 children: [

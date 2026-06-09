@@ -1,104 +1,179 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+// lib/common/communications/screens/directory_screen.dart
+//
+// Company directory — People (internal staff + external contacts) and
+// Organizations (external companies). Ported from the kleenops app's HR
+// Directory so the admin app surfaces the same People | Organizations tabs,
+// All/Internal/External people filter, and per-entity detail (communications
+// + notes). Launched from the menu drawer's Communications → Directory.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:kleenops_admin/app/shared_widgets/drawers/appbar_logout_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/common/communications/comm_menu.dart';
-import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
+import 'package:kleenops_admin/features/directory/providers/directory_providers.dart';
+import 'package:kleenops_admin/features/directory/screens/directory_tab_content.dart';
+import 'package:kleenops_admin/services/ai/ai_context_service.dart';
+import 'package:kleenops_admin/widgets/ai/ai_screen_context.dart';
+import 'package:shared_widgets/containers/canvas_top_bookend.dart';
+import 'package:shared_widgets/containers/standard_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
-import 'package:shared_widgets/tiles/standard_bubble_tile.dart';
+import 'package:shared_widgets/tabs/lazy_tab_view.dart';
+import 'package:shared_widgets/tabs/standard_tab.dart';
 
-/// Company member directory — lists active members with contact info.
-class AdminDirectoryScreen extends ConsumerWidget {
+/// People | Organizations directory landing screen.
+class AdminDirectoryScreen extends StatelessWidget {
   const AdminDirectoryScreen({super.key});
 
+  Widget _wrapCanvas(Widget child) {
+    return StandardCanvas(
+      child: SafeArea(
+        top: true,
+        bottom: false,
+        child: Stack(
+          children: [
+            Positioned.fill(child: child),
+            const Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: CanvasTopBookend(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final companyAsync = ref.watch(companyIdProvider);
+  Widget build(BuildContext context) {
     final menuSections = MenuDrawerSections(
       communications: buildAdminCommunicationMenuItems(context),
     );
 
     return Scaffold(
-      body: SafeArea(
-        child: companyAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
-          data: (companyRef) {
-            if (companyRef == null) {
-              return const Center(child: Text('No company.'));
-            }
-            return _MemberList(companyRef: companyRef);
-          },
+      backgroundColor: Colors.grey[100],
+      drawer: const UserDrawer(),
+      body: AiScreenContext(
+        context: const AiContextState(
+          key: 'directory',
+          sectionKey: 'directory',
+          screenType: 'list',
         ),
+        child: _wrapCanvas(const _DirectoryTabs()),
       ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DetailsAppBar(title: 'Directory', menuSections: menuSections),
-          const HomeNavBarAdapter(),
-        ],
+      bottomNavigationBar: Consumer(
+        builder: (context, ref, _) {
+          final controller = ref.read(aiCanvasControllerProvider);
+          final filter = ref.watch(directoryPeopleFilterProvider);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DetailsAppBar(
+                title: 'Directory',
+                onAiPressed: controller.toggle,
+                menuSections: menuSections,
+                // All/Internal/External people filter, surfaced on the appbar.
+                showFilterToggle: true,
+                filterActive: filter != DirectoryPeopleFilter.all,
+                onFilterToggle: () => _showPeopleFilterSheet(context, ref),
+              ),
+              const HomeNavBarAdapter(),
+            ],
+          );
+        },
       ),
+    );
+  }
+
+  Future<void> _showPeopleFilterSheet(BuildContext context, WidgetRef ref) {
+    final current = ref.read(directoryPeopleFilterProvider);
+    return showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetCtx) {
+        Widget option(
+          String label,
+          DirectoryPeopleFilter value,
+          IconData icon,
+        ) {
+          final selected = current == value;
+          return ListTile(
+            leading: Icon(icon),
+            title: Text(label),
+            trailing: selected
+                ? Icon(Icons.check,
+                    color: Theme.of(sheetCtx).colorScheme.primary)
+                : null,
+            selected: selected,
+            onTap: () {
+              ref.read(directoryPeopleFilterProvider.notifier).state = value;
+              Navigator.of(sheetCtx).pop();
+            },
+          );
+        }
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Show people',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              option('All', DirectoryPeopleFilter.all, Icons.people_outline),
+              option('Internal', DirectoryPeopleFilter.internal,
+                  Icons.badge_outlined),
+              option('External', DirectoryPeopleFilter.external,
+                  Icons.person_outline),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
-class _MemberList extends StatelessWidget {
-  const _MemberList({required this.companyRef});
-  final DocumentReference<Map<String, dynamic>> companyRef;
+/// People | Organizations tabs. People = internal staff + external contacts
+/// (with suggestions); Organizations = external companies (with suggestions).
+class _DirectoryTabs extends StatelessWidget {
+  const _DirectoryTabs();
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: companyRef
-          .collection('member')
-          .where('active', isEqualTo: true)
-          .orderBy('name')
-          .snapshots(),
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final docs = snap.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return Center(
-            child: Text('No team members found.',
-                style: TextStyle(color: Colors.grey.shade600)),
-          );
-        }
-
-        return ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          itemCount: docs.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (context, index) {
-            final d = docs[index].data();
-            final name = (d['name'] as String?) ?? '';
-            final email = (d['email'] as String?) ?? '';
-            final phone = (d['phone'] as String?) ?? '';
-            final role = (d['primaryRole'] as String?) ??
-                (d['roleName'] as String?) ??
-                '';
-            final initials = name.split(' ').where((p) => p.isNotEmpty).map(
-                (p) => p[0].toUpperCase()).take(2).join();
-
-            return StandardBubbleTile(
-              title: name,
-              description:
-                  [if (role.isNotEmpty) role, if (email.isNotEmpty) email]
-                      .join(' • '),
-              leadingChild: Text(initials),
-              trailing: phone.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.phone, size: 20),
-                      onPressed: () {},
-                    )
-                  : null,
-            );
-          },
-        );
-      },
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          const StandardTabBar(
+            tabs: [
+              Tab(text: 'People'),
+              Tab(text: 'Organizations'),
+            ],
+          ),
+          Expanded(
+            child: Builder(
+              builder: (context) => LazyTabView(
+                controller: DefaultTabController.of(context),
+                children: const [
+                  PeopleTabContent(),
+                  OrganizationsTabContent(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

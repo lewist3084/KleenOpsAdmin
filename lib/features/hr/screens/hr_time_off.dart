@@ -170,9 +170,7 @@ class _HrTimeOffScreenState extends ConsumerState<HrTimeOffScreen> {
       grouped.putIfAbsent(status, () => []).add(doc);
     }
 
-    final bottomInset = kBottomNavigationBarHeight +
-        16.0 +
-        MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     return ListView.builder(
       padding: EdgeInsets.fromLTRB(16, 8, 16, bottomInset + 60),

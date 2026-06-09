@@ -115,8 +115,7 @@ class _OnboardingDetailsBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final memberStream =
         FirebaseFirestore.instance.collection('member').doc(documentId).snapshots();
-    final bottomInset =
-        kBottomNavigationBarHeight + 16.0 + MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: memberStream,

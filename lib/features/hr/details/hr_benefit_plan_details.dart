@@ -129,8 +129,7 @@ class _PlanDetailsBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final planStream =
         FirebaseFirestore.instance.collection('benefitPlan').doc(docId).snapshots();
-    final bottomInset =
-        kBottomNavigationBarHeight + 16.0 + MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: planStream,

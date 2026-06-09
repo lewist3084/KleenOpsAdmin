@@ -101,9 +101,7 @@ class FinanceStatsContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final companyAsync = ref.watch(companyIdProvider);
-    final bottomPadding = kBottomNavigationBarHeight +
-        16.0 +
-        MediaQuery.of(context).padding.bottom;
+    const bottomPadding = 16.0;
 
     return companyAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),

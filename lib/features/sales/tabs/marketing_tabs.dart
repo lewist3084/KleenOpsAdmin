@@ -146,10 +146,7 @@ class _SalesMarketingTabsState extends ConsumerState<SalesMarketingTabs>
 
   @override
   Widget build(BuildContext context) {
-    final bool hideChrome = false;
-    final bottomInset =
-        (hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0) +
-            MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     return DefaultTabController(
       length: 5,

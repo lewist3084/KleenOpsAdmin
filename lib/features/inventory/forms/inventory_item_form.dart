@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
@@ -209,6 +211,8 @@ class _InventoryItemFormState extends State<InventoryItemForm> {
             isSaving: _saving,
             reserveNavBarSpace: false,
           ),
+          const DetailsAppBar(title: 'New Inventory Item'),
+          const HomeNavBarAdapter(),
         ],
       ),
     );

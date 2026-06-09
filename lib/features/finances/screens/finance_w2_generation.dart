@@ -176,9 +176,7 @@ class _W2ContentState extends State<_W2Content> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = kBottomNavigationBarHeight +
-        16.0 +
-        MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     if (_loading) {
       return const Center(child: CircularProgressIndicator());

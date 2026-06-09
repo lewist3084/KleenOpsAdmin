@@ -66,6 +66,12 @@ class FinanceBankingScreen extends StatelessWidget {
                 onTap: () => context.push(AppRoutePaths.financeAccounts),
               ),
               ContentMenuItem(
+                icon: Icons.upload_file_outlined,
+                label: 'Import Statements',
+                onTap: () =>
+                    context.push(AppRoutePaths.financeImportStatements),
+              ),
+              ContentMenuItem(
                 icon: Icons.fact_check_outlined,
                 label: 'Reconciliation',
                 onTap: () => context.push(AppRoutePaths.financeReconciliation),
@@ -152,6 +158,26 @@ class _FinanceBankingContentState extends ConsumerState<FinanceBankingContent> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: palette.primary2,
                     foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Import older statements (history Plaid can't reach, > ~24 months).
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () =>
+                      context.push(AppRoutePaths.financeImportStatements),
+                  icon: const Icon(Icons.upload_file_outlined),
+                  label: const Text('Import Statements'),
+                  style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

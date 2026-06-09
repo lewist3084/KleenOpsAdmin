@@ -277,9 +277,7 @@ class _TasksMessageDetailsState extends State<TasksMessageDetails> {
                 );
               }
 
-              final bottomPadding =
-                  (hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0) +
-                      MediaQuery.of(context).padding.bottom;
+              const bottomPadding = 16.0;
 
               return SingleChildScrollView(
                 padding: EdgeInsets.only(bottom: bottomPadding),

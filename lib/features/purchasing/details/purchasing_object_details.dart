@@ -307,7 +307,7 @@ class _PurchasingObjectDetailsBodyState
     final docRef =
         widget.companyId.collection('companyObject').doc(widget.docId);
     final bool hideChrome = false;
-    final bottomPadding = hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0;
+    const bottomPadding = 16.0;
 
     return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       future: _companyFuture ??= companyId.get(),

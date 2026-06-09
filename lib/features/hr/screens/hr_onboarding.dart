@@ -129,8 +129,7 @@ class _OnboardingContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset =
-        kBottomNavigationBarHeight + 16.0 + MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     // Active onboardings: members with onboarding in progress
     final activeStream = FirebaseFirestore.instance

@@ -16,6 +16,7 @@ import 'package:shared_widgets/utils/process_localization_utils.dart';
 
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 
 class CatalogForm extends StatefulWidget {
   final String docId;
@@ -772,10 +773,18 @@ class _CatalogFormState extends State<CatalogForm> {
           ],
         ),
       ),
-      bottomNavigationBar: CancelSaveBar(
-        onCancel: () => Navigator.of(context).pop(false),
-        onSave: _save,
-        isSaving: _saving,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => Navigator.of(context).pop(false),
+            onSave: _save,
+            isSaving: _saving,
+            reserveNavBarSpace: false,
+          ),
+          const DetailsAppBar(title: 'Edit Product'),
+          const HomeNavBarAdapter(),
+        ],
       ),
     );
   }

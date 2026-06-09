@@ -1104,8 +1104,7 @@ class _PurchasingOrderDetailsScreenState
                   .where('purchaseOrderId', isEqualTo: purchaseOrderRef)
                   .orderBy('createdAt');
 
-              final bottomPadding =
-                  hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0;
+              const bottomPadding = 16.0;
 
               return SingleChildScrollView(
                 padding: EdgeInsets.only(

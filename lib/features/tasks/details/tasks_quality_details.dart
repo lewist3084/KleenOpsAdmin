@@ -500,9 +500,7 @@ class _TasksQualityDetailsState extends ConsumerState<TasksQualityDetails> {
               final description = (data['description'] as String?)?.trim() ?? '';
               final mediaFuture = _ensureMediaFuture(timelineDocRef);
 
-              final bottomPadding =
-                  (hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0) +
-                      MediaQuery.of(context).padding.bottom;
+              const bottomPadding = 16.0;
 
               return SingleChildScrollView(
                 padding: EdgeInsets.only(bottom: bottomPadding),

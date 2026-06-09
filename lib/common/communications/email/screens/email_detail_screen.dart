@@ -1,6 +1,8 @@
 // lib/common/communications/email/screens/email_detail_screen.dart
-// Ported from the kleenops app. ADMIN ADAPTATIONS: no AI-canvas/BookendedCanvas;
-// navigation via Navigator.push; snackbars via ScaffoldMessenger.
+// Ported from the kleenops app to mirror its look & workflow exactly. ADMIN
+// ADAPTATIONS are backend-only: navigation via Navigator.push; snackbars via
+// ScaffoldMessenger. The AI canvas chrome (AiScreenContext + BookendedCanvas) is
+// a no-op stub in admin but keeps the identical bookend/home-nav-bar look.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,9 @@ import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart
 import 'package:intl/intl.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/services/ai/ai_context_service.dart';
+import 'package:kleenops_admin/widgets/ai/ai_screen_context.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/email_attachment.dart';
@@ -58,20 +63,27 @@ class _EmailDetailScreenState extends ConsumerState<EmailDetailScreen> {
         const <EmailMessage>[];
     final myAddress =
         ref.watch(currentEmailAccountProvider.select((a) => a?.emailAddress));
+    final canvasController = ref.read(aiCanvasControllerProvider);
     final email = emailAsync.value;
 
     return Scaffold(
-      body: SafeArea(
-        child: emailAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
-          data: (email) {
-            if (email == null) {
-              return const Center(child: Text('Email not found'));
-            }
-            final messages = convo.isEmpty ? <EmailMessage>[email] : convo;
-            return _buildConversation(messages, email, myAddress);
-          },
+      body: AiScreenContext(
+        context: AiContextPresets.emailDetail(
+          emailId: widget.emailId,
+          label: email?.subject,
+        ),
+        child: BookendedCanvas(
+          child: emailAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('Error: $e')),
+            data: (email) {
+              if (email == null) {
+                return const Center(child: Text('Email not found'));
+              }
+              final messages = convo.isEmpty ? <EmailMessage>[email] : convo;
+              return _buildConversation(messages, email, myAddress);
+            },
+          ),
         ),
       ),
       bottomNavigationBar: Column(
@@ -86,7 +98,10 @@ class _EmailDetailScreenState extends ConsumerState<EmailDetailScreen> {
               onForward: () => _forward(email),
               onStar: () => _toggleStar(email),
             ),
-          const DetailsAppBar(title: 'Email'),
+          DetailsAppBar(
+            title: 'Email',
+            onAiPressed: canvasController.toggle,
+          ),
           const HomeNavBarAdapter(),
         ],
       ),

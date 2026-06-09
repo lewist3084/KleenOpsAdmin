@@ -305,6 +305,39 @@ class AiContextPresets {
   static const String trainingGuidance = '';
   static const String trainingImagePromptContext = '';
   static const String trainingVideoPromptContext = '';
+
+  // ---- Email (admin stubs) ----
+  static AiContextState emailInbox() => const AiContextState(
+        key: 'emailInbox',
+        sectionKey: 'email',
+        screenType: 'list',
+      );
+
+  static AiContextState emailCompose() => const AiContextState(
+        key: 'emailCompose',
+        sectionKey: 'email',
+        screenType: 'compose',
+      );
+
+  static AiContextState emailDetail({
+    required String emailId,
+    String? label,
+    String? entityPath,
+  }) =>
+      AiContextState(
+        key: 'emailDetail',
+        sectionKey: 'email',
+        screenType: 'detail',
+        label: label,
+        entityId: emailId,
+        entityPath: entityPath,
+      );
+
+  static AiContextState emailSettings() => const AiContextState(
+        key: 'emailSettings',
+        sectionKey: 'email',
+        screenType: 'settings',
+      );
 }
 
 /// No-op controller stub.

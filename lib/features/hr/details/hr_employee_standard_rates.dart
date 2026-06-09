@@ -89,8 +89,7 @@ class HrEmployeeStandardRatesScreen extends ConsumerWidget {
         final ratesStream =
             FirebaseFirestore.instance.collection('standardLarborRates').snapshots();
 
-        final bottomPadding =
-            hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0;
+        const bottomPadding = 16.0;
 
         return Padding(
           padding: EdgeInsets.fromLTRB(

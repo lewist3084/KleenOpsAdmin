@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
-import 'package:shared_widgets/theme/app_palette.dart';
+import 'package:shared_widgets/finance/account_math.dart';
+import 'package:shared_widgets/finance/finance_books_root.dart';
+import 'package:shared_widgets/finance/ledger_entry_tile.dart';
 import 'package:kleenops_admin/app/routes.dart' show AppRoutePaths;
 import 'package:go_router/go_router.dart';
 import 'package:kleenops_admin/app/shared_widgets/search/search_control_strip_adapter.dart';
@@ -25,24 +27,18 @@ class FinanceLedgerContent extends ConsumerStatefulWidget {
 class _FinanceLedgerContentState extends ConsumerState<FinanceLedgerContent> {
   String _search = '';
   final TextEditingController _searchCtrl = TextEditingController();
-  final Map<String, String> _accountNames = {}; // ref.path -> name
-  final Map<String, String> _accountTypes = {}; // ref.path -> type
+  LedgerBalances _balances = LedgerBalances.empty;
 
   @override
   void initState() {
     super.initState();
-    _loadAccounts();
+    _loadBalances();
   }
 
-  Future<void> _loadAccounts() async {
-    final snap = await FirebaseFirestore.instance.collection('account').get();
+  Future<void> _loadBalances() async {
+    final balances = await LedgerBalances.load(OverlordBooksRoot());
     if (!mounted) return;
-    setState(() {
-      for (final d in snap.docs) {
-        _accountNames[d.reference.path] = (d.data()['name'] ?? '').toString();
-        _accountTypes[d.reference.path] = (d.data()['type'] ?? '').toString();
-      }
-    });
+    setState(() => _balances = balances);
   }
 
   @override
@@ -54,8 +50,7 @@ class _FinanceLedgerContentState extends ConsumerState<FinanceLedgerContent> {
   @override
   Widget build(BuildContext context) {
     final companyAsync = ref.watch(companyIdProvider);
-    final bottomInset =
-        kBottomNavigationBarHeight + 16.0 + MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     return companyAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -156,12 +151,14 @@ class _FinanceLedgerContentState extends ConsumerState<FinanceLedgerContent> {
                         builder: (_) => LedgerEntryDetailsScreen(
                           docId: doc.id,
                           data: doc.data(),
-                          accountNames: _accountNames,
-                          accountTypes: _accountTypes,
+                          balances: _balances,
                         ),
                       ),
                     ),
-                    itemBuilder: (doc) => _ledgerEntryTile(context, doc.data()),
+                    itemBuilder: (doc) => LedgerEntryTile(
+                        data: doc.data(),
+                        balances: _balances,
+                        entryId: doc.id),
                   ),
                 ),
               ],
@@ -185,72 +182,4 @@ class _FinanceLedgerContentState extends ConsumerState<FinanceLedgerContent> {
       },
     );
   }
-
-  Widget _ledgerEntryTile(BuildContext context, Map<String, dynamic> data) {
-    final name = (data['name'] ?? data['memo'] ?? '(entry)').toString();
-    final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
-    final debit = (data['debitAccountId'] as DocumentReference?)?.path;
-    final credit = (data['creditAccountId'] as DocumentReference?)?.path;
-    final debitType = debit != null ? _accountTypes[debit] : null;
-    final creditType = credit != null ? _accountTypes[credit] : null;
-    final visual = profitabilityVisual(debitType, creditType);
-
-    return ListTile(
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-      // Gold (primary2) leading icon for every ledger entry.
-      leading: Icon(Icons.receipt_long,
-          color: AppPaletteScope.of(context).primary2),
-      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Row(
-        children: [
-          Icon(visual.icon, size: 14, color: visual.color),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              visual.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: visual.color),
-            ),
-          ),
-        ],
-      ),
-      trailing: Text(
-        '\$${amount.toStringAsFixed(2)}',
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-}
-
-/// Profitability-oriented visual for a double-entry ledger line. Translates
-/// debit/credit account types into a plain-language "good/bad" arrow:
-///   • income (revenue) up     → green up
-///   • expense up               → red up
-///   • debt (liability) paid down → green down
-///   • debt up                  → red up
-class LedgerVisual {
-  final IconData icon;
-  final Color color;
-  final String label;
-  const LedgerVisual(this.icon, this.color, this.label);
-}
-
-LedgerVisual profitabilityVisual(String? debitType, String? creditType) {
-  final green = Colors.green.shade700;
-  final red = Colors.red.shade700;
-  if (creditType == 'Revenue') {
-    return LedgerVisual(Icons.arrow_upward, green, 'Income up');
-  }
-  if (debitType == 'Expense') {
-    return LedgerVisual(Icons.arrow_upward, red, 'Expense up');
-  }
-  if (debitType == 'Liability') {
-    return LedgerVisual(Icons.arrow_downward, green, 'Debt paid down');
-  }
-  if (creditType == 'Liability') {
-    return LedgerVisual(Icons.arrow_upward, red, 'Debt up');
-  }
-  return LedgerVisual(Icons.swap_horiz, Colors.grey.shade600, 'Transfer');
 }

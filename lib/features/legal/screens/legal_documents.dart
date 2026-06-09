@@ -110,9 +110,7 @@ class _LegalDocumentsList extends StatelessWidget {
           });
         }
 
-        final bottomInset = kBottomNavigationBarHeight +
-            16.0 +
-            MediaQuery.of(context).padding.bottom;
+        const bottomInset = 16.0;
         return ListView(
           padding: EdgeInsets.fromLTRB(16, 24, 16, bottomInset),
           children: [

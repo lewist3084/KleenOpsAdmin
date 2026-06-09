@@ -9,10 +9,16 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:shared_widgets/containers/canvas_top_bookend.dart';
+import 'package:shared_widgets/containers/container_action.dart';
+import 'package:shared_widgets/containers/container_header.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
+import 'package:shared_widgets/labels/text_value_inline.dart';
+import 'package:shared_widgets/theme/app_palette.dart';
 
 import '../../../services/admin_firebase_service.dart';
-import '../../../theme/palette.dart';
 import '../widgets/platform_catalog_body.dart';
 
 class PlatformProductDetailsScreen extends StatelessWidget {
@@ -20,7 +26,39 @@ class PlatformProductDetailsScreen extends StatelessWidget {
 
   final String productKey;
 
-  static const _palette = adminPalette;
+  /// Map a billing-type code to a human label.
+  static String _billingLabel(String t) {
+    switch (t) {
+      case 'recurring':
+        return 'Recurring';
+      case 'metered':
+        return 'Metered';
+      case 'one_time':
+        return 'One-time';
+      default:
+        return t.isEmpty ? '—' : t;
+    }
+  }
+
+  Widget _wrapCanvas(Widget child) {
+    return StandardCanvas(
+      child: SafeArea(
+        top: true,
+        bottom: false,
+        child: Stack(
+          children: [
+            Positioned.fill(child: child),
+            const Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: CanvasTopBookend(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,13 +66,16 @@ class PlatformProductDetailsScreen extends StatelessWidget {
         FirebaseFirestore.instance.collection('platformProduct').doc(productKey);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Product'),
-        backgroundColor: _palette.primary1,
-        foregroundColor: Colors.white,
+      appBar: null,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          DetailsAppBar(title: 'Product'),
+          HomeNavBarAdapter(highlightSelected: false),
+        ],
       ),
-      body: StandardCanvas(
-        child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      body: _wrapCanvas(
+        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: ref.snapshots(),
           builder: (context, snap) {
             if (snap.hasError) {
@@ -53,6 +94,8 @@ class PlatformProductDetailsScreen extends StatelessWidget {
             final priceCents = (data['priceCents'] as num?)?.toInt() ?? 0;
             final costCents = (data['costCents'] as num?)?.toInt() ?? priceCents;
             final interval = data['interval'] as String? ?? '';
+            final billingType = data['billingType'] as String? ?? '';
+            final provider = (data['provider'] as String?)?.trim() ?? '';
             final usageKey = (data['usageKey'] as String?)?.trim();
             final usageMetric =
                 (data['usageMetric'] as String?)?.trim().isNotEmpty == true
@@ -63,70 +106,116 @@ class PlatformProductDetailsScreen extends StatelessWidget {
                     ? (data['unitLabel'] as String).trim()
                     : 'units';
             final unitPriceCents = (data['unitPriceCents'] as num?)?.toInt() ?? 0;
-            final price = '\$${(priceCents / 100).toStringAsFixed(2)}'
-                '${interval.isNotEmpty ? ' / $interval' : ''}';
 
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(label,
-                          style: Theme.of(context).textTheme.headlineSmall),
-                    ),
-                    TextButton.icon(
-                      onPressed: () =>
-                          showPlatformProductDialog(context, doc: doc),
-                      icon: const Icon(Icons.edit, size: 18),
-                      label: const Text('Edit'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(price,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                Builder(builder: (_) {
-                  final cost = costCents / 100;
-                  final priceD = priceCents / 100;
-                  final profit = priceD - cost;
-                  final markup =
-                      cost > 0 ? '${(profit / cost * 100).toStringAsFixed(1)}%' : '—';
-                  return Text(
-                    'Base cost \$${cost.toStringAsFixed(2)}   ·   '
-                    'Markup $markup   ·   Profit \$${profit.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: profit > 0
-                          ? Colors.green.shade700
-                          : (profit < 0 ? Colors.red.shade700 : Colors.grey.shade600),
-                    ),
-                  );
-                }),
-                if (description.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(description,
-                      style: TextStyle(color: Colors.grey.shade700)),
-                ],
-                const Divider(height: 32),
-                if (usageKey != null && usageKey.isNotEmpty)
-                  _UsageCharts(
-                    usageKey: usageKey,
-                    metricField: usageMetric,
-                    unitLabel: unitLabel,
-                    unitPriceCents: unitPriceCents,
-                  )
-                else
-                  Text(
-                    'This product isn\'t metered against company usage. '
-                    'Purchases of it appear under Billing → Recent platform '
-                    'sales and on each company\'s Services section.',
-                    style: TextStyle(color: Colors.grey.shade600),
+            final cost = costCents / 100;
+            final priceD = priceCents / 100;
+            final profit = priceD - cost;
+            final markup =
+                cost > 0 ? '${(profit / cost * 100).toStringAsFixed(1)}%' : '—';
+            final price = '\$${priceD.toStringAsFixed(2)}'
+                '${interval.isNotEmpty ? ' / $interval' : ''}';
+            final profitColor = profit > 0
+                ? Colors.green.shade700
+                : (profit < 0 ? Colors.red.shade700 : Colors.grey.shade600);
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ContainerHeader(
+                    showImage: false,
+                    titleHeader: 'Name',
+                    title: label,
+                    descriptionHeader: 'Description',
+                    description: description,
                   ),
-              ],
+                  ContainerActionWidget(
+                    title: 'Pricing',
+                    actionText: 'Edit',
+                    onAction: () =>
+                        showPlatformProductDialog(context, doc: doc),
+                    content: Column(
+                      children: [
+                        TextValueInline(
+                          header: 'Price',
+                          value: price,
+                          icon: Icons.sell_outlined,
+                          boldValue: true,
+                        ),
+                        const SizedBox(height: 12),
+                        TextValueInline(
+                          header: 'Base cost',
+                          value: '\$${cost.toStringAsFixed(2)}',
+                          icon: Icons.account_balance_wallet_outlined,
+                        ),
+                        const SizedBox(height: 12),
+                        TextValueInline(
+                          header: 'Markup',
+                          value: markup,
+                          icon: Icons.trending_up,
+                          color: profitColor,
+                        ),
+                        const SizedBox(height: 12),
+                        TextValueInline(
+                          header: 'Profit',
+                          value: '\$${profit.toStringAsFixed(2)}',
+                          icon: Icons.savings_outlined,
+                          color: profitColor,
+                          boldValue: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                  ContainerActionWidget(
+                    title: 'Details',
+                    actionText: '',
+                    content: Column(
+                      children: [
+                        TextValueInline(
+                          header: 'Billing',
+                          value: _billingLabel(billingType),
+                          icon: Icons.receipt_long_outlined,
+                        ),
+                        const SizedBox(height: 12),
+                        TextValueInline(
+                          header: 'Interval',
+                          value: interval.isEmpty ? '—' : interval,
+                          icon: Icons.schedule,
+                        ),
+                        if (provider.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          TextValueInline(
+                            header: 'Provider',
+                            value: provider,
+                            icon: Icons.cloud_outlined,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  ContainerActionWidget(
+                    title: usageKey != null && usageKey.isNotEmpty
+                        ? 'Usage across businesses'
+                        : 'Usage',
+                    actionText: '',
+                    content: usageKey != null && usageKey.isNotEmpty
+                        ? _UsageCharts(
+                            usageKey: usageKey,
+                            metricField: usageMetric,
+                            unitLabel: unitLabel,
+                            unitPriceCents: unitPriceCents,
+                          )
+                        : Text(
+                            'This product isn\'t metered against company usage. '
+                            'Purchases of it appear under Billing → Recent '
+                            'platform sales and on each company\'s Services '
+                            'section.',
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                  ),
+                ],
+              ),
             );
           },
         ),

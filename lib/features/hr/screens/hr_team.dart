@@ -107,10 +107,7 @@ class HrTeamContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPaletteScope.of(context);
-    final bool hideChrome = false;
-    final bottomInset =
-        (hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0) +
-            MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return const Center(child: Text('User not authenticated.'));

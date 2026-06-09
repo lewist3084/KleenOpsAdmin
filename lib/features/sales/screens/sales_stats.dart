@@ -101,11 +101,9 @@ class SalesStatsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: EdgeInsets.only(
+      padding: const EdgeInsets.only(
         top: 16,
-        bottom: kBottomNavigationBarHeight +
-            16.0 +
-            MediaQuery.of(context).padding.bottom,
+        bottom: 16.0,
       ),
       child: const PlatformMetricsPanel(),
     );

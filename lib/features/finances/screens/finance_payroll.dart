@@ -114,8 +114,7 @@ class _PayrollContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset =
-        kBottomNavigationBarHeight + 16.0 + MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
     final fmt = NumberFormat('#,##0.00');
 
     return SingleChildScrollView(

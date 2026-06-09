@@ -195,9 +195,7 @@ class _MarketingScheduleContentState
   Widget build(BuildContext context) {
     final companyAsync = ref.watch(companyIdProvider);
     final bool hideChrome = false;
-    final bottomInset =
-        (hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0) +
-            MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     return companyAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),

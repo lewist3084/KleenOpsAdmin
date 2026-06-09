@@ -104,9 +104,7 @@ class _ChecklistBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = kBottomNavigationBarHeight +
-        16.0 +
-        MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('member').doc(memberId).snapshots(),

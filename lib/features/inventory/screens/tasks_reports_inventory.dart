@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kleenops_admin/app/routes.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/features/inventory/widgets/inventory_request_list.dart';
 
 class TasksReportsInventoryScreen extends StatelessWidget {
@@ -12,6 +13,7 @@ class TasksReportsInventoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: const HomeNavBarAdapter(),
       appBar: const StandardAppBar(title: 'Inventory Requests'),
       body: const TasksReportsInventoryContent(),
       floatingActionButton: FloatingActionButton(

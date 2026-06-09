@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/services/ai/ai_context_service.dart';
 
 class FormAiBottomBar extends ConsumerWidget {
@@ -48,6 +49,10 @@ class FormAiBottomBar extends ConsumerWidget {
           showTopBorder: showTopBorder,
           clipTopShadow: clipTopShadow,
           topBorderColor: topBorderColor,
+          // Stacked above DetailsAppBar — the OS nav-bar inset is reserved
+          // once below, by HomeNavBarAdapter (the lowest bar). Without this the
+          // bar would reserve the inset here, leaving a gap above DetailsAppBar.
+          reserveNavBarSpace: false,
         ),
         DetailsAppBar(
           title: title,
@@ -56,6 +61,8 @@ class FormAiBottomBar extends ConsumerWidget {
           showUserMenu: showUserMenu,
           showNavigationArrows: showNavigationArrows,
         ),
+        // Lowest bar — reserves the OS navigation-bar inset itself.
+        const HomeNavBarAdapter(),
       ],
     );
   }

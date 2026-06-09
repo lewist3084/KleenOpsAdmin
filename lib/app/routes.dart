@@ -43,6 +43,9 @@ class AppRouteIds {
   static const catalogStagingReview = 'catalogStagingReview';
   static const catalogBrandOwners = 'catalogBrandOwners';
 
+  // Organizations (overlord registry)
+  static const organizationRegistry = 'organizationRegistry';
+
   // Device Registry
   static const deviceRegistryHome = 'deviceRegistryHome';
 
@@ -56,6 +59,7 @@ class AppRouteIds {
   static const financeAccounts = 'financeAccounts';
   static const financeStats = 'financeStats';
   static const financeBanking = 'financeBanking';
+  static const financeImportStatements = 'financeImportStatements';
   static const financeReconciliation = 'financeReconciliation';
   static const financeClassify = 'financeClassify';
   static const financeAiBookkeeper = 'financeAiBookkeeper';
@@ -269,6 +273,9 @@ class AppRoutePaths {
   static const catalogStagingReview = '/catalog/staging-review';
   static const catalogBrandOwners = '/catalog/brand-owners';
 
+  // Organizations (overlord registry)
+  static const organizationRegistry = '/organizations';
+
   // Device Registry
   static const deviceRegistry = '/device-registry';
 
@@ -282,6 +289,7 @@ class AppRoutePaths {
   static const financeAccounts = '/finance/accounts';
   static const financeStats = '/finance/stats';
   static const financeBanking = '/finance/banking';
+  static const financeImportStatements = '/finance/import-statements';
   static const financeReconciliation = '/finance/reconciliation';
   static const financeClassify = '/finance/classify';
   static const financeAiBookkeeper = '/finance/ai-bookkeeper';

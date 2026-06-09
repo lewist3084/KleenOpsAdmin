@@ -418,10 +418,7 @@ class _EmployeeDetailsTabs extends StatelessWidget {
   // ─────────────────── TAB: Overview ───────────────────
 
   Widget _buildOverviewTab(BuildContext context) {
-    final bottomInset = hideChrome
-        ? 16.0
-        : kBottomNavigationBarHeight + 16.0 +
-            MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset),
@@ -499,10 +496,7 @@ class _EmployeeDetailsTabs extends StatelessWidget {
   // ─────────────────── TAB: Employment ─────────────────
 
   Widget _buildEmploymentTab(BuildContext context) {
-    final bottomInset = hideChrome
-        ? 16.0
-        : kBottomNavigationBarHeight + 16.0 +
-            MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     final startDate = data['startDate'];
     final hireDate = startDate is Timestamp
@@ -551,10 +545,7 @@ class _EmployeeDetailsTabs extends StatelessWidget {
   // ─────────────────── TAB: Pay & Tax ──────────────────
 
   Widget _buildPayTaxTab(BuildContext context) {
-    final bottomInset = hideChrome
-        ? 16.0
-        : kBottomNavigationBarHeight + 16.0 +
-            MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     final payRate = data['payRate'];
     final payType = (data['payType'] ?? 'hourly').toString();
@@ -643,10 +634,7 @@ class _EmployeeDetailsTabs extends StatelessWidget {
   // ─────────────────── TAB: Banking ────────────────────
 
   Widget _buildBankingTab(BuildContext context) {
-    final bottomInset = hideChrome
-        ? 16.0
-        : kBottomNavigationBarHeight + 16.0 +
-            MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     final paymentMethod = (data['paymentMethod'] ?? 'direct_deposit').toString();
     final banks = data['bankAccounts'];
@@ -724,10 +712,7 @@ class _EmployeeDetailsTabs extends StatelessWidget {
   // ─────────────────── TAB: Benefits ────────────────────
 
   Widget _buildBenefitsTab(BuildContext context) {
-    final bottomInset = hideChrome
-        ? 16.0
-        : kBottomNavigationBarHeight + 16.0 +
-            MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     if (companyRef == null || memberId == null) {
       return Center(
@@ -864,10 +849,7 @@ class _EmployeeDetailsTabs extends StatelessWidget {
   // ─────────────────── TAB: Documents ──────────────────
 
   Widget _buildDocumentsTab(BuildContext context) {
-    final bottomInset = hideChrome
-        ? 16.0
-        : kBottomNavigationBarHeight + 16.0 +
-            MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     final w4OnFile = data['w4OnFile'] ?? false;
     final i9Verified = data['i9Verified'] ?? false;

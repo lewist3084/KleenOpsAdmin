@@ -207,8 +207,7 @@ class _RunDetailsBodyState extends State<_RunDetailsBody> {
         .collection('payStub')
         .orderBy('memberName')
         .snapshots();
-    final bottomInset =
-        kBottomNavigationBarHeight + 16.0 + MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
     final fmt = NumberFormat('#,##0.00');
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(

@@ -32,6 +32,10 @@ class _FinanceAccountFormState extends State<FinanceAccountForm> {
   String _type = 'Asset';
   String? _parentAccountId;
 
+  /// Name as loaded, to detect renames (so we can clear the stale localized
+  /// name map that the Balance Sheet / P&L render from).
+  String _originalName = '';
+
   bool _loading = false;
   bool _saving = false;
 
@@ -73,6 +77,7 @@ class _FinanceAccountFormState extends State<FinanceAccountForm> {
       if (data == null) return;
 
       _nameCtrl.text = (data['name'] ?? '').toString();
+      _originalName = _nameCtrl.text;
       _descriptionCtrl.text = (data['description'] ?? '').toString();
       _type = (data['type'] ?? 'Asset').toString();
 
@@ -99,11 +104,19 @@ class _FinanceAccountFormState extends State<FinanceAccountForm> {
     FocusScope.of(context).unfocus();
     setState(() => _saving = true);
 
+    final newName = _nameCtrl.text.trim();
     final data = <String, dynamic>{
-      'name': _nameCtrl.text.trim(),
+      'name': newName,
       'type': _type,
       'updatedAt': FieldValue.serverTimestamp(),
     };
+
+    // On rename, drop the stale localized-name map so every view (Balance
+    // Sheet / P&L use `nameLocalized`, the Ledger uses `name`) falls back to
+    // the freshly-typed name. Re-localization can repopulate it later.
+    if (_isEditing && newName != _originalName) {
+      data['nameLocalized'] = FieldValue.delete();
+    }
 
     final desc = _descriptionCtrl.text.trim();
     if (desc.isNotEmpty) {

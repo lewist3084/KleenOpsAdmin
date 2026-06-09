@@ -173,11 +173,7 @@ class _FinanceWizardBody extends StatelessWidget {
             .length;
 
         return SingleChildScrollView(
-          padding: EdgeInsets.only(
-            bottom: kBottomNavigationBarHeight +
-                16.0 +
-                MediaQuery.of(context).padding.bottom,
-          ),
+          padding: const EdgeInsets.only(bottom: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

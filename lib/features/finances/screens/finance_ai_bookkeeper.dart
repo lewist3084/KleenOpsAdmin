@@ -380,8 +380,7 @@ class _FinanceAiBookkeeperScreenState extends State<FinanceAiBookkeeperScreen> {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16,
-          kBottomNavigationBarHeight + 32),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
         Card(
           child: Padding(

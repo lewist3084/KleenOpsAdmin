@@ -153,12 +153,52 @@ const List<WizardCategory> kSetupWizardCategories = [
     ],
   ),
 
-  // 2 ── Location & Contact
+  // 2 ── Banking & Accounting
+  //
+  // Surfaced before Location & Contact so the customer can connect a bank
+  // early — this both starts the free accounting ingest and makes a debitable
+  // account available, so checkout can default to low-fee ACH when they later
+  // purchase a business address, phone, or domain.
+  WizardCategory(
+    key: 'banking_accounting',
+    label: 'Banking & Accounting',
+    icon: Icons.account_balance_wallet,
+    position: 1,
+    items: [
+      WizardItem(
+        key: 'accounting_intro',
+        label: 'Free Built-in Accounting',
+        description:
+            'Your built-in QuickBooks-style accounting is included free. '
+            'Connect a bank or card and transactions flow in automatically.',
+        icon: Icons.menu_book_outlined,
+        position: 0,
+      ),
+      WizardItem(
+        key: 'link_bank_plaid',
+        label: 'Connect Your Bank Account',
+        description:
+            'Link a checking or savings account via Plaid (used by most major U.S. banks).',
+        icon: Icons.account_balance_outlined,
+        position: 1,
+      ),
+      WizardItem(
+        key: 'link_credit_card',
+        label: 'Connect a Credit Card',
+        description:
+            'Link a business credit card so expenses are auto-categorized.',
+        icon: Icons.credit_card_outlined,
+        position: 2,
+      ),
+    ],
+  ),
+
+  // 3 ── Location & Contact
   WizardCategory(
     key: 'business_location',
     label: 'Business Location & Contact',
     icon: Icons.location_on,
-    position: 1,
+    position: 2,
     items: [
       WizardItem(
         key: 'primary_address',
@@ -197,41 +237,6 @@ const List<WizardCategory> kSetupWizardCategories = [
         icon: Icons.language,
         position: 4,
         aiAssistAvailable: true,
-      ),
-    ],
-  ),
-
-  // 3 ── Banking & Accounting
-  WizardCategory(
-    key: 'banking_accounting',
-    label: 'Banking & Accounting',
-    icon: Icons.account_balance_wallet,
-    position: 2,
-    items: [
-      WizardItem(
-        key: 'accounting_intro',
-        label: 'Free Built-in Accounting',
-        description:
-            'Your built-in QuickBooks-style accounting is included free. '
-            'Connect a bank or card and transactions flow in automatically.',
-        icon: Icons.menu_book_outlined,
-        position: 0,
-      ),
-      WizardItem(
-        key: 'link_bank_plaid',
-        label: 'Connect Your Bank Account',
-        description:
-            'Link a checking or savings account via Plaid (used by most major U.S. banks).',
-        icon: Icons.account_balance_outlined,
-        position: 1,
-      ),
-      WizardItem(
-        key: 'link_credit_card',
-        label: 'Connect a Credit Card',
-        description:
-            'Link a business credit card so expenses are auto-categorized.',
-        icon: Icons.credit_card_outlined,
-        position: 2,
       ),
     ],
   ),

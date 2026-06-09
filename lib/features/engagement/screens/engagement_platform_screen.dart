@@ -91,9 +91,7 @@ class _EngagementPlatformScreenState extends State<EngagementPlatformScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = kBottomNavigationBarHeight +
-        16.0 +
-        MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],

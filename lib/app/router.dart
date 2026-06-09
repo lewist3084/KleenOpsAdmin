@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
+import 'package:shared_widgets/layout/content_width_clamp.dart';
 import 'shared_widgets/navigation/details_appbar_adapter.dart';
 import 'shared_widgets/navigation/home_navbar_adapter.dart';
 
@@ -32,6 +33,7 @@ import '../features/support/screens/support_home.dart';
 import '../features/catalog/screens/catalog_home.dart';
 import '../features/catalog/screens/scrape_jobs_wrapper.dart';
 import '../features/catalog/screens/brand_owners_wrapper.dart';
+import '../features/organizations/screens/organization_registry_wrapper.dart';
 import '../features/catalog/screens/staging_review_wrapper.dart';
 import '../features/device_registry/screens/device_registry_home.dart';
 import '../common/communications/phone/screens/call_history_screen.dart';
@@ -62,6 +64,7 @@ import '../features/finances/tabs/ledger_tabs.dart';
 import '../features/finances/screens/finance_accounts.dart';
 import '../features/finances/screens/finance_stats.dart';
 import '../features/finances/screens/finance_banking.dart';
+import '../features/finances/screens/finance_import_statements.dart';
 import '../features/finances/screens/finance_reconciliation.dart';
 import '../features/finances/screens/finance_classify_transactions.dart';
 import '../features/finances/screens/finance_ai_bookkeeper.dart';
@@ -383,6 +386,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const BrandOwnersWrapper(),
       ),
       GoRoute(
+        path: AppRoutePaths.organizationRegistry,
+        name: AppRouteIds.organizationRegistry,
+        builder: (context, state) => const OrganizationRegistryWrapper(),
+      ),
+      GoRoute(
         path: AppRoutePaths.deviceRegistry,
         name: AppRouteIds.deviceRegistryHome,
         builder: (context, state) => const DeviceRegistryHome(),
@@ -438,6 +446,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutePaths.financeBanking,
         name: AppRouteIds.financeBanking,
         builder: (_, __) => const FinanceBankingScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.financeImportStatements,
+        name: AppRouteIds.financeImportStatements,
+        builder: (_, __) => const FinanceImportStatementsScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.financeReconciliation,
@@ -1437,7 +1450,9 @@ class _FeatureContentScaffold extends StatelessWidget {
           bottom: false,
           child: Stack(
             children: [
-              Positioned.fill(child: child),
+              // Body is width-clamped on wide layouts; the bookend divider
+              // below stays full-width (it's painted over the top edge).
+              Positioned.fill(child: ContentWidthClamp(child: child)),
               const Positioned(
                 left: 0,
                 right: 0,

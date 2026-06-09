@@ -201,7 +201,7 @@ class _ObjectElementDetailsState extends ConsumerState<ObjectElementDetails>
           ? elementId
           : loc.objectElementDetailsElementLabel,
     );
-    final bottomPadding = hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0;
+    const bottomPadding = 16.0;
 
     Widget buildBottomBar({VoidCallback? onAiPressed}) {
       if (hideChrome) return const SizedBox.shrink();
@@ -483,11 +483,8 @@ class _ObjectElementDetailsState extends ConsumerState<ObjectElementDetails>
                   final headerImages = fileImages;
 
                   return SingleChildScrollView(
-                    padding: EdgeInsets.only(
-                      bottom: (hideChrome
-                              ? 16.0
-                              : kBottomNavigationBarHeight + 16.0) +
-                          MediaQuery.of(context).padding.bottom,
+                    padding: const EdgeInsets.only(
+                      bottom: 16.0,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,

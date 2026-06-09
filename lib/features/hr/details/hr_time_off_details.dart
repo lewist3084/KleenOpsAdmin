@@ -223,9 +223,7 @@ class _HrTimeOffDetailsScreenState
     final notes = (data['notes'] ?? '').toString();
     final isRequested = status.toLowerCase() == 'requested';
 
-    final bottomInset = kBottomNavigationBarHeight +
-        16.0 +
-        MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset),

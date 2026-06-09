@@ -113,9 +113,7 @@ class HrStatsContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final companyRefAsync = ref.watch(companyIdProvider);
-    final bottomPadding = kBottomNavigationBarHeight +
-        16.0 +
-        MediaQuery.of(context).padding.bottom;
+    const bottomPadding = 16.0;
 
     return companyRefAsync.when(
       data: (companyRef) {

@@ -72,6 +72,14 @@ dependencies:
   record: ^6.0.0
   web_socket_channel: ^3.0.2
   firebase_ai: ^3.10.0
+  # Real-time calling (voice/video) — ported from kleenops
+  firebase_messaging: ^16.0.0
+  # Pinned to 3.0.0 to match kleenops — 3.1.x changed the CallEvent/Event API
+  # the ported incoming_call_service relies on.
+  flutter_callkit_incoming: 3.0.0
+  audioplayers: ^6.4.0
+  flutter_local_notifications: ^20.1.0
+  permission_handler: ^12.0.0+1
 
   # HR feature dependencies
   mobile_scanner: ^7.0.0

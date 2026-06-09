@@ -104,12 +104,10 @@ class PurchasingStatsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool hideChrome = false;
-    final bottomInset =
-        (hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0) +
-            MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
+      padding: const EdgeInsets.only(bottom: bottomInset),
       child: const Center(
         child: Text('Stats Content', style: TextStyle(fontSize: 20)),
       ),

@@ -159,14 +159,7 @@ class _WizardBody extends StatelessWidget {
             (wizardData['overallProgress'] as num?)?.toDouble() ?? 0.0;
 
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            32,
-            20,
-            kBottomNavigationBarHeight +
-                32.0 +
-                MediaQuery.of(context).padding.bottom,
-          ),
+          padding: const EdgeInsets.fromLTRB(20, 32, 20, 32.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

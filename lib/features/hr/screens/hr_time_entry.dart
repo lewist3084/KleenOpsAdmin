@@ -215,9 +215,7 @@ class _TimeEntryContentState extends State<_TimeEntryContent> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPaletteScope.of(context);
-    final bottomInset = kBottomNavigationBarHeight +
-        16.0 +
-        MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
     final dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final weekEndDate = _weekStart.add(const Duration(days: 6));
     final weekLabel =

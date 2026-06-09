@@ -296,9 +296,7 @@ class _MarketingAdsDetailsScreenState extends State<MarketingAdsDetailsScreen> {
               final data = snapshot.data!.data()!;
               final name = data['name'] as String? ?? '';
               final desc = data['description'] as String? ?? '';
-              final bottomPadding =
-                  (hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0) +
-                      MediaQuery.of(context).padding.bottom;
+              const bottomPadding = 16.0;
 
               return FutureBuilder<_MarketingMedia>(
                 future: _loadMedia(),

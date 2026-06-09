@@ -37,6 +37,10 @@ class PlaidService {
   Map<String, dynamic> get _scopeArgs =>
       _isOverlord ? {'overlord': true} : {'companyId': companyRef!.id};
 
+  /// Stable scope key used in Storage paths (`imports/{scopeKey}/…`) — matches
+  /// the `scope` the backend persists ('overlord' or the companyId).
+  String get _scopeKey => _isOverlord ? 'overlord' : companyRef!.id;
+
   FirebaseFirestore get _booksDb =>
       companyRef?.firestore ?? FirebaseFirestore.instance;
 
@@ -284,6 +288,18 @@ class PlaidService {
         .snapshots();
   }
 
+  /// GL `account` docs that are linked to a bank account (Plaid or manual).
+  /// The display name shown everywhere (Ledger / Balance Sheet) lives on these
+  /// docs, so the import picker uses them as the single, uniform name source.
+  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+      watchBankLinkedAccounts() {
+    return _col('account')
+        .where('active', isEqualTo: true)
+        .snapshots()
+        .map((s) =>
+            s.docs.where((d) => d.data()['bankAccountId'] != null).toList());
+  }
+
   /// Stream of active bank accounts under a given Plaid Item.
   Stream<QuerySnapshot<Map<String, dynamic>>> watchAccountsForItem(
       String plaidItemId) {
@@ -328,4 +344,108 @@ class PlaidService {
         .limit(100)
         .snapshots();
   }
+
+  // ── Manual statement import ─────────────────────────────────────────────
+
+  /// Creates a manual (non-Plaid) bank account so statements for accounts you
+  /// never linked through Plaid can still be imported. Returns its id.
+  Future<String> createManualAccount({
+    required String name,
+    required String subtype,
+    required String type,
+    String mask = '',
+  }) async {
+    final callable =
+        FirebaseFunctions.instance.httpsCallable('financeCreateManualAccount');
+    final result = await callable.call({
+      ..._scopeArgs,
+      'name': name,
+      'subtype': subtype,
+      'type': type,
+      'mask': mask,
+    });
+    return result.data['bankAccountId'] as String;
+  }
+
+  /// A fresh import-batch id. Generate this before mounting the uploader so the
+  /// files can be uploaded into [importFolderPath] for that batch.
+  String newImportBatchId() => _col('importBatch').doc().id;
+
+  /// Storage folder the shared FileUploaderField should upload statement files
+  /// into for [importBatchId]. Matches the `imports/{scope}/…` rule.
+  String importFolderPath(String importBatchId) =>
+      'imports/$_scopeKey/$importBatchId';
+
+  /// Runs extraction over a group of already-uploaded statement files (the
+  /// shared uploader uploads them and yields download URLs). [files] is
+  /// `[{downloadUrl, fileType?, fileName?}]`. Returns the backend summary
+  /// (`rowCount`, `dupCount`, `files`). Review the staged rows off
+  /// [watchImportRows].
+  Future<Map<String, dynamic>> importStatements({
+    required String bankAccountId,
+    required String importBatchId,
+    required List<Map<String, dynamic>> files,
+  }) async {
+    // Mark the batch as extracting up-front so the UI can show progress even
+    // before the (possibly slow, multi-file AI) extraction returns.
+    await _col('importBatch').doc(importBatchId).set({
+      'status': 'extracting',
+      'bankAccountId': bankAccountId,
+      'fileCount': files.length,
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    final callable = FirebaseFunctions.instance.httpsCallable(
+      'financeImportStatement',
+      options: HttpsCallableOptions(timeout: const Duration(minutes: 9)),
+    );
+    final result = await callable.call({
+      ..._scopeArgs,
+      'importBatchId': importBatchId,
+      'bankAccountId': bankAccountId,
+      'files': files,
+    });
+    final data = Map<String, dynamic>.from(result.data as Map);
+    data['importBatchId'] = importBatchId;
+    return data;
+  }
+
+  /// Commits the reviewed rows of an import batch to `bankTransaction`. [rows]
+  /// is `[{rowId, included, amount?, name?, dateMillis?}]`. Returns count
+  /// committed.
+  Future<int> commitImport({
+    required String importBatchId,
+    required List<Map<String, dynamic>> rows,
+  }) async {
+    final callable =
+        FirebaseFunctions.instance.httpsCallable('financeCommitImport');
+    final result = await callable.call({
+      ..._scopeArgs,
+      'importBatchId': importBatchId,
+      'rows': rows,
+    });
+    return (result.data['committed'] as num?)?.toInt() ?? 0;
+  }
+
+  /// Live view of the import batch summary doc.
+  Stream<DocumentSnapshot<Map<String, dynamic>>> watchImportBatch(
+          String importBatchId) =>
+      _col('importBatch').doc(importBatchId).snapshots();
+
+  /// Recent import batches (newest first) — used to resume imports the user
+  /// started and navigated away from. Filter out committed ones in the UI.
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchRecentImportBatches() =>
+      _col('importBatch')
+          .orderBy('createdAt', descending: true)
+          .limit(25)
+          .snapshots();
+
+  /// Live view of an import batch's staged rows, oldest first.
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchImportRows(
+          String importBatchId) =>
+      _col('importBatch')
+          .doc(importBatchId)
+          .collection('importRow')
+          .orderBy('date')
+          .snapshots();
 }

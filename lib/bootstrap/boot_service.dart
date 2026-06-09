@@ -1,7 +1,7 @@
 // lib/bootstrap/boot_service.dart
 //
-// Lightweight boot for the admin app.
-// Initializes Firebase core + App Check. No FCM or video-call plumbing needed.
+// Boot for the admin app: Firebase core + App Check + (since the calling port)
+// the FCM/incoming-call bridge for voice/video calls.
 
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kReleaseMode, kIsWeb, debugPrint;
@@ -12,6 +12,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/material.dart';
 
 import '../firebase_options.dart';
+import '../services/call_messaging_service.dart';
 import 'package:shared_widgets/services/catalog_firebase_service.dart';
 
 class BootService {
@@ -48,7 +49,13 @@ class BootService {
     // 4. Catalog (uses default kleenops project — no separate init needed)
     await CatalogFirebaseService.instance.init();
 
-    // 5. Admin app uses only the default kleenops project — no external tenant init needed.
+    // 5. FCM + CallKit bridge for the ported voice/video calling. Best-effort:
+    // a failure here (e.g. no notification permission yet) must not block boot.
+    try {
+      await CallMessagingService.instance.init();
+    } catch (e) {
+      debugPrint('[Boot] CallMessagingService init failed: $e');
+    }
   }
 
   Future<void> _activateAppCheck() async {

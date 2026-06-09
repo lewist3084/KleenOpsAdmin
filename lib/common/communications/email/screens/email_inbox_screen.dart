@@ -1,15 +1,19 @@
 // lib/common/communications/email/screens/email_inbox_screen.dart
-// Ported from the kleenops app. ADMIN ADAPTATIONS: no AI canvas / BookendedCanvas
-// / directory archive-link; navigation via Navigator.push; snackbars via
-// ScaffoldMessenger. The client-side Gemini summarizer fallback IS included so
-// the same emails get summaries/junk-routing in both apps (it writes back to the
-// shared `company/{cid}/member/{mid}/email` docs).
+// Ported from the kleenops app to mirror its look & workflow exactly. ADMIN
+// ADAPTATIONS are backend-only: navigation via Navigator.push and mailbox routed
+// through the company collection; snackbars via ScaffoldMessenger. The AI canvas
+// chrome (AiScreenContext + BookendedCanvas) is a no-op stub in admin but keeps
+// the identical bookend/home-nav-bar look. The client-side Gemini summarizer
+// fallback writes back to the shared `company/{cid}/member/{mid}/email` docs.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/common/communications/comm_menu.dart';
+import 'package:kleenops_admin/services/ai/ai_context_service.dart';
+import 'package:kleenops_admin/widgets/ai/ai_screen_context.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/tabs/lazy_tab_view.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
@@ -50,6 +54,7 @@ class _EmailInboxScreenState extends ConsumerState<EmailInboxScreen>
   @override
   Widget build(BuildContext context) {
     final hasAccount = ref.watch(hasEmailAccountProvider);
+    final controller = ref.read(aiCanvasControllerProvider);
     final currentAccount = ref.watch(currentEmailAccountProvider);
 
     final menuSections = MenuDrawerSections(
@@ -66,16 +71,20 @@ class _EmailInboxScreenState extends ConsumerState<EmailInboxScreen>
     );
 
     return Scaffold(
-      body: SafeArea(
-        child: hasAccount
-            ? _buildTabbedEmail(currentAccount)
-            : _buildNoMailboxState(),
+      body: AiScreenContext(
+        context: AiContextPresets.emailInbox(),
+        child: BookendedCanvas(
+          child: hasAccount
+              ? _buildTabbedEmail(currentAccount)
+              : _buildNoMailboxState(),
+        ),
       ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           DetailsAppBar(
-            title: currentAccount?.emailAddress ?? 'Email',
+            title: 'All Mailboxes',
+            onAiPressed: controller.toggle,
             menuSections: menuSections,
           ),
           const HomeNavBarAdapter(),

@@ -1,10 +1,13 @@
 // lib/common/communications/phone/screens/call_history_screen.dart
 //
-// Ported from the main KleenOps app. Generic call-log screen powering both the
-// Phone and Video Call menu-drawer entries by reading the overlord member
-// timeline (`kleenops/{id}/member/{mid}/timeline`) filtered to the requested
-// call type, newest-first. Real call placement (Twilio/WebRTC) is out of scope
-// in the admin app, so the place-a-call FAB and AI-canvas chrome are omitted.
+// Ported from the main KleenOps app to mirror its look & workflow exactly.
+// Generic call-log screen powering both the Phone and Video Call menu-drawer
+// entries by reading the overlord member timeline
+// (`kleenops/{id}/member/{mid}/timeline`) filtered to the requested call type,
+// newest-first. The AI canvas chrome (AiScreenContext + BookendedCanvas) is a
+// no-op stub in admin but keeps the identical bookend/home-nav-bar look. Real
+// call placement (Twilio/WebRTC) is the one backend the admin app lacks, so the
+// place-a-call FAB is omitted.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -14,8 +17,13 @@ import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adap
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/common/communications/comm_menu.dart';
 import 'package:kleenops_admin/common/communications/phone/screens/call_detail_screen.dart';
+import 'package:kleenops_admin/common/communications/video_conferencing/video_conference_launcher.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
+import 'package:kleenops_admin/services/ai/ai_context_service.dart';
 import 'package:kleenops_admin/services/notification_badge_service.dart';
+import 'package:kleenops_admin/services/video_call_overlay_controller.dart';
+import 'package:kleenops_admin/widgets/ai/ai_screen_context.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/tiles/standard_bubble_tile.dart';
 
@@ -53,7 +61,7 @@ class _AdminCallHistoryScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final memberRef = ref.read(memberDocRefProvider).value;
+      final memberRef = ref.read(mailboxMemberRefProvider).value;
       if (kind == CallHistoryKind.video) {
         NotificationBadgeService.instance.clearVideoCallBadge(memberRef);
       } else {
@@ -64,8 +72,12 @@ class _AdminCallHistoryScreenState
 
   @override
   Widget build(BuildContext context) {
-    final companyRef = ref.watch(companyIdProvider).value;
-    final memberRef = ref.watch(memberDocRefProvider).value;
+    // Calls are tenant-company-scoped (the only scope the createVideoRoom backend
+    // supports, and where summarizeVideoRoom logs each call's timeline entry), so
+    // read history from the mailbox member: company = member.parent.parent.
+    final memberRef = ref.watch(mailboxMemberRefProvider).value;
+    final companyRef = memberRef?.parent.parent;
+    final controller = ref.read(aiCanvasControllerProvider);
 
     final menuSections = MenuDrawerSections(
       communications: buildAdminCommunicationMenuItems(context),
@@ -88,13 +100,40 @@ class _AdminCallHistoryScreenState
           );
 
     return Scaffold(
-      body: SafeArea(child: body),
+      body: AiScreenContext(
+        context: AiContextState(
+          key: 'callHistory_${kind.name}',
+          sectionKey: 'communications',
+          screenType: 'callHistory',
+          label: _screenTitle,
+        ),
+        child: BookendedCanvas(child: body),
+      ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          DetailsAppBar(title: _screenTitle, menuSections: menuSections),
+          DetailsAppBar(
+            title: _screenTitle,
+            onAiPressed: controller.toggle,
+            menuSections: menuSections,
+          ),
           const HomeNavBarAdapter(),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'callHistoryPlaceCallFab',
+        onPressed: () => VideoConferenceLauncher.show(
+          context,
+          callType: kind == CallHistoryKind.video
+              ? VideoCallType.video
+              : VideoCallType.voice,
+          source: 'call_history',
+          sourceContext: kind == CallHistoryKind.video
+              ? 'call_history_video'
+              : 'call_history_voice',
+        ),
+        tooltip: kind == CallHistoryKind.video ? 'Start video call' : 'Make a call',
+        child: Icon(kind == CallHistoryKind.video ? Icons.videocam : Icons.phone),
       ),
     );
   }

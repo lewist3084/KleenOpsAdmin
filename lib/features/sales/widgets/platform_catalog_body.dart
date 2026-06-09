@@ -10,7 +10,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_widgets/dialogs/dialog_action.dart';
+import 'package:shared_widgets/dialogs/dialog_select.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:shared_widgets/tiles/standard_tile_medium.dart';
 
@@ -164,6 +164,12 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
   bool _active = true;
   bool _saving = false;
 
+  /// Group options shown in the select dialog: the canonical order, plus
+  /// 'Other', the current group, and any custom groups already used across the
+  /// live catalog (loaded in [_loadGroups]). Custom groups added via the "+"
+  /// action are appended here too.
+  List<String> _groups = const [];
+
   bool get _isEdit => widget.doc != null;
 
   @override
@@ -188,6 +194,40 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
     _interval = d['interval'] as String? ?? 'month';
     _group = resolveProductGroup(d);
     _active = d['active'] as bool? ?? true;
+    _seedGroups();
+    _loadGroups();
+  }
+
+  /// Seed the in-memory group list from the canonical order + current group.
+  void _seedGroups() {
+    _groups = _sortGroups({...kPlatformProductGroupOrder, 'Other', _group});
+  }
+
+  /// Pull the distinct groups already used across the catalog so the select
+  /// offers every existing bucket, not just the canonical ones.
+  Future<void> _loadGroups() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('platformProduct')
+          .get();
+      final set = <String>{...kPlatformProductGroupOrder, 'Other', _group};
+      for (final d in snap.docs) {
+        set.add(resolveProductGroup(d.data()));
+      }
+      if (mounted) setState(() => _groups = _sortGroups(set));
+    } catch (_) {
+      // best-effort; keep the seeded list on error
+    }
+  }
+
+  /// Canonical groups first (in order), custom groups last alphabetically.
+  List<String> _sortGroups(Set<String> groups) {
+    final list = groups.where((g) => g.trim().isNotEmpty).toList();
+    list.sort((a, b) {
+      final si = platformGroupSortIndex(a).compareTo(platformGroupSortIndex(b));
+      return si != 0 ? si : a.toLowerCase().compareTo(b.toLowerCase());
+    });
+    return list;
   }
 
   @override
@@ -203,6 +243,76 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
     _unitPrice.dispose();
     _unitLabel.dispose();
     super.dispose();
+  }
+
+  // ── group select (mirrors the app-wide DialogSelect "+" add workflow) ──
+  Future<void> _openGroupDialog() async {
+    FocusScope.of(context).unfocus();
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => DialogSelect<String>(
+        title: 'Select Group',
+        items: _groups,
+        itemLabel: (g) => g,
+        tileType: DialogSelectTileType.radio,
+        initialSelection: _group,
+        addTooltip: 'Add group',
+        onCancel: () => Navigator.of(ctx).pop(),
+        onSubmit: (res) {
+          Navigator.of(ctx).pop();
+          final v = res.firstOrNull;
+          if (v != null) setState(() => _group = v);
+        },
+        onAdd: () async {
+          // Close, prompt for the new group, then reopen with it selected so
+          // the refreshed (re-sorted) list includes it.
+          Navigator.of(ctx).pop();
+          final created = await _promptCreateGroup();
+          if (created != null) {
+            setState(() {
+              _group = created;
+              _groups = _sortGroups({..._groups, created});
+            });
+          }
+          await _openGroupDialog();
+        },
+      ),
+    );
+  }
+
+  /// Prompt for a brand-new group name. Groups are just labels stored on the
+  /// product (no separate collection), so this returns the trimmed name and the
+  /// caller records it locally; it becomes "real" once a product is saved with it.
+  Future<String?> _promptCreateGroup() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('New group'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Group name',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty) return null;
+    return name;
   }
 
   Future<void> _save() async {
@@ -305,17 +415,17 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
                   isDense: true),
             ),
             const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              initialValue: _group,
-              decoration: const InputDecoration(
+            GestureDetector(
+              onTap: _openGroupDialog,
+              child: InputDecorator(
+                decoration: const InputDecoration(
                   labelText: 'Group',
                   border: OutlineInputBorder(),
-                  isDense: true),
-              items: [
-                for (final g in {...kPlatformProductGroupOrder, _group})
-                  DropdownMenuItem(value: g, child: Text(g)),
-              ],
-              onChanged: (v) => setState(() => _group = v ?? _group),
+                  isDense: true,
+                  suffixIcon: Icon(Icons.arrow_drop_down),
+                ),
+                child: Text(_group),
+              ),
             ),
             const SizedBox(height: 10),
             TextField(

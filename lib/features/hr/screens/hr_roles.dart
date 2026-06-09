@@ -163,9 +163,7 @@ class _RoleList extends StatelessWidget {
           return const Center(child: Text('No roles found.'));
         }
 
-        final bottomInset = kBottomNavigationBarHeight +
-            16.0 +
-            MediaQuery.of(context).padding.bottom;
+        const bottomInset = 16.0;
 
         return ListView.builder(
           padding: EdgeInsets.fromLTRB(16, 12, 16, bottomInset + 56),

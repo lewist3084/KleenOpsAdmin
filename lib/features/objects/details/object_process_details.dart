@@ -854,12 +854,9 @@ class _ObjectProcessDetailsState extends State<ObjectProcessDetails>
                 ],
               );
 
-              final bottomPadding =
-                  hideChrome ? 16.0 : kBottomNavigationBarHeight + 16.0;
-
               return SingleChildScrollView(
-                padding: EdgeInsets.only(
-                  bottom: bottomPadding + MediaQuery.of(context).padding.bottom,
+                padding: const EdgeInsets.only(
+                  bottom: 16.0,
                 ),
                 child: hideChrome
                     ? _buildCurrentTabBody(detailsContent: detailsContent)

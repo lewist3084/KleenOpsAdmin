@@ -200,6 +200,11 @@ class DashboardHome extends ConsumerWidget {
           onTap: () => context.go(AppRoutePaths.companies),
         ),
         ContentMenuItem(
+          icon: Icons.domain_outlined,
+          label: 'Organizations',
+          onTap: () => context.go(AppRoutePaths.organizationRegistry),
+        ),
+        ContentMenuItem(
           icon: Icons.gavel_outlined,
           label: 'Legal',
           onTap: () => context.go(AppRoutePaths.legalHome),
@@ -219,9 +224,8 @@ class DashboardHome extends ConsumerWidget {
       drawer: const UserDrawer(),
       body: _wrapCanvas(
         SingleChildScrollView(
-          padding: EdgeInsets.only(
-            bottom: kBottomNavigationBarHeight + 16.0 +
-                MediaQuery.of(context).padding.bottom,
+          padding: const EdgeInsets.only(
+            bottom: 16.0,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -110,8 +110,7 @@ class _AppOwnerReportsList extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         final docs = snapshot.data?.docs ?? const [];
-        final bottomInset = kBottomNavigationBarHeight + 16.0 +
-            MediaQuery.of(context).padding.bottom;
+        const bottomInset = 16.0;
         if (docs.isEmpty) {
           return Center(
             child: Padding(

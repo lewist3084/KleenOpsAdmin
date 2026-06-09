@@ -7,6 +7,7 @@ import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:shared_widgets/utils/process_localization_utils.dart';
 import 'package:kleenops_admin/features/processes/details/processes_category_details.dart';
 import 'package:kleenops_admin/features/processes/forms/processes_category_form.dart';
@@ -73,6 +74,7 @@ class _ProcessesProcessesCategoryScreenState
 
         return Scaffold(
           appBar: const StandardAppBar(title: 'Categories'),
+          bottomNavigationBar: const HomeNavBarAdapter(),
           body: ContainerActionStandardViewGroup(
             title: 'Categories',
             actionText: 'Add',

@@ -1,14 +1,21 @@
 // lib/common/communications/email/screens/email_compose_screen.dart
-// Ported from the kleenops app. ADMIN ADAPTATIONS: plain TextFields instead of
-// AITextField (no AI text adapter in admin); company resolved via
-// mailboxCompanyRefProvider; snackbars via ScaffoldMessenger; no AI canvas.
+// Ported from the kleenops app to mirror its look & workflow exactly. ADMIN
+// ADAPTATIONS are backend-only: company resolved via mailboxCompanyRefProvider;
+// snackbars via ScaffoldMessenger. The AI canvas chrome (AiScreenContext +
+// BookendedCanvas) is a no-op stub in admin but keeps the identical
+// bookend/home-nav-bar look, and the subject/body use the same AITextField.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
+import 'package:kleenops_admin/services/ai/ai_context_service.dart';
+import 'package:kleenops_admin/services/ai_text_adapter.dart';
+import 'package:kleenops_admin/widgets/ai/ai_screen_context.dart';
+import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
+import 'package:shared_widgets/fields/ai_text.dart' show StreamingSpeechFieldHeight;
 import 'package:shared_widgets/theme/app_palette.dart';
 import '../models/email_attachment.dart';
 import '../models/email_message.dart';
@@ -315,6 +322,7 @@ class _EmailComposeScreenState extends ConsumerState<EmailComposeScreen> {
   @override
   Widget build(BuildContext context) {
     final account = ref.watch(currentEmailAccountProvider);
+    final controller = ref.read(aiCanvasControllerProvider);
 
     final title = widget.replyToId != null
         ? 'Reply'
@@ -323,84 +331,76 @@ class _EmailComposeScreenState extends ConsumerState<EmailComposeScreen> {
             : 'Compose';
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (account != null)
-              _HeaderRow(
-                label: 'From',
-                child: Text(
-                  '${account.displayName} <${account.emailAddress}>',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
+      body: AiScreenContext(
+        context: AiContextPresets.emailCompose(),
+        child: BookendedCanvas(
+          child: Column(
+            children: [
+              if (account != null)
+                _HeaderRow(
+                  label: 'From',
+                  child: Text(
+                    '${account.displayName} <${account.emailAddress}>',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
                 ),
-              ),
-            if (_to.isNotEmpty)
-              _RecipientRow(
-                label: 'To',
-                emails: _to,
-                onRemove: (e) => _removeEmail(EmailRecipientField.to, e),
-                onTap: () => _openPicker(EmailRecipientField.to),
-              ),
-            if (_cc.isNotEmpty)
-              _RecipientRow(
-                label: 'Cc',
-                emails: _cc,
-                onRemove: (e) => _removeEmail(EmailRecipientField.cc, e),
-                onTap: () => _openPicker(EmailRecipientField.cc),
-              ),
-            if (_bcc.isNotEmpty)
-              _RecipientRow(
-                label: 'Bcc',
-                emails: _bcc,
-                onRemove: (e) => _removeEmail(EmailRecipientField.bcc, e),
-                onTap: () => _openPicker(EmailRecipientField.bcc),
-              ),
-            if (widget.replyToId != null)
-              _HeaderRow(
-                label: 'Subject',
-                child: Text(
-                  _subjectController.text,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
+              if (_to.isNotEmpty)
+                _RecipientRow(
+                  label: 'To',
+                  emails: _to,
+                  onRemove: (e) => _removeEmail(EmailRecipientField.to, e),
+                  onTap: () => _openPicker(EmailRecipientField.to),
                 ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: TextField(
-                  controller: _subjectController,
-                  decoration: const InputDecoration(
+              if (_cc.isNotEmpty)
+                _RecipientRow(
+                  label: 'Cc',
+                  emails: _cc,
+                  onRemove: (e) => _removeEmail(EmailRecipientField.cc, e),
+                  onTap: () => _openPicker(EmailRecipientField.cc),
+                ),
+              if (_bcc.isNotEmpty)
+                _RecipientRow(
+                  label: 'Bcc',
+                  emails: _bcc,
+                  onRemove: (e) => _removeEmail(EmailRecipientField.bcc, e),
+                  onTap: () => _openPicker(EmailRecipientField.bcc),
+                ),
+              if (widget.replyToId != null)
+                _HeaderRow(
+                  label: 'Subject',
+                  child: Text(
+                    _subjectController.text,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: AITextField(
                     labelText: 'Subject',
-                    border: OutlineInputBorder(),
-                    isDense: true,
+                    controller: _subjectController,
+                    height: StreamingSpeechFieldHeight.singleLine,
+                  ),
+                ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: AITextField(
+                          labelText: 'Compose email',
+                          controller: _bodyController,
+                        ),
+                      ),
+                      if (_quotedOriginal != null)
+                        _QuotedOriginalBlock(text: _quotedOriginal!),
+                    ],
                   ),
                 ),
               ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _bodyController,
-                        expands: true,
-                        maxLines: null,
-                        minLines: null,
-                        textAlignVertical: TextAlignVertical.top,
-                        decoration: const InputDecoration(
-                          labelText: 'Compose email',
-                          alignLabelWithHint: true,
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                    if (_quotedOriginal != null)
-                      _QuotedOriginalBlock(text: _quotedOriginal!),
-                  ],
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: Column(
@@ -417,7 +417,10 @@ class _EmailComposeScreenState extends ConsumerState<EmailComposeScreen> {
             onAttach: _pickAttachment,
             onSend: _sendEmail,
           ),
-          DetailsAppBar(title: title),
+          DetailsAppBar(
+            title: title,
+            onAiPressed: controller.toggle,
+          ),
           const HomeNavBarAdapter(),
         ],
       ),

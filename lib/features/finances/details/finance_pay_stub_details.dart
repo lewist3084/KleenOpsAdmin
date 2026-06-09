@@ -184,8 +184,7 @@ class _PayStubBodyState extends State<_PayStubBody> {
         .collection('payStub')
         .doc(widget.memberId)
         .snapshots();
-    final bottomInset =
-        kBottomNavigationBarHeight + 16.0 + MediaQuery.of(context).padding.bottom;
+    const bottomInset = 16.0;
     final fmt = NumberFormat('#,##0.00');
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(

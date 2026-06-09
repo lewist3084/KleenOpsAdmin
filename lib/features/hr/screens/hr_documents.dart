@@ -137,9 +137,7 @@ class _DocumentsList extends StatelessWidget {
         }
 
         final orderedTypes = ['id', 'contract', 'certification', 'tax', 'other'];
-        final bottomInset = kBottomNavigationBarHeight +
-            16.0 +
-            MediaQuery.of(context).padding.bottom;
+        const bottomInset = 16.0;
 
         return ListView(
           padding: EdgeInsets.fromLTRB(16, 8, 16, bottomInset + 56),

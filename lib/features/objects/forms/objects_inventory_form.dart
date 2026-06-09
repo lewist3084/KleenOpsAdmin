@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
 import 'package:kleenops_admin/widgets/fields/multi_scan_field.dart';
 import 'package:kleenops_admin/widgets/equipment/equipment_setup_wizard.dart';
@@ -485,14 +486,18 @@ class ObjectsInventoryFormState extends State<ObjectsInventoryForm> {
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-              top: false,
-              minimum: const EdgeInsets.only(bottom: 8),
-              child: CancelSaveBar(
-                onCancel: () => context.pop(),
-                onSave: _saveForm,
-              ),
-            ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CancelSaveBar(
+            onCancel: () => context.pop(),
+            onSave: _saveForm,
+            reserveNavBarSpace: false,
+          ),
+          DetailsAppBar(title: loc.objectsInventoryAddTitle),
+          const HomeNavBarAdapter(),
+        ],
+      ),
     );
   }
 }
