@@ -314,21 +314,19 @@ class AdminFirebaseService {
   /// Per-company value of a cumulative usage metric, sorted descending.
   ///
   /// Usage is rolled up by usageTotals.js into TOP-LEVEL cumulative docs:
-  ///   ai    → totalAiUsage/{companyId}    (totalRequestCount, totalInputChars…)
+  ///   ai    → totalAiUsage/{companyId}    (totalInputTokens, totalOutputTokens…)
   ///   voice → totalVoiceUsage/{companyId} (totalDurationSeconds, totalCallCount…)
   ///   video → totalVideoUsage/{companyId} (totalDurationSeconds, totalCallCount…)
+  ///   pstn  → totalPstnUsage/{companyId}  (localVoiceMinutes, intlTextSegments…)
+  ///   plaid → totalPlaidUsage/{companyId} (connectionCount, syncCount, achCount)
+  ///   seat  → totalSeatUsage/{companyId}  (activeMemberCount)
   /// so [usageKey] selects the collection and [metricField] the field to chart.
   /// Two reads (companies for names + the rollup collection), not N+1.
   Future<List<CompanyUsageDatum>> usageByCompany({
     required String usageKey,
     required String metricField,
   }) async {
-    const collectionByKey = {
-      'ai': 'totalAiUsage',
-      'voice': 'totalVoiceUsage',
-      'video': 'totalVideoUsage',
-    };
-    final collection = collectionByKey[usageKey];
+    final collection = usageCollectionForKey(usageKey);
     if (collection == null) return const [];
 
     final companies = await _fs.collection(colCompany).get();
@@ -349,6 +347,98 @@ class AdminFirebaseService {
     }
     out.sort((a, b) => b.value.compareTo(a.value));
     return out;
+  }
+
+  /// Map a product usageKey to its top-level rollup collection (mirrors
+  /// meteredBilling.USAGE_COLLECTION + the seat usage doc).
+  String? usageCollectionForKey(String usageKey) {
+    const collectionByKey = {
+      'ai': 'totalAiUsage',
+      'voice': 'totalVoiceUsage',
+      'video': 'totalVideoUsage',
+      'pstn': 'totalPstnUsage',
+      'plaid': 'totalPlaidUsage',
+      'seat': 'totalSeatUsage',
+    };
+    return collectionByKey[usageKey];
+  }
+
+  /// Per-company, per-MODEL value of an AI token map field (inputTokensByModel
+  /// or outputTokensByModel). Returns, for each company that has any usage, a
+  /// map of model → token count. Used for per-model AI product charts/cost.
+  Future<List<CompanyModelUsageDatum>> aiModelUsageByCompany({
+    required String mapField, // 'inputTokensByModel' | 'outputTokensByModel'
+  }) async {
+    final companies = await _fs.collection(colCompany).get();
+    final names = {
+      for (final c in companies.docs)
+        c.id: (c.data()['name'] as String?) ?? c.id,
+    };
+    final totals = await _fs.collection('totalAiUsage').get();
+    final out = <CompanyModelUsageDatum>[];
+    for (final d in totals.docs) {
+      final raw = d.data()[mapField];
+      if (raw is! Map) continue;
+      final byModel = <String, double>{};
+      raw.forEach((k, v) {
+        if (v is num) byModel['$k'] = v.toDouble();
+      });
+      if (byModel.isEmpty) continue;
+      out.add(CompanyModelUsageDatum(
+        companyId: d.id,
+        companyName: names[d.id] ?? d.id,
+        byModel: byModel,
+      ));
+    }
+    out.sort((a, b) => b.total.compareTo(a.total));
+    return out;
+  }
+
+  /// Live estimated charge (in cents) for one company's metered service, from
+  /// its current rolled-up usage × the product's rate. Returns 0 for
+  /// non-metered services or when no usage exists. Mirrors the metered-billing
+  /// math (flat unitPriceCents, or per-model rate sum) for an at-a-glance
+  /// "what this is costing" figure on the company screen.
+  Future<double> estimatedServiceChargeCents(
+    String companyId,
+    Map<String, dynamic> serviceData,
+  ) async {
+    final usageKey = (serviceData['usageKey'] as String?)?.trim() ?? '';
+    if (usageKey.isEmpty) return 0;
+    final collection = usageCollectionForKey(usageKey);
+    if (collection == null) return 0;
+    final snap = await _fs.collection(collection).doc(companyId).get();
+    if (!snap.exists) return 0;
+    final data = snap.data() ?? const <String, dynamic>{};
+
+    final perModel = serviceData['perModel'] == true;
+    if (perModel) {
+      final metric = (serviceData['usageMetric'] as String?)?.trim() ?? '';
+      final mapField = metric == 'totalInputTokens'
+          ? 'inputTokensByModel'
+          : metric == 'totalOutputTokens'
+              ? 'outputTokensByModel'
+              : null;
+      if (mapField == null) return 0;
+      final byModel = (data[mapField] as Map?)?.cast<String, dynamic>() ??
+          const <String, dynamic>{};
+      final rates = (serviceData['modelRatesCents'] as Map?)
+              ?.cast<String, dynamic>() ??
+          const <String, dynamic>{};
+      var cents = 0.0;
+      byModel.forEach((model, tokens) {
+        final t = tokens is num ? tokens.toDouble() : 0.0;
+        final r = rates[model] is num ? (rates[model] as num).toDouble() : 0.0;
+        cents += t * r;
+      });
+      return cents;
+    }
+
+    final metric = (serviceData['usageMetric'] as String?)?.trim() ?? '';
+    final raw = data[metric];
+    final units = raw is num ? raw.toDouble() : 0.0;
+    final rate = (serviceData['unitPriceCents'] as num?)?.toDouble() ?? 0.0;
+    return units * rate;
   }
 
   // ── Generic sub-collection helper ────────────────────────────────────
@@ -427,6 +517,22 @@ class CompanyUsageDatum {
   final String companyId;
   final String companyName;
   final double value;
+}
+
+/// One company's per-model usage breakdown (model → token count), used by
+/// per-model AI product charts.
+class CompanyModelUsageDatum {
+  const CompanyModelUsageDatum({
+    required this.companyId,
+    required this.companyName,
+    required this.byModel,
+  });
+
+  final String companyId;
+  final String companyName;
+  final Map<String, double> byModel;
+
+  double get total => byModel.values.fold(0.0, (a, b) => a + b);
 }
 
 // ── Funnel model ──────────────────────────────────────────────────────

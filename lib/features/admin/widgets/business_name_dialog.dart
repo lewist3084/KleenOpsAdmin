@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:kleenops_admin/services/ai_text_adapter.dart';
 import 'package:shared_widgets/dialogs/dialog_action.dart';
 import 'package:shared_widgets/fields/ai_text.dart' as shared;
+import '../services/company_identity_service.dart';
 import '../services/setup_wizard_service.dart';
 
 /// Dialog for the "Choose Your Business Name" wizard step.
@@ -52,6 +53,10 @@ class _BusinessNameDialogState extends State<BusinessNameDialog> {
       'business_name',
       data: {'name': name},
     );
+    // Auto-fill the company tagline from the name + business type so onboarding
+    // no longer needs a separate "Create a Tagline" step. Non-blocking and
+    // non-clobbering (skips if a tagline already exists).
+    await CompanyIdentityService.instance.ensureAutoTagline(businessName: name);
     if (mounted) Navigator.pop(context);
   }
 

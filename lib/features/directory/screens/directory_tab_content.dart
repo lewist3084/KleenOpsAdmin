@@ -3,12 +3,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:shared_widgets/lists/standardView.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:shared_widgets/tiles/standard_tile_small.dart';
 
 import '../models/external_contact.dart';
+import '../models/organization.dart';
 import '../providers/directory_providers.dart';
 import 'directory_entity_detail_screen.dart';
+import 'external_contact_form_screen.dart';
 
 /// A single row in the unified People list — an internal staff member, a
 /// confirmed external contact, or a suggested (unconfirmed) external contact.
@@ -125,6 +128,7 @@ class _PeopleTabContentState extends ConsumerState<PeopleTabContent> {
                 : (c.organizationId ?? ''),
             external: true,
             contactId: c.id,
+            contact: c,
           ),
     ];
 
@@ -205,7 +209,25 @@ class _PersonTile extends ConsumerWidget {
                 ),
               ],
             )
-          : _KindBadge(external: person.external),
+          : (person.external && person.contact != null
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Edit',
+                      icon: Icon(Icons.edit_outlined,
+                          color: Colors.grey.shade600, size: 20),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ExternalContactFormScreen(
+                              existing: person.contact),
+                        ),
+                      ),
+                    ),
+                    _KindBadge(external: person.external),
+                  ],
+                )
+              : _KindBadge(external: person.external)),
     );
   }
 }
@@ -238,6 +260,7 @@ class OrganizationsTabContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final suggested = ref.watch(suggestedOrganizationsProvider);
     final active = ref.watch(organizationsProvider);
 
@@ -250,34 +273,46 @@ class OrganizationsTabContent extends ConsumerWidget {
       );
     }
 
-    return ListView(
+    // Suggested first, then confirmed. The group headers are dropped entirely
+    // when nothing is awaiting confirmation (the tab itself already reads
+    // "Organizations"). Tiles are plain selectable rows — tap opens the detail
+    // screen; the only trailing controls are confirm/dismiss on suggested ones.
+    final items = <Organization>[...suggested, ...active];
+    return StandardView<Organization>(
+      items: items,
+      shrinkWrap: false,
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 8),
-      children: [
-        if (suggested.isNotEmpty) ...[
-          _sectionHeader('Suggested'),
-          for (final o in suggested)
-            _DirectoryTile(
-              icon: Icons.business,
-              name: o.name,
-              subtitle: o.domains.join(', '),
-              suggested: true,
-              onTap: () => _open(context, 'organization', o.id),
-              onConfirm: () =>
-                  ref.read(directoryServiceProvider).confirm(o.ref!),
-              onDismiss: () =>
-                  ref.read(directoryServiceProvider).dismiss(o.ref!),
-            ),
-        ],
-        if (active.isNotEmpty) _sectionHeader('Organizations'),
-        for (final o in active)
-          _DirectoryTile(
-            icon: Icons.business,
-            name: o.name,
-            subtitle: o.domains.join(', '),
-            trailingText: o.emailCount > 0 ? '${o.emailCount}' : null,
-            onTap: () => _open(context, 'organization', o.id),
-          ),
-      ],
+      disableGrouping: suggested.isEmpty,
+      groupBy: (o) => o.status == 'suggested' ? 'Suggested' : 'Organizations',
+      groupSort: (a, b) => a == b ? 0 : (a == 'Suggested' ? -1 : 1),
+      searchableText: (o) => '${o.name} ${o.domains.join(' ')}',
+      onTap: (o) => _open(context, 'organization', o.id),
+      itemBuilder: (o) => StandardTileSmallDart(
+        label: o.name,
+        secondaryText: o.domains.isNotEmpty ? o.domains.join(', ') : null,
+        leadingIcon: Icons.business,
+        leadingIconColor: theme.colorScheme.primary,
+        trailingWidget: o.status == 'suggested'
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Confirm',
+                    icon: const Icon(Icons.check_circle, color: Colors.green),
+                    onPressed: () =>
+                        ref.read(directoryServiceProvider).confirm(o.ref!),
+                  ),
+                  IconButton(
+                    tooltip: 'Dismiss',
+                    icon: Icon(Icons.cancel, color: Colors.grey.shade400),
+                    onPressed: () =>
+                        ref.read(directoryServiceProvider).dismiss(o.ref!),
+                  ),
+                ],
+              )
+            : null,
+      ),
     );
   }
 
@@ -288,19 +323,6 @@ class OrganizationsTabContent extends ConsumerWidget {
     ));
   }
 }
-
-Widget _sectionHeader(String text) => Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-          color: Colors.grey,
-        ),
-      ),
-    );
 
 Widget _emptyState(IconData icon, String title, String body) => Center(
       child: Padding(
@@ -321,60 +343,3 @@ Widget _emptyState(IconData icon, String title, String body) => Center(
       ),
     );
 
-class _DirectoryTile extends StatelessWidget {
-  const _DirectoryTile({
-    required this.icon,
-    required this.name,
-    required this.subtitle,
-    required this.onTap,
-    this.trailingText,
-    this.suggested = false,
-    this.onConfirm,
-    this.onDismiss,
-  });
-
-  final IconData icon;
-  final String name;
-  final String subtitle;
-  final VoidCallback onTap;
-  final String? trailingText;
-  final bool suggested;
-  final Future<void> Function()? onConfirm;
-  final Future<void> Function()? onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ListTile(
-      onTap: onTap,
-      leading: CircleAvatar(
-        backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.15),
-        child: Icon(icon, color: theme.colorScheme.primary, size: 20),
-      ),
-      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: subtitle.isEmpty
-          ? null
-          : Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: suggested
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: 'Confirm',
-                  icon: const Icon(Icons.check_circle, color: Colors.green),
-                  onPressed: () => onConfirm?.call(),
-                ),
-                IconButton(
-                  tooltip: 'Dismiss',
-                  icon: Icon(Icons.cancel, color: Colors.grey.shade500),
-                  onPressed: () => onDismiss?.call(),
-                ),
-              ],
-            )
-          : (trailingText != null
-              ? Text(trailingText!,
-                  style: TextStyle(color: Colors.grey.shade600))
-              : const Icon(Icons.chevron_right, color: Colors.grey)),
-    );
-  }
-}

@@ -131,7 +131,9 @@ import '../features/tasks/details/tasks_quality_details.dart';
 import '../features/tasks/forms/task_alert_form.dart';
 import '../features/tasks/forms/tasks_tasks_form.dart';
 import '../features/tasks/forms/tasks_timecard_form.dart';
+import '../features/tasks/forms/tasks_reports_unscheduled_task_form.dart';
 import '../features/tasks/tabs/task_details_tabs.dart';
+import '../features/tasks/tabs/tasks_tasks_tabs.dart';
 import '../features/tasks/tabs/tasks_timecard_tabs.dart';
 import '../features/facilities/screens/facilities_home.dart';
 import '../features/facilities/forms/property_type_form.dart';
@@ -148,6 +150,9 @@ import '../features/processes/screens/processes_category_list.dart';
 import '../features/processes/screens/processes_measurements.dart';
 import '../features/processes/screens/processes_stats.dart';
 import '../features/scheduling/screens/scheduling_home.dart';
+import '../features/scheduling/screens/scheduling_projects.dart';
+import '../features/scheduling/details/scheduling_project_details.dart';
+import '../features/scheduling/forms/scheduling_project_form.dart';
 import '../features/supervision/screens/supervision_home.dart';
 import '../features/supervision/tabs/supervision_stats_tabs.dart';
 import '../features/training/screens/training_home.dart';
@@ -877,7 +882,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         name: AppRouteIds.tasksTasks,
         builder: (_, __) => SetupGuideGate(
           guide: tasksGuide,
-          child: const TasksHome(),
+          child: const TasksTasksTabsScreen(),
         ),
       ),
       GoRoute(
@@ -989,6 +994,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             ),
           ));
         },
+      ),
+      GoRoute(
+        path: AppRoutePaths.tasksReportsUnscheduledTaskForm,
+        name: AppRouteIds.tasksReportsUnscheduledTaskForm,
+        builder: (_, __) => TasksReportsUnscheduledTaskFormScreen(),
       ),
       GoRoute(
         path: AppRoutePaths.tasksEmployeeTasks,
@@ -1165,6 +1175,31 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => SetupGuideGate(
           guide: schedulingGuide,
           child: const SchedulingHome(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.schedulingProjects,
+        name: AppRouteIds.schedulingProjects,
+        builder: (_, __) => const SchedulingProjectsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutePaths.schedulingProjectDetails,
+        name: AppRouteIds.schedulingProjectDetails,
+        builder: (_, state) => CompanyWrapper(
+          builder: (companyRef) => SchedulingProjectDetails(
+            companyId: companyRef,
+            docId: state.uri.queryParameters['docId'] ?? '',
+          ),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutePaths.schedulingProjectForm,
+        name: AppRouteIds.schedulingProjectForm,
+        builder: (_, state) => CompanyWrapper(
+          builder: (companyRef) => SchedulingProjectForm(
+            companyId: companyRef,
+            docId: state.uri.queryParameters['docId'],
+          ),
         ),
       ),
       GoRoute(

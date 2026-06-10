@@ -268,6 +268,21 @@ class FileRepository {
     return driveRef.update({'name': newName});
   }
 
+  /// Update a drive's editable details (name and/or description). Passing only
+  /// the fields that changed keeps system-drive names untouched while still
+  /// letting their description be edited.
+  Future<void> updateDriveDetails(
+    DocumentReference<Map<String, dynamic>> driveRef, {
+    String? name,
+    String? description,
+  }) {
+    final patch = <String, dynamic>{};
+    if (name != null) patch['name'] = name;
+    if (description != null) patch['description'] = description;
+    if (patch.isEmpty) return Future.value();
+    return driveRef.update(patch);
+  }
+
   /// Hard-delete a drive doc. Callers must guard: only non-system drives with
   /// no remaining files/folders should be passed here.
   Future<void> deleteDrive(DocumentReference<Map<String, dynamic>> driveRef) {

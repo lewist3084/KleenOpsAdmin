@@ -6,6 +6,7 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cross_file/cross_file.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -123,6 +124,67 @@ class DriveActions {
   }
 
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Per-item menu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  /// Upload OS files dropped onto the drive browser (desktop/web drag-and-drop)
+  /// into the current location of [drive]. Only documents land — dropped
+  /// folders are ignored. Shows a blocking spinner and reports the outcome.
+  static Future<void> uploadDroppedFiles(
+    BuildContext context,
+    WidgetRef ref, {
+    required String companyId,
+    required DriveModel drive,
+    required List<XFile> files,
+    DocumentReference<Map<String, dynamic>>? parentFolderRef,
+    List<String> parentAncestorIds = const [],
+  }) async {
+    final valid = files.where((f) => f.name.trim().isNotEmpty).toList();
+    if (valid.isEmpty || !context.mounted) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final repo = ref.read(fileRepositoryProvider);
+    final principal = _refs(ref);
+    var failed = 0;
+    for (final f in valid) {
+      try {
+        final docRef = repo.fileCollection(companyId).doc();
+        final ext = p.extension(f.name);
+        final storagePath = 'file/${docRef.id}$ext';
+        final downloadUrl = await StorageService().uploadXFile(f, storagePath);
+        final sizeBytes = await f.length();
+        await repo.createFile(
+          companyId: companyId,
+          driveRef: drive.ref,
+          name: f.name,
+          storagePath: storagePath,
+          downloadUrl: downloadUrl,
+          parentFolderRef: parentFolderRef,
+          parentAncestorIds: parentAncestorIds,
+          sourceFileName: f.name,
+          sizeBytes: sizeBytes,
+          createdBy: principal.memberRef,
+          userRef: principal.userRef,
+          newDocId: docRef.id,
+        );
+      } catch (_) {
+        failed++;
+      }
+    }
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+    final uploaded = valid.length - failed;
+    if (uploaded > 0) {
+      _snack('Uploaded $uploaded file${uploaded == 1 ? '' : 's'}'
+          '${failed > 0 ? ' · $failed failed' : ''}.');
+    } else {
+      _snack('Upload failed.');
+    }
+  }
 
   /// Bottom sheet of actions for a file or folder.
   static Future<void> showItemMenu(
@@ -505,6 +567,82 @@ class DriveActions {
       );
     } catch (e) {
       _snack('Failed to create drive: $e');
+      return null;
+    }
+  }
+
+  /// Edit a drive's name and description from the drive browser FAB. System
+  /// drives (My Drive, Company Drive) keep a fixed name, so only the
+  /// description is editable for them. Returns the updated [DriveModel] when
+  /// something changed, otherwise null.
+  static Future<DriveModel?> editDrive(
+    BuildContext context,
+    WidgetRef ref,
+    DriveModel drive,
+  ) async {
+    final nameCtl = TextEditingController(text: drive.name);
+    final descCtl = TextEditingController(text: drive.description ?? '');
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => DialogAction(
+        title: 'Edit Drive',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtl,
+              enabled: !drive.isSystem,
+              autofocus: !drive.isSystem,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: 'Name',
+                helperText: drive.isSystem
+                    ? "This drive's name cannot be changed."
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descCtl,
+              autofocus: drive.isSystem,
+              minLines: 2,
+              maxLines: 4,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                alignLabelWithHint: true,
+              ),
+              onTapOutside: (_) =>
+                  FocusManager.instance.primaryFocus?.unfocus(),
+            ),
+          ],
+        ),
+        cancelText: 'Cancel',
+        onCancel: () => Navigator.of(ctx).pop(false),
+        actionText: 'Save',
+        onAction: () => Navigator.of(ctx).pop(true),
+      ),
+    );
+    if (saved != true) return null;
+
+    final newName = drive.isSystem ? drive.name : nameCtl.text.trim();
+    final newDesc = descCtl.text.trim();
+    if (newName.isEmpty) {
+      _snack('A drive needs a name.');
+      return null;
+    }
+    final nameChanged = newName != drive.name;
+    final descChanged = newDesc != (drive.description ?? '').trim();
+    if (!nameChanged && !descChanged) return null;
+    try {
+      await ref.read(fileRepositoryProvider).updateDriveDetails(
+            drive.ref,
+            name: nameChanged ? newName : null,
+            description: descChanged ? newDesc : null,
+          );
+      return drive.copyWith(name: newName, description: newDesc);
+    } catch (e) {
+      _snack('Could not save changes: $e');
       return null;
     }
   }

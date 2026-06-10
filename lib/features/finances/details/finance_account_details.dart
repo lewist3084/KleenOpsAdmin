@@ -7,7 +7,6 @@
 // its own edit FAB for changing the debit/credit assignment).
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
@@ -20,9 +19,9 @@ import 'package:shared_widgets/containers/canvas_top_bookend.dart';
 import 'package:shared_widgets/containers/container_action.dart';
 import 'package:shared_widgets/containers/container_header.dart';
 import 'package:shared_widgets/containers/standard_canvas.dart';
-import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:shared_widgets/finance/account_math.dart';
 import 'package:shared_widgets/finance/finance_books_root.dart';
+import 'package:shared_widgets/finance/ledger_duplicates.dart';
 import 'package:shared_widgets/finance/ledger_entry_tile.dart';
 import 'package:shared_widgets/labels/text_value_inline.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
@@ -61,40 +60,29 @@ class FinanceAccountDetailsScreen extends StatelessWidget {
       backgroundColor: Colors.grey[100],
       appBar: null,
       drawer: const UserDrawer(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => FinanceAccountForm(
+                companyRef: companyRef,
+                docId: docId,
+              ),
+            ),
+          );
+        },
+        tooltip: 'Edit account',
+        child: const Icon(Icons.edit),
+      ),
       body: _wrapCanvas(
         _AccountDetailsContent(companyRef: companyRef, docId: docId),
       ),
-      bottomNavigationBar: Consumer(
-        builder: (context, ref, _) {
-          final menuSections = MenuDrawerSections(
-            actions: [
-              ContentMenuItem(
-                icon: Icons.edit_outlined,
-                label: 'Edit Account',
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => FinanceAccountForm(
-                        companyRef: companyRef,
-                        docId: docId,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          );
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DetailsAppBar(
-                title: 'Account Details',
-                menuSections: menuSections,
-              ),
-              const HomeNavBarAdapter(),
-            ],
-          );
-        },
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          DetailsAppBar(title: 'Account Details'),
+          HomeNavBarAdapter(),
+        ],
       ),
     );
   }
@@ -245,6 +233,13 @@ class _AccountTransactionsState extends State<_AccountTransactions> {
                 ...creditSnap.data!.docs,
               ].where((d) => seen.add(d.id)).toList();
 
+              // Badge same-money-twice entries here too (a duplicate shares this
+              // account, so both halves are in this list). Same scan as the
+              // main Ledger.
+              final dupConfidence = scanLedgerDuplicates(
+                docs.map((d) => MapEntry(d.id, d.data())),
+              );
+
               content = docs.isEmpty
                   ? const Text('No transactions found.')
                   : StandardViewGroup.buildViewFromDocs(
@@ -285,6 +280,7 @@ class _AccountTransactionsState extends State<_AccountTransactions> {
                         data: doc.data(),
                         balances: widget.balances,
                         entryId: doc.id,
+                        duplicateConfidence: dupConfidence[doc.id],
                       ),
                     );
             }

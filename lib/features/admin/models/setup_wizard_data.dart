@@ -142,14 +142,10 @@ const List<WizardCategory> kSetupWizardCategories = [
         position: 1,
         aiAssistAvailable: true,
       ),
-      WizardItem(
-        key: 'business_tagline',
-        label: 'Create a Tagline / Mission',
-        description: 'A short statement that defines your business.',
-        icon: Icons.format_quote,
-        position: 2,
-        aiAssistAvailable: true,
-      ),
+      // NOTE: The former "Create a Tagline / Mission" step was removed — the
+      // tagline is now auto-generated from the business name + type when the
+      // name is entered (see CompanyIdentityService.ensureAutoTagline) and is
+      // editable later on Company → Profile.
     ],
   ),
 

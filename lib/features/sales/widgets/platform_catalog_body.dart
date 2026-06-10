@@ -162,7 +162,17 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
   String _interval = 'month';
   String _group = kPlatformProductGroupOrder.first;
   bool _active = true;
+  bool _hardwired = false;
+  bool _perModel = false;
   bool _saving = false;
+
+  /// Preserved through edits (set by the catalog seed, not editable here).
+  String _billingType = 'one_time';
+  bool _seatBilled = false;
+
+  /// Per-model token rates (model id → ¢ per token) for [_perModel] products,
+  /// edited as parallel name/rate controller rows.
+  final List<_ModelRateRow> _modelRates = <_ModelRateRow>[];
 
   /// Group options shown in the select dialog: the canonical order, plus
   /// 'Other', the current group, and any custom groups already used across the
@@ -194,6 +204,18 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
     _interval = d['interval'] as String? ?? 'month';
     _group = resolveProductGroup(d);
     _active = d['active'] as bool? ?? true;
+    _hardwired = d['hardwired'] as bool? ?? false;
+    _perModel = d['perModel'] as bool? ?? false;
+    _billingType = d['billingType'] as String? ?? 'one_time';
+    _seatBilled = d['seatBilled'] as bool? ?? false;
+    final rates = (d['modelRatesCents'] as Map?)?.cast<String, dynamic>() ??
+        const <String, dynamic>{};
+    rates.forEach((model, rate) {
+      _modelRates.add(_ModelRateRow(
+        model: TextEditingController(text: model),
+        rate: TextEditingController(text: (rate as num?)?.toString() ?? ''),
+      ));
+    });
     _seedGroups();
     _loadGroups();
   }
@@ -242,6 +264,10 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
     _usageMetric.dispose();
     _unitPrice.dispose();
     _unitLabel.dispose();
+    for (final r in _modelRates) {
+      r.model.dispose();
+      r.rate.dispose();
+    }
     super.dispose();
   }
 
@@ -327,6 +353,15 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
       return;
     }
     final usageKey = _usageKey.text.trim();
+    final metered = usageKey.isNotEmpty;
+    // Build the per-model rate map (skip blank rows).
+    final modelRates = <String, num>{};
+    for (final r in _modelRates) {
+      final m = r.model.text.trim();
+      final v = double.tryParse(r.rate.text.trim());
+      if (m.isNotEmpty && v != null) modelRates[m] = v;
+    }
+    final usePerModel = metered && _perModel;
     setState(() => _saving = true);
     final payload = <String, dynamic>{
       'productKey': key,
@@ -337,17 +372,20 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
       'costCents': ((double.tryParse(_cost.text.trim()) ?? 0) * 100).round(),
       'currency': 'usd',
       'interval': _interval,
-      'billingType': usageKey.isNotEmpty ? 'metered' : 'one_time',
+      // Metered when a usage key is set; otherwise keep the product's existing
+      // billing type (recurring subscriptions / one-time services).
+      'billingType': metered ? 'metered' : _billingType,
       'provider': _provider.text.trim(),
       'active': _active,
-      'usageKey': usageKey.isEmpty ? FieldValue.delete() : usageKey,
-      'usageMetric':
-          usageKey.isEmpty ? FieldValue.delete() : _usageMetric.text.trim(),
-      'unitPriceCents': usageKey.isEmpty
-          ? FieldValue.delete()
-          : (double.tryParse(_unitPrice.text.trim()) ?? 0),
-      'unitLabel':
-          usageKey.isEmpty ? FieldValue.delete() : _unitLabel.text.trim(),
+      'hardwired': _hardwired,
+      'seatBilled': _seatBilled,
+      'usageKey': metered ? usageKey : FieldValue.delete(),
+      'usageMetric': metered ? _usageMetric.text.trim() : FieldValue.delete(),
+      'unitPriceCents':
+          metered ? (double.tryParse(_unitPrice.text.trim()) ?? 0) : FieldValue.delete(),
+      'unitLabel': metered ? _unitLabel.text.trim() : FieldValue.delete(),
+      'perModel': usePerModel ? true : FieldValue.delete(),
+      'modelRatesCents': usePerModel ? modelRates : FieldValue.delete(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
     try {
@@ -360,6 +398,78 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
       if (mounted) setState(() => _saving = false);
       messenger.showSnackBar(SnackBar(content: Text('Save failed: $e')));
     }
+  }
+
+  /// Editable list of per-model token rates (model id → ¢ per token).
+  Widget _modelRatesEditor() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Per-model rates (¢ / token)',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade700)),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Add model',
+                icon: const Icon(Icons.add, size: 18),
+                onPressed: () => setState(() => _modelRates.add(_ModelRateRow(
+                      model: TextEditingController(),
+                      rate: TextEditingController(),
+                    ))),
+              ),
+            ],
+          ),
+          for (final r in _modelRates)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: TextField(
+                      controller: r.model,
+                      decoration: const InputDecoration(
+                        labelText: 'Model',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: TextField(
+                      controller: r.rate,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: '¢ / token',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Remove',
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: () => setState(() {
+                      r.model.dispose();
+                      r.rate.dispose();
+                      _modelRates.remove(r);
+                    }),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   /// Live markup readout computed from the Cost + Price fields.
@@ -497,8 +607,9 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
             const SizedBox(height: 10),
             TextField(
               controller: _usageKey,
+              onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
-                labelText: 'Usage key (optional — ai / voice / storage)',
+                labelText: 'Usage key (optional — ai / pstn / plaid / video)',
                 helperText: 'Set to meter this product against company usage',
                 border: OutlineInputBorder(),
                 isDense: true,
@@ -542,7 +653,27 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
                 ),
               ],
             ),
+            if (_usageKey.text.trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Per-model pricing'),
+                subtitle: const Text(
+                    'Bill each AI model at its own per-token rate'),
+                value: _perModel,
+                onChanged: (v) => setState(() => _perModel = v),
+              ),
+              if (_perModel) _modelRatesEditor(),
+            ],
             const SizedBox(height: 4),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Connected to every company'),
+              subtitle: const Text(
+                  'Auto-attached & billed by usage; off = sold via invoices'),
+              value: _hardwired,
+              onChanged: (v) => setState(() => _hardwired = v),
+            ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Active (available to buy)'),
@@ -558,4 +689,11 @@ class _PlatformProductDialogState extends State<_PlatformProductDialog> {
       onAction: _saving ? () {} : _save,
     );
   }
+}
+
+/// A single editable per-model rate row (model id + ¢/token).
+class _ModelRateRow {
+  _ModelRateRow({required this.model, required this.rate});
+  final TextEditingController model;
+  final TextEditingController rate;
 }

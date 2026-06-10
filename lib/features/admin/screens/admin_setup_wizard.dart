@@ -20,7 +20,6 @@ import '../widgets/website_generator_dialog.dart';
 import '../widgets/call_routing_dialog.dart';
 import '../widgets/registered_agent_dialog.dart';
 import '../widgets/business_name_dialog.dart';
-import '../widgets/business_tagline_dialog.dart';
 import '../widgets/operation_type_dialog.dart';
 import '../widgets/primary_address_dialog.dart';
 import '../widgets/business_email_dialog.dart';
@@ -611,12 +610,6 @@ class _WizardTile extends StatelessWidget {
     switch (item.key) {
       case 'business_name':
         dialog = BusinessNameDialog(
-          itemData: itemData,
-          service: service,
-          isExisting: isExisting,
-        );
-      case 'business_tagline':
-        dialog = BusinessTaglineDialog(
           itemData: itemData,
           service: service,
           isExisting: isExisting,

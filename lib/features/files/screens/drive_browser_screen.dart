@@ -4,6 +4,7 @@
 // breadcrumb both walk back out before the screen itself pops.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -45,16 +46,23 @@ class DriveBrowserScreen extends ConsumerStatefulWidget {
 
 class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
   late List<FileModel> _folderStack;
+  // Local, mutable copy of the drive so an in-place name/description edit
+  // (via the FAB) updates the header without re-reading the doc.
+  late DriveModel _drive;
   final TextEditingController _searchCtl = TextEditingController();
   bool _searchActive = false;
   bool _filterActive = false;
   bool _trashActive = false;
+  // True while OS files are being dragged over the listing — drives the
+  // drop-zone highlight.
+  bool _dragging = false;
   String _search = '';
   FileKind? _filter;
 
   @override
   void initState() {
     super.initState();
+    _drive = _drive;
     _folderStack = List<FileModel>.of(widget.initialFolderStack);
   }
 
@@ -105,19 +113,22 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
               : _content(companyRef),
         ),
         // No add FAB while viewing the Trash.
+        // The FAB edits the drive's name + description. Adding files/folders is
+        // on the "Add" link inside the listing (or drag-and-drop). Hidden in
+        // the Trash view.
         floatingActionButton: companyRef == null || _trashActive
             ? null
             : FloatingActionButton(
                 heroTag: 'driveBrowserFab',
-                tooltip: 'Add',
-                onPressed: () => _showAddSheet(companyRef.id),
-                child: const Icon(Icons.add),
+                tooltip: 'Edit drive',
+                onPressed: _editDrive,
+                child: const Icon(Icons.edit_outlined),
               ),
         bottomNavigationBar: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             DetailsAppBar(
-              title: _trashActive ? '${widget.drive.name} Â· Trash' : widget.drive.name,
+              title: _trashActive ? '${_drive.name} Â· Trash' : _drive.name,
               onAiPressed: controller.toggle,
               menuSections: MenuDrawerSections(
                 actions: [
@@ -146,6 +157,7 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
 
   Widget _content(DocumentReference<Map<String, dynamic>> companyRef) {
     final searching = !_trashActive && _searchActive && _search.trim().isNotEmpty;
+    final controller = ref.read(aiCanvasControllerProvider);
     return Column(
       children: [
         // Breadcrumb only appears once you've drilled past the drive root; at
@@ -156,7 +168,7 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
             child: SearchControlStrip(
               controller: _searchCtl,
-              hintText: 'Search ${widget.drive.name}',
+              hintText: 'Search ${_drive.name}',
               onChanged: (t) => setState(() => _search = t),
             ),
           ),
@@ -175,22 +187,31 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
                   showImage: false,
                   hideWhenLandscape: false,
                   titleHeader: _trashActive ? 'Trash' : 'Name',
-                  title: widget.drive.name,
+                  title: _drive.name,
                   descriptionHeader: 'Description',
                   description: _trashActive
-                      ? 'Deleted items in ${widget.drive.name}. Restore the ones '
+                      ? 'Deleted items in ${_drive.name}. Restore the ones '
                           'you need; delete the rest forever.'
-                      : widget.drive.descriptionOrDefault,
+                      : _drive.descriptionOrDefault,
                   textIcon: _trashActive ? Icons.delete_outline : _driveIcon,
                 ),
-                ContainerActionWidget(
-                  // Bottom add + AI row suppressed â€” adding is on the FAB.
-                  actionText: '',
-                  content: _trashActive
-                      ? _trashListing(companyRef)
-                      : searching
-                          ? _searchResults(companyRef)
-                          : _folderListing(companyRef),
+                // The whole listing is a drop zone: dragging files from the OS
+                // onto it uploads them into the current folder. Adding is also
+                // available via the "Add" link below the list. Both are off in
+                // the Trash view.
+                _dropZone(
+                  companyRef,
+                  child: ContainerActionWidget(
+                    actionText: _trashActive ? '' : 'Add',
+                    onAction:
+                        _trashActive ? null : () => _showAddSheet(companyRef.id),
+                    onAiAction: _trashActive ? null : controller.toggle,
+                    content: _trashActive
+                        ? _trashListing(companyRef)
+                        : searching
+                            ? _searchResults(companyRef)
+                            : _folderListing(companyRef),
+                  ),
                 ),
               ],
             ),
@@ -206,7 +227,7 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
     return StreamBuilder<List<FileModel>>(
       stream: repo.watchTrashedItems(
         companyId: companyRef.id,
-        driveRef: widget.drive.ref,
+        driveRef: _drive.ref,
       ),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -237,8 +258,8 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
   }
 
   IconData get _driveIcon {
-    if (widget.drive.isCompanyDrive) return Icons.business_rounded;
-    switch (widget.drive.type) {
+    if (_drive.isCompanyDrive) return Icons.business_rounded;
+    switch (_drive.type) {
       case DriveType.personal:
         return Icons.person_rounded;
       case DriveType.shared:
@@ -252,7 +273,7 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
 
   Widget _breadcrumb() {
     final crumbs = <String>[
-      widget.drive.name,
+      _drive.name,
       ..._folderStack.map((f) => f.name),
     ];
     return Container(
@@ -323,7 +344,7 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
     return StreamBuilder<List<FileModel>>(
       stream: repo.watchFolderContents(
         companyId: companyRef.id,
-        driveRef: widget.drive.ref,
+        driveRef: _drive.ref,
         parentFolderRef: _currentFolderRef,
       ),
       builder: (context, snapshot) {
@@ -335,7 +356,7 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
         if (items.isEmpty) {
           return _inlineMessage(
             _filter == null
-                ? 'This folder is empty.\nTap + to add a folder or file.'
+                ? 'This folder is empty.\nDrag files here, or tap Add below.'
                 : 'Nothing here matches that filter.',
           );
         }
@@ -376,7 +397,7 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
           context,
           ref,
           companyId: companyId,
-          drive: widget.drive,
+          drive: _drive,
           item: item,
         ),
       ),
@@ -393,7 +414,7 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
       data: (all) {
         final q = _search.trim().toLowerCase();
         final driveItems =
-            all.where((f) => f.driveRef?.id == widget.drive.id).toList();
+            all.where((f) => f.driveRef?.id == _drive.id).toList();
         final matches = _applyTypeFilter(driveItems)
             .where((f) => f.name.toLowerCase().contains(q))
             .toList()
@@ -467,7 +488,7 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
         context,
         ref,
         companyId: companyId,
-        drive: widget.drive,
+        drive: _drive,
         parentFolderRef: _currentFolderRef,
         parentAncestorIds: _parentAncestorIds,
       );
@@ -476,7 +497,7 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
         context,
         ref,
         companyId: companyId,
-        drive: widget.drive,
+        drive: _drive,
         parentFolderRef: _currentFolderRef,
         parentAncestorIds: _parentAncestorIds,
       );
@@ -484,6 +505,77 @@ class _DriveBrowserScreenState extends ConsumerState<DriveBrowserScreen> {
   }
 
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Toggles + helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  // ─────────────── Edit drive (FAB) ───────────────
+
+  Future<void> _editDrive() async {
+    final updated = await DriveActions.editDrive(context, ref, _drive);
+    if (updated != null && mounted) {
+      setState(() => _drive = updated);
+    }
+  }
+
+  // ─────────────── Drag-and-drop drop zone ───────────────
+
+  /// Wraps the listing so OS files dragged onto it upload into the current
+  /// folder. Shows a highlighted border + hint while a drag hovers. Disabled
+  /// in the Trash view.
+  Widget _dropZone(
+    DocumentReference<Map<String, dynamic>> companyRef, {
+    required Widget child,
+  }) {
+    final accent = Theme.of(context).colorScheme.primary;
+    return DropTarget(
+      enable: !_trashActive,
+      onDragEntered: (_) => setState(() => _dragging = true),
+      onDragExited: (_) => setState(() => _dragging = false),
+      onDragDone: (detail) async {
+        setState(() => _dragging = false);
+        await DriveActions.uploadDroppedFiles(
+          context,
+          ref,
+          companyId: companyRef.id,
+          drive: _drive,
+          files: detail.files,
+          parentFolderRef: _currentFolderRef,
+          parentAncestorIds: _parentAncestorIds,
+        );
+      },
+      child: Stack(
+        children: [
+          child,
+          if (_dragging)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  margin: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.06),
+                    border: Border.all(color: accent, width: 2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.file_download_outlined, color: accent),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Drop files to upload',
+                        style: TextStyle(
+                          color: accent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   void _toggleSearch() {
     setState(() {

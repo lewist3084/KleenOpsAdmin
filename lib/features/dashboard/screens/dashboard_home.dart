@@ -174,13 +174,6 @@ class DashboardHome extends ConsumerWidget {
         accessFlagKey: 'administration',
         onPressed: (ctx) => ctx.go(AppRoutePaths.adminCompany),
       ),
-      MenuButtonConfig(
-        id: 'me',
-        label: 'Me',
-        icon: Icons.person_outline,
-        accessFlagKey: 'me',
-        onPressed: (ctx) => ctx.go(AppRoutePaths.meInfo),
-      ),
     ];
 
     final adminAccessStream = Stream.value(<String, dynamic>{

@@ -15,6 +15,8 @@ import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter
 import 'package:kleenops_admin/common/communications/comm_menu.dart';
 import 'package:kleenops_admin/features/directory/providers/directory_providers.dart';
 import 'package:kleenops_admin/features/directory/screens/directory_tab_content.dart';
+import 'package:kleenops_admin/features/directory/screens/external_contact_form_screen.dart';
+import 'package:kleenops_admin/features/directory/screens/organization_form_screen.dart';
 import 'package:kleenops_admin/services/ai/ai_context_service.dart';
 import 'package:kleenops_admin/widgets/ai/ai_screen_context.dart';
 import 'package:shared_widgets/containers/canvas_top_bookend.dart';
@@ -24,8 +26,31 @@ import 'package:shared_widgets/tabs/lazy_tab_view.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
 
 /// People | Organizations directory landing screen.
-class AdminDirectoryScreen extends StatelessWidget {
+class AdminDirectoryScreen extends StatefulWidget {
   const AdminDirectoryScreen({super.key});
+
+  @override
+  State<AdminDirectoryScreen> createState() => _AdminDirectoryScreenState();
+}
+
+class _AdminDirectoryScreenState extends State<AdminDirectoryScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this)
+      ..addListener(() {
+        if (mounted) setState(() {});
+      });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   Widget _wrapCanvas(Widget child) {
     return StandardCanvas(
@@ -53,16 +78,29 @@ class AdminDirectoryScreen extends StatelessWidget {
       communications: buildAdminCommunicationMenuItems(context),
     );
 
+    final onPeopleTab = _tabController.index == 0;
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       drawer: const UserDrawer(),
+      floatingActionButton: FloatingActionButton(
+        tooltip: onPeopleTab ? 'Add person' : 'Add organization',
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => onPeopleTab
+                ? const ExternalContactFormScreen()
+                : const OrganizationFormScreen(),
+          ),
+        ),
+        child: Icon(onPeopleTab ? Icons.person_add : Icons.add_business),
+      ),
       body: AiScreenContext(
         context: const AiContextState(
           key: 'directory',
           sectionKey: 'directory',
           screenType: 'list',
         ),
-        child: _wrapCanvas(const _DirectoryTabs()),
+        child: _wrapCanvas(_DirectoryTabs(controller: _tabController)),
       ),
       bottomNavigationBar: Consumer(
         builder: (context, ref, _) {
@@ -147,33 +185,31 @@ class AdminDirectoryScreen extends StatelessWidget {
 /// People | Organizations tabs. People = internal staff + external contacts
 /// (with suggestions); Organizations = external companies (with suggestions).
 class _DirectoryTabs extends StatelessWidget {
-  const _DirectoryTabs();
+  const _DirectoryTabs({required this.controller});
+
+  final TabController controller;
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Column(
-        children: [
-          const StandardTabBar(
-            tabs: [
-              Tab(text: 'People'),
-              Tab(text: 'Organizations'),
+    return Column(
+      children: [
+        StandardTabBar(
+          controller: controller,
+          tabs: const [
+            Tab(text: 'People'),
+            Tab(text: 'Organizations'),
+          ],
+        ),
+        Expanded(
+          child: LazyTabView(
+            controller: controller,
+            children: const [
+              PeopleTabContent(),
+              OrganizationsTabContent(),
             ],
           ),
-          Expanded(
-            child: Builder(
-              builder: (context) => LazyTabView(
-                controller: DefaultTabController.of(context),
-                children: const [
-                  PeopleTabContent(),
-                  OrganizationsTabContent(),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

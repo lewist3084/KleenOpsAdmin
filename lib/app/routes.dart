@@ -152,6 +152,8 @@ class AppRouteIds {
   static const taskDetailsTabs = 'taskDetailsTabs';
   static const taskAlertForm = 'taskAlertForm';
   static const tasksTasksForm = 'tasksTasksForm';
+  static const tasksReportsUnscheduledTaskForm =
+      'tasksReportsUnscheduledTaskForm';
 
   // Facilities
   static const facilitiesHome = 'facilitiesHome';
@@ -179,6 +181,9 @@ class AppRouteIds {
   // Scheduling
   static const schedulingHome = 'schedulingHome';
   static const schedulingTeams = 'schedulingTeams';
+  static const schedulingProjects = 'schedulingProjects';
+  static const schedulingProjectDetails = 'schedulingProjectDetails';
+  static const schedulingProjectForm = 'schedulingProjectForm';
 
   // Supervision
   static const supervisionHome = 'supervisionHome';
@@ -382,6 +387,8 @@ class AppRoutePaths {
   static const taskDetailsTabs = '/tasks/details';
   static const taskAlertForm = '/tasks/alert/form';
   static const tasksTasksForm = '/tasks/tasks/form';
+  static const tasksReportsUnscheduledTaskForm =
+      '/tasks/reports/unscheduled/task/form';
 
   // Facilities
   static const facilitiesHome = '/facilities/home';
@@ -409,6 +416,9 @@ class AppRoutePaths {
   // Scheduling
   static const schedulingHome = '/scheduling/home';
   static const schedulingTeams = '/scheduling/teams';
+  static const schedulingProjects = '/scheduling/projects';
+  static const schedulingProjectDetails = '/scheduling/projects/details';
+  static const schedulingProjectForm = '/scheduling/projects/form';
 
   // Supervision
   static const supervisionHome = '/supervision/home';
@@ -489,4 +499,10 @@ class AppRoutes {
   static const drawerTextConversations = AppRoutePaths.commInternalMessages;
   static const drawerMessageBoard = AppRoutePaths.commMessageBoard;
   static const drawerCalendarForm = AppRoutePaths.drawerCalendarForm;
+  // Tasks port: the task-drawer "email contributors" action degrades to the
+  // admin email screen (recipient/subject query params are ignored there).
+  static const drawerEmailCompose = AppRoutePaths.commEmail;
+  // Tasks port: the "+" FAB on the tasks list opens the unscheduled-task form.
+  static const tasksReportsUnscheduledTaskForm =
+      AppRoutePaths.tasksReportsUnscheduledTaskForm;
 }

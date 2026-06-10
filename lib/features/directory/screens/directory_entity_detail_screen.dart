@@ -1,13 +1,18 @@
 // lib/features/directory/screens/directory_entity_detail_screen.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
+import 'package:shared_widgets/containers/container_header.dart';
+import 'package:shared_widgets/dialogs/dialog_action.dart';
 import 'package:shared_widgets/tabs/lazy_tab_view.dart';
 import 'package:shared_widgets/tabs/standard_tab.dart';
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
+import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adapter.dart';
 
+import '../models/organization.dart';
 import '../../../common/communications/email/screens/email_detail_screen.dart';
 import '../../../common/communications/texting/screens/text_conversation_detail_screen.dart';
 import '../../../common/communications/timeline/models/timeline_item.dart';
@@ -34,84 +39,72 @@ class DirectoryEntityDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final String name;
-    final String subtitle;
-    Widget? shareToggle;
-    String? orgIdForChip;
+    final String description;
+    final List<Widget> headerExtras = [];
+    Organization? org;
     if (_isOrg) {
-      final org = ref.watch(organizationByIdProvider(entityId)).value;
+      org = ref.watch(organizationByIdProvider(entityId)).value;
       name = org?.name ?? 'Organization';
-      subtitle = org?.domains.join(', ') ?? '';
+      // Prefer the editable description; otherwise show a public identifier.
+      description = (org?.description?.trim().isNotEmpty == true)
+          ? org!.description!.trim()
+          : (org?.websites.isNotEmpty == true
+              ? org!.websites.first
+              : (org?.domains.join(', ') ?? ''));
     } else {
       final c = ref.watch(externalContactByIdProvider(entityId)).value;
       name = c?.name ?? 'Contact';
-      subtitle = c?.emails.join(', ') ?? '';
-      orgIdForChip = c?.organizationId;
+      description = c?.emails.join(', ') ?? '';
+      if (c?.organizationId != null) {
+        headerExtras.add(Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: _OrgChip(orgId: c!.organizationId!),
+        ));
+      }
       if (c?.ref != null) {
         final shared = c!.shared;
-        shareToggle = IconButton(
-          tooltip: shared ? 'Shared with company' : 'Private to you',
-          icon: Icon(shared ? Icons.public : Icons.lock_outline,
-              color: shared ? theme.colorScheme.primary : Colors.grey),
-          onPressed: () =>
-              ref.read(directoryServiceProvider).setShared(c.ref!, !shared),
-        );
+        headerExtras.add(Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            style: TextButton.styleFrom(padding: EdgeInsets.zero),
+            icon: Icon(shared ? Icons.public : Icons.lock_outline,
+                size: 18,
+                color: shared ? theme.colorScheme.primary : Colors.grey),
+            label: Text(shared ? 'Shared with company' : 'Private to you'),
+            onPressed: () =>
+                ref.read(directoryServiceProvider).setShared(c.ref!, !shared),
+          ),
+        ));
       }
     }
 
     return Scaffold(
-      bottomNavigationBar: const HomeNavBarAdapter(),
+      backgroundColor: Colors.grey[100],
+      floatingActionButton: (_isOrg && org != null)
+          ? FloatingActionButton(
+              onPressed: () => _editOrg(context, ref, org!),
+              tooltip: 'Edit company',
+              child: const Icon(Icons.edit),
+            )
+          : null,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DetailsAppBar(title: name),
+          const HomeNavBarAdapter(),
+        ],
+      ),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () => Navigator.of(context).maybePop(),
-                  ),
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: theme.colorScheme.primary,
-                    child: Icon(
-                      _isOrg ? Icons.business : Icons.person,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                        if (subtitle.isNotEmpty)
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: Colors.grey.shade600),
-                          ),
-                        if (orgIdForChip != null) ...[
-                          const SizedBox(height: 4),
-                          _OrgChip(orgId: orgIdForChip),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (shareToggle != null) shareToggle,
-                ],
-              ),
+            ContainerHeader(
+              showImage: false,
+              titleHeader: _isOrg ? 'Company' : 'Contact',
+              title: name,
+              descriptionHeader: description.isEmpty ? '' : 'About',
+              description: description,
+              trailingChildren: headerExtras.isEmpty ? null : headerExtras,
             ),
             Expanded(
               child: DefaultTabController(
@@ -133,8 +126,7 @@ class DirectoryEntityDetailScreen extends ConsumerWidget {
                             _CommunicationTab(
                                 entityKind: entityKind, entityId: entityId),
                             if (_isOrg) _OrgPeopleTab(orgId: entityId),
-                            _NotesTab(
-                                collection: _collection, id: entityId),
+                            _NotesTab(collection: _collection, id: entityId),
                           ],
                         ),
                       ),
@@ -146,6 +138,58 @@ class DirectoryEntityDetailScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// Edit FAB action: a focused name + description editor written straight to
+  /// the top-level organization doc.
+  Future<void> _editOrg(
+      BuildContext context, WidgetRef ref, Organization org) async {
+    final nameCtrl = TextEditingController(text: org.name);
+    final descCtrl = TextEditingController(text: org.description ?? '');
+    final messenger = ScaffoldMessenger.of(context);
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (c) => DialogAction(
+        title: 'Edit company',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'Name', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descCtrl,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'What is this company?',
+                  border: OutlineInputBorder()),
+            ),
+          ],
+        ),
+        cancelText: 'Cancel',
+        onCancel: () => Navigator.pop(c, false),
+        actionText: 'Save',
+        onAction: () => Navigator.pop(c, true),
+      ),
+    );
+    if (saved != true) return;
+    final name = nameCtrl.text.trim();
+    if (name.isEmpty || org.ref == null) return;
+    await org.ref!.set({
+      'name': name,
+      'nameLower': name.toLowerCase(),
+      'description': descCtrl.text.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    if (!context.mounted) return;
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Company updated.')),
     );
   }
 }
@@ -348,8 +392,10 @@ class _NotesTabState extends ConsumerState<_NotesTab> {
       final byName = (userData['name'] as String?)?.trim().isNotEmpty == true
           ? (userData['name'] as String).trim()
           : (userData['displayName'] as String?)?.trim() ?? 'Someone';
-      final entityRef =
-          companyRef.collection(widget.collection).doc(widget.id);
+      // Orgs live in the top-level registry; contacts stay company-scoped.
+      final entityRef = widget.collection == 'organization'
+          ? companyRef.firestore.collection('organization').doc(widget.id)
+          : companyRef.collection(widget.collection).doc(widget.id);
       await ref
           .read(directoryServiceProvider)
           .addNote(entityRef, text: text, byUid: uid, byName: byName);

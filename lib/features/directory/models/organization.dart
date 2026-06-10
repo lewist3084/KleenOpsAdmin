@@ -11,11 +11,25 @@ class Organization {
   final DocumentReference<Map<String, dynamic>>? ref;
   final String name;
 
+  /// A short human description of what the company is (user-editable).
+  final String? description;
+
   /// Email domains owned by this org (e.g. ['alibaba.com']).
   final List<String> domains;
 
   /// Known phone numbers (E.164).
   final List<String> phones;
+
+  /// Public websites (e.g. ['https://acme.com']).
+  final List<String> websites;
+
+  /// Physical locations. Each map: {label, address, city, state, postalCode,
+  /// country, phone}.
+  final List<Map<String, dynamic>> locations;
+
+  /// Lightweight people at the org, stored on the doc (distinct from the
+  /// `externalContact` collection). Each map: {name, email, phone, title}.
+  final List<Map<String, dynamic>> contacts;
 
   /// 'active' (confirmed), 'suggested' (awaiting confirmation), 'dismissed',
   /// or 'archived'.
@@ -36,8 +50,12 @@ class Organization {
     required this.id,
     this.ref,
     required this.name,
+    this.description,
     this.domains = const [],
     this.phones = const [],
+    this.websites = const [],
+    this.locations = const [],
+    this.contacts = const [],
     this.status = 'active',
     this.source = 'manual',
     this.createdAt,
@@ -58,6 +76,9 @@ class Organization {
       name: (data['name'] as String?)?.trim().isNotEmpty == true
           ? (data['name'] as String).trim()
           : 'Unknown',
+      description: (data['description'] as String?)?.trim().isNotEmpty == true
+          ? (data['description'] as String).trim()
+          : null,
       domains: (data['domains'] as List<dynamic>?)
               ?.whereType<String>()
               .toList() ??
@@ -65,6 +86,19 @@ class Organization {
       phones:
           (data['phones'] as List<dynamic>?)?.whereType<String>().toList() ??
               const [],
+      websites:
+          (data['websites'] as List<dynamic>?)?.whereType<String>().toList() ??
+              const [],
+      locations: (data['locations'] as List<dynamic>?)
+              ?.whereType<Map>()
+              .map((m) => Map<String, dynamic>.from(m))
+              .toList() ??
+          const [],
+      contacts: (data['contacts'] as List<dynamic>?)
+              ?.whereType<Map>()
+              .map((m) => Map<String, dynamic>.from(m))
+              .toList() ??
+          const [],
       status: (data['status'] as String?) ?? 'active',
       source: (data['source'] as String?) ?? 'manual',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
@@ -76,8 +110,12 @@ class Organization {
 
   Map<String, dynamic> toMap() => {
         'name': name,
+        if (description != null) 'description': description,
         'domains': domains,
         'phones': phones,
+        'websites': websites,
+        'locations': locations,
+        'contacts': contacts,
         'status': status,
         'source': source,
         if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),

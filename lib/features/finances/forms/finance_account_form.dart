@@ -6,6 +6,7 @@ import 'package:kleenops_admin/app/shared_widgets/navigation/details_appbar_adap
 import 'package:kleenops_admin/app/shared_widgets/navigation/home_navbar_adapter.dart';
 import 'package:kleenops_admin/widgets/layout/bookended_canvas.dart';
 import 'package:kleenops_admin/app/shared_widgets/forms/cancel_save_adapter.dart';
+import 'package:shared_widgets/dialogs/dialog_select.dart';
 import 'package:shared_widgets/services/firestore_service.dart';
 import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
@@ -156,6 +157,149 @@ class _FinanceAccountFormState extends State<FinanceAccountForm> {
     }
   }
 
+  /// The doc id of [d]'s parent account (DocumentReference or raw String),
+  /// or '' when it is a top-level account.
+  String _parentIdOf(QueryDocumentSnapshot<Map<String, dynamic>> d) {
+    final p = d.data()['parentAccountId'];
+    if (p is DocumentReference) return p.id;
+    if (p is String) return p;
+    return '';
+  }
+
+  /// Display name for the currently-selected parent (or the top-level hint).
+  String get _parentDisplayName {
+    if (_parentAccountId == null) return 'None (top-level account)';
+    for (final d in _accountDocs) {
+      if (d.id == _parentAccountId) {
+        return (d.data()['name'] ?? _parentAccountId).toString();
+      }
+    }
+    return 'None (top-level account)';
+  }
+
+  /// Flattens the chart of accounts into a depth-first ordered list with a depth
+  /// per node, so the parent picker can indent children under their parents the
+  /// same way the Balance Sheet / P&L do.
+  List<_AccountOption> _buildAccountTree() {
+    final byId = {for (final d in _accountDocs) d.id: d};
+    final childrenByParent =
+        <String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>{};
+    for (final d in _accountDocs) {
+      var pid = _parentIdOf(d);
+      // An account whose parent is missing is treated as top-level.
+      if (pid.isNotEmpty && !byId.containsKey(pid)) pid = '';
+      childrenByParent.putIfAbsent(pid, () => []).add(d);
+    }
+    for (final list in childrenByParent.values) {
+      list.sort((a, b) => (a.data()['name'] ?? '')
+          .toString()
+          .toLowerCase()
+          .compareTo((b.data()['name'] ?? '').toString().toLowerCase()));
+    }
+
+    final out = <_AccountOption>[];
+    final visited = <String>{};
+    void walk(String parentId, int depth) {
+      for (final d in childrenByParent[parentId] ?? const []) {
+        if (!visited.add(d.id)) continue; // guard against parent cycles
+        out.add(_AccountOption(
+          id: d.id,
+          name: (d.data()['name'] ?? d.id).toString(),
+          depth: depth,
+        ));
+        walk(d.id, depth + 1);
+      }
+    }
+
+    walk('', 0);
+    return out;
+  }
+
+  /// Every account that descends from [id] — excluded from the parent picker so
+  /// an account can never be made its own (grand)child.
+  Set<String> _descendantsOf(String id) {
+    final byParent = <String, List<String>>{};
+    for (final d in _accountDocs) {
+      byParent.putIfAbsent(_parentIdOf(d), () => []).add(d.id);
+    }
+    final out = <String>{};
+    final stack = <String>[id];
+    while (stack.isNotEmpty) {
+      final cur = stack.removeLast();
+      for (final child in byParent[cur] ?? const []) {
+        if (out.add(child)) stack.add(child);
+      }
+    }
+    return out;
+  }
+
+  Future<void> _pickAccountType() async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (c) => DialogSelect<String>(
+        title: 'Account Type',
+        items: _accountTypes,
+        tileType: DialogSelectTileType.radio,
+        initialSelection: _type,
+        itemLabel: (t) => t,
+        onCancel: () => Navigator.pop(c),
+        onSubmit: (res) => Navigator.pop(c, res.firstOrNull),
+      ),
+    );
+    if (result != null && mounted) setState(() => _type = result);
+  }
+
+  Future<void> _pickParentAccount() async {
+    final excluded = widget.docId == null
+        ? const <String>{}
+        : {widget.docId!, ..._descendantsOf(widget.docId!)};
+    final options = <_AccountOption>[
+      const _AccountOption(
+          id: '', name: 'None (top-level account)', depth: 0, isNone: true),
+      ..._buildAccountTree().where((o) => !excluded.contains(o.id)),
+    ];
+
+    final result = await showDialog<_AccountOption>(
+      context: context,
+      builder: (c) => DialogSelect<_AccountOption>(
+        title: 'Parent Account',
+        items: options,
+        tileType: DialogSelectTileType.radio,
+        initialSelection: options.firstWhere(
+          (o) => o.id == (_parentAccountId ?? ''),
+          orElse: () => options.first,
+        ),
+        itemLabel: (o) => o.indentedLabel,
+        itemSearchString: (o) => o.name,
+        onCancel: () => Navigator.pop(c),
+        onSubmit: (res) => Navigator.pop(c, res.firstOrNull),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() => _parentAccountId = result.isNone ? null : result.id);
+    }
+  }
+
+  /// A read-only, tappable field that opens a [DialogSelect] picker.
+  Widget _pickerField({
+    required String label,
+    required String value,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon),
+          suffixIcon: const Icon(Icons.arrow_drop_down),
+        ),
+        child: Text(value, overflow: TextOverflow.ellipsis),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -177,38 +321,18 @@ class _FinanceAccountFormState extends State<FinanceAccountForm> {
                     onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: _type,
-                    decoration: const InputDecoration(labelText: 'Account Type'),
-                    items: _accountTypes
-                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                        .toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _type = val);
-                    },
+                  _pickerField(
+                    label: 'Account Type',
+                    value: _type,
+                    icon: Icons.category_outlined,
+                    onTap: _pickAccountType,
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String?>(
-                    initialValue: _parentAccountId,
-                    decoration: const InputDecoration(
-                      labelText: 'Parent Account (optional)',
-                    ),
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('None'),
-                      ),
-                      ..._accountDocs
-                          .where((d) => d.id != widget.docId)
-                          .map((doc) {
-                        final name = (doc.data()['name'] ?? doc.id).toString();
-                        return DropdownMenuItem<String?>(
-                          value: doc.id,
-                          child: Text(name),
-                        );
-                      }),
-                    ],
-                    onChanged: (val) => setState(() => _parentAccountId = val),
+                  _pickerField(
+                    label: 'Parent Account (optional)',
+                    value: _parentDisplayName,
+                    icon: Icons.account_tree_outlined,
+                    onTap: _pickParentAccount,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -239,4 +363,30 @@ class _FinanceAccountFormState extends State<FinanceAccountForm> {
       ),
     );
   }
+}
+
+/// One row in the parent-account picker. [depth] drives the leading indentation
+/// so children sit under their parents (mirroring the Balance Sheet / P&L).
+/// Equality is by [id] so a stub can preselect the live item.
+class _AccountOption {
+  const _AccountOption({
+    required this.id,
+    required this.name,
+    required this.depth,
+    this.isNone = false,
+  });
+
+  final String id;
+  final String name;
+  final int depth;
+  final bool isNone;
+
+  /// Two em-spaces of indentation per depth level, then the account name.
+  String get indentedLabel => '${'  ' * depth}$name';
+
+  @override
+  bool operator ==(Object other) => other is _AccountOption && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }

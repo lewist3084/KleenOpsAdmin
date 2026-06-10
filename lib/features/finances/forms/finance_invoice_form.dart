@@ -61,26 +61,49 @@ class _FinanceInvoiceFormState extends State<FinanceInvoiceForm> {
   bool _saving = false;
   bool _loading = true;
 
-  // ── firestore paths (overlord uses top-level collections) ──────────
+  // ── firestore paths ────────────────────────────────────────────────
+  // The invoice doc stays in the top-level overlord collection, but the
+  // bill-to party and line items come from THIS company's own data so an
+  // admin invoice behaves like the company's own bookkeeping:
+  //   • customers → this company's org directory (`company/{id}/organization`).
+  //     The reconcile function keeps these synced up to the global top-level
+  //     `organization` registry; the dropdown is driven by the local copy.
+  //   • products  → this company's sellable product list (`company/{id}/product`)
   CollectionReference<Map<String, dynamic>> get _invoiceCollection =>
       FirebaseFirestore.instance.collection('invoice');
   CollectionReference<Map<String, dynamic>> get _customerCollection =>
-      FirebaseFirestore.instance.collection('customer');
+      widget.companyRef.collection('organization');
 
-  // ── product source: the platform-product catalog ───────────────────
+  // ── product source: this company's own sellable products ───────────
   CollectionReference<Map<String, dynamic>> get _productsCollection =>
-      FirebaseFirestore.instance.collection('platformProduct');
+      widget.companyRef.collection('product');
 
   _ProductOption _mapProduct(
       QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data();
-    final priceCents = (d['priceCents'] as num?)?.toDouble();
+    final rawPrice = d['price'] ?? d['unitPrice'] ?? d['rate'];
     return _ProductOption(
       id: doc.id,
-      name: (d['label'] ?? doc.id) as String,
+      name: (d['name'] ?? 'Unnamed') as String,
       description: d['description'] as String?,
-      unitPrice: priceCents != null ? priceCents / 100 : null,
+      unitPrice: (rawPrice as num?)?.toDouble(),
     );
+  }
+
+  Future<_ProductOption?> _createProduct(
+      String name, String? description) async {
+    final col = _productsCollection;
+    final ref = col.doc();
+    await FirestoreService().saveDocument(
+      collectionRef: col,
+      docId: ref.id,
+      data: {
+        'name': name,
+        'description': description ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+    );
+    return _ProductOption(id: ref.id, name: name, description: description);
   }
 
   // ── totals ────────────────────────────────────────────────────────
@@ -191,9 +214,9 @@ class _FinanceInvoiceFormState extends State<FinanceInvoiceForm> {
       builder: (_) => _LineItemEditorDialog(
         initial: index != null ? _lineItems[index] : null,
         productsCollection: _productsCollection,
-        productOrderField: 'label',
+        productOrderField: 'name',
         mapProduct: _mapProduct,
-        onCreateProduct: null,
+        onCreateProduct: _createProduct,
       ),
     );
     if (result != null && mounted) {
@@ -383,7 +406,7 @@ class _FinanceInvoiceFormState extends State<FinanceInvoiceForm> {
               }
               return (match.first.data()['name'] ?? 'Unnamed') as String;
             },
-            searchLabelText: 'Search Customers',
+            searchLabelText: 'Search Organizations',
             onChanged: (val) {
               setState(() {
                 _customerRef = val;
@@ -451,9 +474,8 @@ class _FinanceInvoiceFormState extends State<FinanceInvoiceForm> {
   Widget _buildLineItemsCard() {
     return ContainerActionWidget(
       title: 'Products & Services',
-      headerActionText: 'Add',
-      onHeaderAction: () => _addOrEditLineItem(),
-      actionText: '',
+      actionText: 'Add',
+      onAction: () => _addOrEditLineItem(),
       content: _lineItems.isEmpty
           ? Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),

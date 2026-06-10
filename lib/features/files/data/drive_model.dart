@@ -130,6 +130,29 @@ class DriveModel {
     }
   }
 
+  /// Returns a copy with the given fields replaced. Used to reflect an in-place
+  /// name/description edit without re-reading the drive doc.
+  DriveModel copyWith({
+    String? name,
+    String? description,
+  }) {
+    return DriveModel(
+      id: id,
+      ref: ref,
+      type: type,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      icon: icon,
+      color: color,
+      isCompanyDrive: isCompanyDrive,
+      ownerMemberId: ownerMemberId,
+      memberIds: memberIds,
+      teamIds: teamIds,
+      createdAt: createdAt,
+      createdBy: createdBy,
+    );
+  }
+
   factory DriveModel.fromSnapshot(
     DocumentSnapshot<Map<String, dynamic>> snap,
   ) {

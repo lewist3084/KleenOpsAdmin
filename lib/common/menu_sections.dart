@@ -10,6 +10,7 @@ import 'package:shared_widgets/drawers/menu_drawer.dart';
 import 'package:kleenops_admin/common/communications/comm_menu.dart';
 import 'package:kleenops_admin/common/resources/agent_tasks/agent_tasks_menu.dart';
 import 'package:kleenops_admin/common/resources/my_tasks/my_tasks_menu.dart';
+import 'package:kleenops_admin/common/resources/projects/projects_menu.dart';
 import 'package:kleenops_admin/common/resources/reminders/reminders_menu.dart';
 import 'package:kleenops_admin/common/resources/resources_menu.dart';
 
@@ -24,9 +25,12 @@ MenuDrawerSections withAdminUniversalSections(
       context,
       withAgentTasksInSections(
         context,
-        withFilesInSections(
+        withProjectsInSections(
           context,
-          withMyTasksInSections(context, sections),
+          withFilesInSections(
+            context,
+            withMyTasksInSections(context, sections),
+          ),
         ),
       ),
     ),

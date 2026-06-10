@@ -291,6 +291,26 @@ class AppLocalizations {
 
   // ── Navigation ──
   String get nav_processes => 'Processes';
+  String get nav_reports => 'Reports';
+  String get nav_team => 'Team';
+  String get nav_tasks => 'Tasks';
+  String get nav_quality => 'Quality';
+
+  // ── Tasks / Quality forms (ported) ──
+  String get processesFormNameRequiredMessage =>
+      'Please enter name before saving.';
+  String get processesFormNoItemsFound => 'No items found.';
+  String get processesFormTapToSelectItems => 'Tap to select items';
+  String get fieldInfoFacilitiesPropertyLocationTitle => 'Location';
+  String get fieldInfoFacilitiesBuildingLocationTitle => 'Location';
+  String get facilitiesPropertyDetailsBuildingsTitle => 'Buildings';
+  String get facilitiesPropertyDetailsNoBuildings => 'No buildings found.';
+  String get facilitiesBuildingDetailsFloorsTitle => 'Floors';
+  String get facilitiesBuildingDetailsNoFloors => 'No floors found.';
+  String get fieldInfoTrainingDetailsTitle => 'Details';
+  String get fieldInfoTrainingDetailsBody =>
+      'Add a clear title and description so the training is easy to understand.';
+  String get fieldInfoTrainingElementContentTitle => 'Media';
 
   // ── Search ──
   String get searchFieldActionTapToChoose => 'Tap to choose';

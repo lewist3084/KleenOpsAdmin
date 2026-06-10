@@ -154,6 +154,14 @@ class AiContextPresets {
         screenType: 'list',
       );
 
+  // ---- Tasks ----
+  static AiContextState tasksTabs() => const AiContextState(
+        key: 'tasksTabs',
+        sectionKey: 'tasks',
+        screenType: 'list',
+        label: 'Tasks',
+      );
+
   // ---- Quality (admin stubs) ----
   static AiContextState qualityInspections() => const AiContextState(
         key: 'qualityInspections',
@@ -191,6 +199,10 @@ class AiContextPresets {
   static const List<AiActionDescriptor> qualityActions =
       <AiActionDescriptor>[];
   static const String qualityGuidance = '';
+
+  static const List<AiFormDescriptor> tasksForms = <AiFormDescriptor>[];
+  static const List<AiActionDescriptor> tasksActions = <AiActionDescriptor>[];
+  static const String tasksGuidance = '';
 
   // ---- Safety (admin stubs) ----
   static AiContextState safetyAnalysis() => const AiContextState(

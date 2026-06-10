@@ -120,37 +120,33 @@ class SetupWizardService {
 
     final items =
         (wizardData['items'] as Map<String, dynamic>?) ?? {};
-    final categories =
-        (wizardData['categories'] as Map<String, dynamic>?) ?? {};
 
     int totalDone = 0;
     int totalItems = 0;
-
-    // Count per category.
-    final catCounts = <String, int>{};
-    for (final entry in items.entries) {
-      final itemData = entry.value as Map<String, dynamic>;
-      final catKey = itemData['categoryKey'] as String? ?? '';
-      final status = parseWizardStatus(itemData['status'] as String?);
-      catCounts[catKey] = (catCounts[catKey] ?? 0);
-      totalItems++;
-      if (status == WizardItemStatus.complete ||
-          status == WizardItemStatus.skipped) {
-        catCounts[catKey] = (catCounts[catKey] ?? 0) + 1;
-        totalDone++;
-      }
-    }
-
     final catUpdates = <String, dynamic>{};
-    for (final catKey in categories.keys) {
-      final total =
-          (categories[catKey] as Map<String, dynamic>)['totalCount'] as int? ??
-              0;
-      final done = catCounts[catKey] ?? 0;
-      final catStatus =
-          done >= total ? 'complete' : (done > 0 ? 'in_progress' : 'not_started');
-      catUpdates['categories.$catKey.completedCount'] = done;
-      catUpdates['categories.$catKey.status'] = catStatus;
+
+    // Count against the live catalog (not the stored snapshot) so progress
+    // stays correct when items are added to or removed from the catalog —
+    // stored entries for retired items (e.g. business_tagline) are ignored.
+    for (final cat in kSetupWizardCategories) {
+      int done = 0;
+      for (final item in cat.items) {
+        totalItems++;
+        final stored = items[item.key] as Map<String, dynamic>?;
+        final status = parseWizardStatus(stored?['status'] as String?);
+        if (status == WizardItemStatus.complete ||
+            status == WizardItemStatus.skipped) {
+          done++;
+          totalDone++;
+        }
+      }
+      final total = cat.items.length;
+      final catStatus = done >= total
+          ? 'complete'
+          : (done > 0 ? 'in_progress' : 'not_started');
+      catUpdates['categories.${cat.key}.completedCount'] = done;
+      catUpdates['categories.${cat.key}.totalCount'] = total;
+      catUpdates['categories.${cat.key}.status'] = catStatus;
     }
 
     final progress = totalItems > 0 ? totalDone / totalItems : 0.0;

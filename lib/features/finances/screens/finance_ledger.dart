@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_widgets/lists/standardViewGroup.dart';
 import 'package:shared_widgets/finance/account_math.dart';
 import 'package:shared_widgets/finance/finance_books_root.dart';
+import 'package:shared_widgets/finance/ledger_duplicates.dart';
 import 'package:shared_widgets/finance/ledger_entry_tile.dart';
 import 'package:kleenops_admin/app/routes.dart' show AppRoutePaths;
 import 'package:go_router/go_router.dart';
@@ -29,16 +30,48 @@ class _FinanceLedgerContentState extends ConsumerState<FinanceLedgerContent> {
   final TextEditingController _searchCtrl = TextEditingController();
   LedgerBalances _balances = LedgerBalances.empty;
 
+  /// doc id → `'high'`/`'medium'` for entries that look like a duplicate of
+  /// another. Computed once on open; drives the list-row duplicate badge.
+  Map<String, String> _dupConfidenceById = {};
+
   @override
   void initState() {
     super.initState();
     _loadBalances();
+    _loadDuplicateFlags();
   }
 
   Future<void> _loadBalances() async {
     final balances = await LedgerBalances.load(OverlordBooksRoot());
     if (!mounted) return;
     setState(() => _balances = balances);
+  }
+
+  /// Scans the posted ledger once and records which entries look like the same
+  /// money recorded twice, so the list can badge them without a per-row query.
+  /// Uses the shared [scanLedgerDuplicates] scan (same matcher as the detail
+  /// screen, the server observer, and the cleanup script).
+  Future<void> _loadDuplicateFlags() async {
+    final fs = FirebaseFirestore.instance;
+    final categoryRef = fs
+        .collection('timelineCategory')
+        .doc('jlXgbQiOKD3VjWd7AztM');
+    QuerySnapshot<Map<String, dynamic>> snap;
+    try {
+      snap = await fs
+          .collection('timeline')
+          .where('timelineCategoryId', isEqualTo: categoryRef)
+          .get();
+    } catch (_) {
+      return;
+    }
+
+    final confidence = scanLedgerDuplicates(
+      snap.docs.map((d) => MapEntry(d.id, d.data())),
+    );
+
+    if (!mounted) return;
+    setState(() => _dupConfidenceById = confidence);
   }
 
   @override
@@ -123,8 +156,11 @@ class _FinanceLedgerContentState extends ConsumerState<FinanceLedgerContent> {
                         ? 'No ledger entries.'
                         : 'No entries match "$_search".',
                     itemFilter: (doc) {
-                      if (_search.isEmpty) return true;
                       final d = doc.data();
+                      // Voided entries (e.g. confirmed duplicates) are hidden
+                      // from the ledger and excluded from balances.
+                      if (d['voided'] == true) return false;
+                      if (_search.isEmpty) return true;
                       final s = (d['name'] ?? d['memo'] ?? '')
                           .toString()
                           .toLowerCase();
@@ -158,7 +194,8 @@ class _FinanceLedgerContentState extends ConsumerState<FinanceLedgerContent> {
                     itemBuilder: (doc) => LedgerEntryTile(
                         data: doc.data(),
                         balances: _balances,
-                        entryId: doc.id),
+                        entryId: doc.id,
+                        duplicateConfidence: _dupConfidenceById[doc.id]),
                   ),
                 ),
               ],

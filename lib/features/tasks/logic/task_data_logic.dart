@@ -35,6 +35,22 @@ bool _asBool(dynamic value) {
   return false;
 }
 
+/// How long a swipe-skip hides a task before it auto-reappears.
+const Duration kSkipDuration = Duration(hours: 16);
+
+/// True when [task] is currently skipped — i.e. a `skipUntil` timestamp exists
+/// and is still in the future. Once `now` passes `skipUntil` the task is no
+/// longer skipped and reappears automatically; manual un-skip clears
+/// `skipUntil` immediately. Legacy docs carrying only a bare `skip == true`
+/// boolean (written before time-boxed skips) are still treated as skipped.
+bool isSkipActive(Map<String, dynamic> task, DateTime now) {
+  final until = task['skipUntil'];
+  if (until is Timestamp) {
+    return until.toDate().isAfter(now);
+  }
+  return task['skip'] == true;
+}
+
 bool isInBlackout(Map<String, dynamic> task, DateTime now) {
   return getBlackouts(task['blackouts']).any((b) {
     final s = (b['startTime'] as Timestamp).toDate();

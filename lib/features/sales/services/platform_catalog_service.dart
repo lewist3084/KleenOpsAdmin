@@ -72,6 +72,9 @@ class PlatformCatalogService {
         _fs.collection(colCompany).doc(companyId).collection('service');
     for (final product in kPlatformProductCatalog) {
       if (!product.active) continue;
+      // Only CONNECTED products are auto-attached to every company. À-la-carte
+      // products (Business Services) reach a company through invoices instead.
+      if (!product.hardwired) continue;
       batch.set(
         servicesCol.doc(product.key),
         {

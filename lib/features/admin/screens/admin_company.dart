@@ -9,7 +9,6 @@ import 'package:kleenops_admin/widgets/fields/google_address.dart';
 import 'package:shared_widgets/fields/markup_image_field.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
 import 'package:shared_widgets/utils/google_api_key.dart';
-import 'package:kleenops_admin/features/admin/forms/admin_company_form.dart';
 import 'package:kleenops_admin/features/admin/utils/company_file_images.dart';
 import 'package:kleenops_admin/common/utils/snackbar_service.dart';
 
@@ -40,7 +39,7 @@ class _AdminCompanyContentState extends ConsumerState<AdminCompanyContent> {
   }
 
   Widget _buildAnimatedFab(DocumentReference<Map<String, dynamic>> companyRef,
-          String name, String imageUrl) =>
+          String name, String tagline) =>
       ValueListenableBuilder<bool>(
         valueListenable: _fabVisible,
         builder: (_, visible, child) => AnimatedOpacity(
@@ -50,34 +49,45 @@ class _AdminCompanyContentState extends ConsumerState<AdminCompanyContent> {
         ),
         child: FloatingActionButton(
           heroTag: 'editCompany',
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const AdminCompanyFormScreen(),
-            ),
-          ),
+          onPressed: () => _editCompany(companyRef, name, tagline),
           child: const Icon(Icons.edit),
         ),
       );
 
+  /// Edits the Profile tab: header image, company name, and the company
+  /// tagline (shown here as the "Description"). The tagline is persisted to the
+  /// company document's `tagline` field — the same field captured as the
+  /// "Tagline / Mission" in the business setup wizard.
   Future<void> _editCompany(
     DocumentReference<Map<String, dynamic>> companyRef,
     String currentName,
-    String currentImage,
+    String currentTagline,
   ) async {
     final nameCtl = TextEditingController(text: currentName);
-    String imageUrl = currentImage;
+    final taglineCtl = TextEditingController(text: currentTagline);
+
+    // Resolve the existing header image so the uploader shows the current photo.
+    final headerImages = await CompanyFileImages.headerImageEntries(
+      companyRef: companyRef,
+    );
+    String imageUrl = headerImages.isNotEmpty
+        ? ((headerImages.first['url'] as String?)?.trim() ?? '')
+        : '';
+
+    if (!mounted) return;
 
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx2, setDState) => DialogAction(
-          title: 'Edit Company',
+          title: 'Edit Profile',
           cancelText: 'Cancel',
           actionText: 'Save',
           onCancel: () => Navigator.of(ctx2).pop(),
           onAction: () async {
             await companyRef.update({
               'name': nameCtl.text.trim(),
+              'tagline': taglineCtl.text.trim(),
               'mainImage': FieldValue.delete(),
               'images': FieldValue.delete(),
             });
@@ -107,7 +117,17 @@ class _AdminCompanyContentState extends ConsumerState<AdminCompanyContent> {
                 TextField(
                   controller: nameCtl,
                   decoration: const InputDecoration(labelText: 'Name'),
-                  textInputAction: TextInputAction.done,
+                  textInputAction: TextInputAction.next,
+                  onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: taglineCtl,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                  minLines: 2,
+                  maxLines: 5,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
                   onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 ),
               ],
@@ -288,6 +308,7 @@ class _AdminCompanyContentState extends ConsumerState<AdminCompanyContent> {
 
             final data = snapshot.data!.data() ?? {};
             final name = data['name'] as String? ?? '';
+            final tagline = data['tagline'] as String? ?? '';
             final locations = (data['locations'] as List<dynamic>? ?? [])
                 .map((loc) => Map<String, dynamic>.from(loc as Map))
                 .toList();
@@ -378,8 +399,9 @@ class _AdminCompanyContentState extends ConsumerState<AdminCompanyContent> {
                               showImage: resolvedImageUrl.isNotEmpty,
                               titleHeader: 'Name',
                               title: name,
-                              descriptionHeader: '',
-                              description: '',
+                              descriptionHeader:
+                                  tagline.isNotEmpty ? 'Description' : '',
+                              description: tagline,
                             );
                           },
                         ),
@@ -426,7 +448,7 @@ class _AdminCompanyContentState extends ConsumerState<AdminCompanyContent> {
                   child: _buildAnimatedFab(
                     companyRef,
                     name,
-                    '',
+                    tagline,
                   ),
                 ),
               ],

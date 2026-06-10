@@ -54,6 +54,8 @@ dependencies:
   share_plus: ^10.1.4
   image_picker: ^1.1.2
   file_picker: ^10.3.10
+  desktop_drop: ^0.6.0
+  cross_file: ^0.3.4
 
   # QR code
   qr_plugin:

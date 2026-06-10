@@ -10,10 +10,17 @@ class HomeNavBarAdapter extends ConsumerWidget {
   final bool highlightSelected;
   final bool forceDetail;
 
+  /// Pins the nav bar to a specific section regardless of the current route.
+  /// Used by screens reached via an imperative push (e.g. the scheduling
+  /// Projects roster) where the go_router location wouldn't otherwise resolve
+  /// to a dedicated nav.
+  final String? section;
+
   const HomeNavBarAdapter({
     super.key,
     this.highlightSelected = true,
     this.forceDetail = false,
+    this.section,
   });
 
   @override
@@ -21,7 +28,9 @@ class HomeNavBarAdapter extends ConsumerWidget {
     final router = ref.watch(goRouterProvider);
     return HomeNavBar(
       navConfig: _navConfig,
-      sectionResolver: resolveAppSection,
+      // When a section is pinned, skip the route-based resolver entirely.
+      sectionResolver: section == null ? resolveAppSection : null,
+      section: section,
       forceDetail: forceDetail || !highlightSelected,
       rootNavigatorKey: rootNavigatorKey,
       router: router,
@@ -99,6 +108,12 @@ const HomeNavConfig _navConfig = {
     HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
     HomeNavItem(label: 'Companies', icon: Icons.business, route: AppRoutePaths.companies),
   ],
+  // Directory (People + Organizations) — Home + Directory, mirroring the
+  // kleenops HR Directory bottom nav.
+  'directory': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Directory', icon: Icons.contacts, route: AppRoutePaths.commDirectory),
+  ],
   // Billing resolves to finance section (billing is under finance)
   'billing': [
     HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
@@ -158,6 +173,12 @@ const HomeNavConfig _navConfig = {
   'scheduling': [
     HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
     HomeNavItem(label: 'Teams', icon: Icons.view_timeline, route: AppRoutePaths.schedulingTeams),
+  ],
+  // Projects roster, reached from the scheduling Resources drawer entry. Gets
+  // its own Home + Projects nav (the adapter pins section:'projects').
+  'projects': [
+    HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),
+    HomeNavItem(label: 'Projects', icon: Icons.folder_special, route: AppRoutePaths.schedulingProjects),
   ],
   'supervision': [
     HomeNavItem(label: 'Home', icon: Icons.home, route: AppRoutePaths.dashboard),

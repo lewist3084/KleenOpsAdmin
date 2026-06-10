@@ -528,6 +528,21 @@ class _HardwiredServiceTile extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.cable_outlined, size: 20),
       title: Text('$label  —  $detail', style: const TextStyle(fontSize: 13)),
+      subtitle: metered
+          ? FutureBuilder<double>(
+              future: AdminFirebaseService.instance
+                  .estimatedServiceChargeCents(companyId, data),
+              builder: (context, snap) {
+                final cents = snap.data ?? 0;
+                if (cents <= 0) return const SizedBox.shrink();
+                return Text(
+                  'Est. \$${(cents / 100).toStringAsFixed(2)} unbilled',
+                  style: TextStyle(
+                      fontSize: 11, color: Colors.green.shade700),
+                );
+              },
+            )
+          : null,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

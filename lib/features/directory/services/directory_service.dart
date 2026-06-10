@@ -21,9 +21,14 @@ class ResolvedParty {
 class DirectoryService {
   const DirectoryService();
 
+  // Overlord app: organizations live in the TOP-LEVEL `organization` registry,
+  // NOT a company subcollection — vendors, transaction merchants, and email
+  // correspondents all share one canonical store that the company apps
+  // reference. [companyRef] is accepted for signature symmetry with [_contacts]
+  // (which stays company-scoped) but is intentionally unused for orgs.
   CollectionReference<Map<String, dynamic>> _orgs(
           DocumentReference<Map<String, dynamic>> companyRef) =>
-      companyRef.collection('organization');
+      FirebaseFirestore.instance.collection('organization');
 
   CollectionReference<Map<String, dynamic>> _contacts(
           DocumentReference<Map<String, dynamic>> companyRef) =>
@@ -55,10 +60,12 @@ class DirectoryService {
       await doc.reference.set(updates, SetOptions(merge: true));
       return doc.id;
     }
+    final orgName = (name != null && name.trim().isNotEmpty)
+        ? name.trim()
+        : orgNameFromDomain(domain);
     final ref = await _orgs(companyRef).add({
-      'name': (name != null && name.trim().isNotEmpty)
-          ? name.trim()
-          : orgNameFromDomain(domain),
+      'name': orgName,
+      'nameLower': orgName.toLowerCase(),
       'domains': [domain],
       'phones': <String>[],
       'status': status,
@@ -222,6 +229,90 @@ class DirectoryService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     }
+  }
+
+  /// Create (when [id] is null) or update an organization from the directory
+  /// form. Rich fields are stored as arrays directly on the org doc; the
+  /// overlord reconcile (reconcileGlobalOrg) carries name/website/locations up
+  /// to the top-level registry. Returns the org id.
+  Future<String> saveOrganization({
+    required DocumentReference<Map<String, dynamic>> companyRef,
+    String? id,
+    required String name,
+    List<String> domains = const [],
+    List<String> phones = const [],
+    List<String> websites = const [],
+    List<Map<String, dynamic>> locations = const [],
+    List<Map<String, dynamic>> contacts = const [],
+  }) async {
+    final data = <String, dynamic>{
+      'name': name.trim(),
+      'nameLower': name.trim().toLowerCase(),
+      'domains': domains,
+      'phones': phones,
+      'websites': websites,
+      if (websites.isNotEmpty) 'website': websites.first,
+      'locations': locations,
+      'contacts': contacts,
+      'lastActivityAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    if (id == null) {
+      final ref = await _orgs(companyRef).add({
+        ...data,
+        'status': 'active',
+        'source': 'manual',
+        'emailCount': 0,
+        'colorSeed':
+            (domains.isNotEmpty ? domains.first : name).hashCode.abs(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return ref.id;
+    }
+    await _orgs(companyRef).doc(id).set(data, SetOptions(merge: true));
+    return id;
+  }
+
+  /// Create (when [id] is null) or update an external contact from the People
+  /// form. Returns the contact id.
+  Future<String> saveContact({
+    required DocumentReference<Map<String, dynamic>> companyRef,
+    String? id,
+    required String name,
+    List<String> emails = const [],
+    List<String> phones = const [],
+    String? organizationId,
+    String? ownerMemberId,
+    bool shared = false,
+  }) async {
+    final lowered = emails.map((e) => e.trim().toLowerCase()).toList();
+    final data = <String, dynamic>{
+      'name': name.trim(),
+      'emails': lowered,
+      'phones': phones,
+      if (organizationId != null) 'organizationId': organizationId,
+      'shared': shared,
+      'lastActivityAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    if (id == null) {
+      final ref = await _contacts(companyRef).add({
+        ...data,
+        'ownerMemberIds': ownerMemberId != null ? [ownerMemberId] : <String>[],
+        'status': 'active',
+        'source': 'manual',
+        'emailCount': 0,
+        'colorSeed':
+            (lowered.isNotEmpty ? lowered.first : name).hashCode.abs(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return ref.id;
+    }
+    if (ownerMemberId != null) {
+      data['ownerMemberIds'] = FieldValue.arrayUnion([ownerMemberId]);
+    }
+    await _contacts(companyRef).doc(id).set(data, SetOptions(merge: true));
+    return id;
   }
 
   /// Promote a suggested org/contact to active.

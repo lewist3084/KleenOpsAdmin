@@ -1,6 +1,24 @@
+import 'package:flutter/widgets.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kleenops_admin/app/routes.dart';
 
+/// Resolve the app section for the *current* route, read from the GoRouter the
+/// given [context] is mounted under. Returns '' when no router is available.
+/// Used by drawer-section injectors that should only appear in certain areas
+/// (e.g. Projects in `scheduling`).
+String currentAppSection(BuildContext context) {
+  final router = GoRouter.maybeOf(context);
+  if (router == null) return '';
+  final info = router.routeInformationProvider.value;
+  final path = info.uri.path;
+  if (path.isNotEmpty) return resolveAppSection(path);
+  return '';
+}
+
 String resolveAppSection(String path) {
+  // Directory gets its own nav strip (Home + Directory), scoped to the
+  // directory screen only — not every /comm/* screen.
+  if (path.startsWith('/comm/directory')) return 'directory';
   if (path.startsWith('/tasks')) return 'tasks';
   if (path.startsWith('/facilities')) return 'facilities';
   if (path.startsWith('/marketplace')) return 'marketplace';

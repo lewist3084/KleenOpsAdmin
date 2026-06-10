@@ -1,5 +1,6 @@
 // lib/features/directory/providers/directory_providers.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod/legacy.dart';
 import 'package:kleenops_admin/features/auth/providers/auth_provider.dart';
@@ -17,9 +18,11 @@ final directoryServiceProvider =
 /// status+lastActivityAt composite index.
 final _allOrganizationsProvider =
     StreamProvider.autoDispose<List<Organization>>((ref) {
+  // Organizations live in the TOP-LEVEL overlord registry (vendors, merchants,
+  // correspondents all in one place). Gate on a signed-in company context.
   final companyRef = ref.watch(companyIdProvider).value;
   if (companyRef == null) return Stream.value(const []);
-  return companyRef
+  return FirebaseFirestore.instance
       .collection('organization')
       .orderBy('lastActivityAt', descending: true)
       .limit(300)
@@ -118,7 +121,7 @@ final organizationByIdProvider = StreamProvider.autoDispose
     .family<Organization?, String>((ref, orgId) {
   final companyRef = ref.watch(companyIdProvider).value;
   if (companyRef == null) return Stream.value(null);
-  return companyRef
+  return FirebaseFirestore.instance
       .collection('organization')
       .doc(orgId)
       .snapshots()
@@ -198,9 +201,12 @@ final entityNotesProvider = StreamProvider.autoDispose
     .family<List<DirectoryNote>, ({String collection, String id})>((ref, key) {
   final companyRef = ref.watch(companyIdProvider).value;
   if (companyRef == null) return Stream.value(const []);
-  return companyRef
-      .collection(key.collection)
-      .doc(key.id)
+  // Org notes live under the top-level registry doc; contact notes stay
+  // company-scoped.
+  final entityDoc = key.collection == 'organization'
+      ? FirebaseFirestore.instance.collection('organization').doc(key.id)
+      : companyRef.collection(key.collection).doc(key.id);
+  return entityDoc
       .collection('timeline')
       .where('type', isEqualTo: 'note')
       .snapshots()

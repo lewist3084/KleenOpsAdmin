@@ -40,8 +40,17 @@ const List<String> kPlatformProductGroupOrder = <String>[
 /// catalog has retired. The version-gated seed deletes these so they stop
 /// showing up under an "Other" group (e.g. the combined `voice_video` doc that
 /// the split `voice_minutes` + `video_minutes` products replaced).
+///
+///   • voice_video           — split earlier into voice_minutes + video_minutes.
+///   • voice_minutes/video_minutes — internal WebRTC usage is FREE; only Twilio
+///                             PSTN voice/SMS tied to a purchased number bills,
+///                             via the new voice_local/voice_intl/text_* products.
+///   • ai_usage              — replaced by per-model ai_input_tokens/ai_output_tokens.
 const List<String> kRetiredPlatformProductKeys = <String>[
   'voice_video',
+  'voice_minutes',
+  'video_minutes',
+  'ai_usage',
 ];
 
 /// A single sellable platform product. Field names mirror the `platformProduct`
@@ -58,10 +67,14 @@ class PlatformProductDef {
     this.billingType = 'one_time',
     this.provider = '',
     this.active = true,
+    this.hardwired = false,
     this.usageKey,
     this.usageMetric,
     this.unitPriceCents = 0,
     this.unitLabel,
+    this.perModel = false,
+    this.modelRatesCents,
+    this.seatBilled = false,
   });
 
   final String key;
@@ -88,17 +101,40 @@ class PlatformProductDef {
 
   final bool active;
 
-  /// Usage rollup key for metered products: 'ai' | 'voice' | 'video'.
+  /// Whether this product is CONNECTED/hardwired to every company (auto-attached
+  /// as a `company/{id}/service/{key}` doc and billed by measured consumption),
+  /// versus an à-la-carte product sold on invoices (sales history from paid
+  /// invoices). Subscriptions/AI/Telephony/Accounting are hardwired; Business
+  /// Services are not.
+  final bool hardwired;
+
+  /// Usage rollup key for metered products: 'ai' | 'voice' | 'video' | 'pstn' |
+  /// 'plaid'. Maps to the matching top-level totals collection server-side.
   final String? usageKey;
 
-  /// Field on the rollup doc to charge against (e.g. totalRequestCount).
+  /// Field on the rollup doc to charge against (e.g. totalInputTokens,
+  /// localVoiceMinutes, syncCount).
   final String? usageMetric;
 
-  /// Per-unit charge in cents for metered products.
-  final int unitPriceCents;
+  /// Per-unit charge in cents for metered products. May be fractional (e.g.
+  /// a per-token rate), so this is stored as a [num].
+  final num unitPriceCents;
 
-  /// Human unit label for metered products ('request', 'second'…).
+  /// Human unit label for metered products ('token', 'minute', 'message'…).
   final String? unitLabel;
+
+  /// When true the product is billed PER MODEL: usage is tracked in a per-model
+  /// map on the totals doc (e.g. inputTokensByModel) and each model is charged at
+  /// its own rate from [modelRatesCents]. Used for AI token products.
+  final bool perModel;
+
+  /// Per-model unit rates in cents (model id → ¢ per unit) for [perModel]
+  /// products. Editable in Sales → Products.
+  final Map<String, num>? modelRatesCents;
+
+  /// When true this recurring product is billed by the seat runner as
+  /// (activeMemberCount × priceCents) rather than by the metered-usage engine.
+  final bool seatBilled;
 
   bool get isMetered => (usageKey ?? '').isNotEmpty;
 
@@ -116,11 +152,17 @@ class PlatformProductDef {
       'billingType': billingType,
       'provider': provider,
       'active': active,
+      'hardwired': hardwired,
+      if (seatBilled) 'seatBilled': true,
       if (isMetered) ...{
         'usageKey': usageKey,
         'usageMetric': usageMetric,
         'unitPriceCents': unitPriceCents,
         'unitLabel': unitLabel,
+        if (perModel) ...{
+          'perModel': true,
+          'modelRatesCents': modelRatesCents ?? <String, num>{},
+        },
       },
     };
   }
@@ -137,11 +179,17 @@ class PlatformProductDef {
       'billingType': billingType,
       'interval': interval,
       'priceCents': priceCents,
+      'hardwired': hardwired,
+      if (seatBilled) 'seatBilled': true,
       if (isMetered) ...{
         'usageKey': usageKey,
         'usageMetric': usageMetric,
         'unitPriceCents': unitPriceCents,
         'unitLabel': unitLabel,
+        if (perModel) ...{
+          'perModel': true,
+          'modelRatesCents': modelRatesCents ?? <String, num>{},
+        },
       },
       // Lifecycle: every joining company gets the baseline platform + the
       // usage-metered services wired up; provisioned add-ons (phone numbers)
@@ -155,11 +203,12 @@ class PlatformProductDef {
 /// Schema version of the catalog — bump when the product set changes so the
 /// auto-seed knows to re-write docs (mirrors the `_seedVersion` pattern used
 /// elsewhere in these apps).
-const int kPlatformCatalogSeedVersion = 7;
+const int kPlatformCatalogSeedVersion = 8;
 
 /// The full catalog, grouped by the sections shown in the Products tab.
 const List<PlatformProductDef> kPlatformProductCatalog = <PlatformProductDef>[
   // ── Subscriptions (recurring platform + per-seat fees) ──────────────
+  // Hardwired: connected to every company and billed by the recurring runner.
   PlatformProductDef(
     key: 'company_platform',
     group: 'Subscriptions',
@@ -171,84 +220,161 @@ const List<PlatformProductDef> kPlatformProductCatalog = <PlatformProductDef>[
     interval: 'month',
     billingType: 'recurring',
     provider: 'KleenOps',
+    hardwired: true,
   ),
   PlatformProductDef(
     key: 'user_seat',
     group: 'Subscriptions',
-    label: 'User Seat',
+    label: 'Member Seat',
     description:
-        'A platform user / member seat. Currently no charge; metered seat '
-        'billing can be turned on later.',
-    priceCents: 0,
-    interval: 'month',
+        'Per-member annual subscription. Each active member of a company costs '
+        '\$10.00 / year; billed as (active members × price) by the recurring '
+        'subscription runner.',
+    priceCents: 1000,
+    costCents: 1000,
+    interval: 'year',
     billingType: 'recurring',
     provider: 'KleenOps',
+    hardwired: true,
+    seatBilled: true,
   ),
 
-  // ── AI (metered Gemini usage) ───────────────────────────────────────
+  // ── AI (metered Gemini token usage, per model) ──────────────────────
+  // Tokens are read from firebase_ai usageMetadata and tracked per model, so
+  // input/output can be priced separately at each model's real rate.
   PlatformProductDef(
-    key: 'ai_usage',
+    key: 'ai_input_tokens',
     group: 'AI',
-    label: 'AI Usage',
+    label: 'AI Input Tokens',
     description:
-        'Gemini AI requests across the company. Metered per request against '
-        'the company\'s rolled-up AI usage.',
+        'Prompt (input) tokens consumed by Gemini/Imagen/Veo across the company, '
+        'tracked per model. Priced per token at each model\'s rate; set rates in '
+        'the per-model editor.',
     billingType: 'metered',
     interval: 'month',
     provider: 'Gemini',
+    hardwired: true,
     usageKey: 'ai',
-    usageMetric: 'totalRequestCount',
+    usageMetric: 'totalInputTokens',
     unitPriceCents: 0,
-    unitLabel: 'request',
+    unitLabel: 'token',
+    perModel: true,
+    // Cents per token (≈ $/1M ÷ 10,000). Placeholders — admin scales these.
+    modelRatesCents: <String, num>{
+      'gemini-2.5-flash': 0.00003, // ~$0.30 / 1M input tokens
+      'gemini-2.5-pro': 0.000125, // ~$1.25 / 1M input tokens
+    },
+  ),
+  PlatformProductDef(
+    key: 'ai_output_tokens',
+    group: 'AI',
+    label: 'AI Output Tokens',
+    description:
+        'Generated (output) tokens produced by Gemini across the company, '
+        'tracked per model. Priced per token at each model\'s rate; set rates in '
+        'the per-model editor.',
+    billingType: 'metered',
+    interval: 'month',
+    provider: 'Gemini',
+    hardwired: true,
+    usageKey: 'ai',
+    usageMetric: 'totalOutputTokens',
+    unitPriceCents: 0,
+    unitLabel: 'token',
+    perModel: true,
+    modelRatesCents: <String, num>{
+      'gemini-2.5-flash': 0.00025, // ~$2.50 / 1M output tokens
+      'gemini-2.5-pro': 0.001, // ~$10.00 / 1M output tokens
+    },
   ),
 
-  // ── Telephony (phone line rental + metered voice/video) ─────────────
+  // ── Telephony (phone line rental + metered PSTN voice/SMS) ──────────
+  // Internal WebRTC voice/video is FREE. Only usage tied to a purchased Twilio
+  // number bills: local/international voice (per minute) and text (per segment).
   PlatformProductDef(
     key: 'phone_number',
     group: 'Telephony',
     label: 'Phone Number',
     description:
-        'A provisioned business phone line (Twilio). Base line rental \$1.15 / '
-        'month for a US local number (toll-free is \$2.15); per-minute voice '
-        'and SMS usage are billed separately. No upcharge.',
-    priceCents: 115,
-    costCents: 115,
-    interval: 'month',
+        'A provisioned business phone line (Twilio), billed annually up front. '
+        'US local number line rental is \$1.15 / month = \$13.80 / year; '
+        'per-minute voice and per-message text usage are billed separately.',
+    priceCents: 1380,
+    costCents: 1380,
+    interval: 'year',
     billingType: 'recurring',
     provider: 'Twilio',
+    hardwired: true,
   ),
   PlatformProductDef(
-    key: 'voice_minutes',
+    key: 'voice_local',
     group: 'Telephony',
-    label: 'Voice Calls',
+    label: 'Local Calls',
     description:
-        'PSTN voice usage. Zero while calls stay internal; charged per second '
-        'of outbound/inbound carrier time.',
+        'Domestic (NANP / +1) PSTN voice minutes on a purchased number. Twilio '
+        'base ≈ \$0.014 / min outbound, \$0.0085 / min inbound. Metered per minute.',
     billingType: 'metered',
     interval: 'month',
     provider: 'Twilio',
-    usageKey: 'voice',
-    usageMetric: 'totalDurationSeconds',
-    unitPriceCents: 0,
-    unitLabel: 'second',
+    hardwired: true,
+    usageKey: 'pstn',
+    usageMetric: 'localVoiceMinutes',
+    unitPriceCents: 1.4,
+    unitLabel: 'minute',
   ),
   PlatformProductDef(
-    key: 'video_minutes',
+    key: 'voice_intl',
     group: 'Telephony',
-    label: 'Video Calls',
+    label: 'International Calls',
     description:
-        'Video room usage. Zero while internal; charged per second of metered '
-        'video time.',
+        'International PSTN voice minutes on a purchased number. Twilio rates '
+        'vary widely by destination (≈ \$0.01–\$0.10+ / min). Metered per minute; '
+        'set your blended base rate.',
     billingType: 'metered',
     interval: 'month',
-    provider: 'WebRTC',
-    usageKey: 'video',
-    usageMetric: 'totalDurationSeconds',
-    unitPriceCents: 0,
-    unitLabel: 'second',
+    provider: 'Twilio',
+    hardwired: true,
+    usageKey: 'pstn',
+    usageMetric: 'intlVoiceMinutes',
+    unitPriceCents: 5,
+    unitLabel: 'minute',
+  ),
+  PlatformProductDef(
+    key: 'text_local',
+    group: 'Telephony',
+    label: 'Local Text',
+    description:
+        'Domestic (US A2P) SMS/MMS segments on a purchased number. Twilio base '
+        '≈ \$0.0079 / segment plus carrier fees. Metered per message segment.',
+    billingType: 'metered',
+    interval: 'month',
+    provider: 'Twilio',
+    hardwired: true,
+    usageKey: 'pstn',
+    usageMetric: 'localTextSegments',
+    unitPriceCents: 0.79,
+    unitLabel: 'message',
+  ),
+  PlatformProductDef(
+    key: 'text_intl',
+    group: 'Telephony',
+    label: 'International Text',
+    description:
+        'International SMS/MMS segments on a purchased number. Twilio rates vary '
+        'by destination. Metered per message segment; set your blended base rate.',
+    billingType: 'metered',
+    interval: 'month',
+    provider: 'Twilio',
+    hardwired: true,
+    usageKey: 'pstn',
+    usageMetric: 'intlTextSegments',
+    unitPriceCents: 5,
+    unitLabel: 'message',
   ),
 
   // ── Business Services (formation, EIN, agent, domain, address) ──────
+  // À-la-carte: NOT hardwired; sold per company via invoices (sales history
+  // aggregates from paid invoices, like the main app's product flow).
   PlatformProductDef(
     key: 'business_formation_filing',
     group: 'Business Services',
@@ -316,18 +442,56 @@ const List<PlatformProductDef> kPlatformProductCatalog = <PlatformProductDef>[
     billingType: 'recurring',
     provider: 'Northwest Registered Agent',
   ),
-  // ── Accounting Services (banking; bookkeeping/payroll to follow) ────
+  // ── Accounting Services (Plaid; bookkeeping/payroll to follow) ──────
+  // Hardwired + metered against per-company Plaid activity. Rates are
+  // placeholders — set them once your Plaid contract terms are confirmed.
   PlatformProductDef(
     key: 'bank_connection',
     group: 'Accounting Services',
     label: 'Bank Connection',
     description:
-        'Plaid-backed bank account connection. No charge to connect; a place '
-        'to track linked-account costs as they appear.',
-    priceCents: 0,
+        'A Plaid-linked bank connection (Item). Charged once per new bank '
+        'institution a company links. Metered per connection.',
+    billingType: 'metered',
     interval: 'month',
-    billingType: 'recurring',
     provider: 'Plaid',
+    hardwired: true,
+    usageKey: 'plaid',
+    usageMetric: 'connectionCount',
+    unitPriceCents: 0,
+    unitLabel: 'connection',
+  ),
+  PlatformProductDef(
+    key: 'plaid_sync',
+    group: 'Accounting Services',
+    label: 'Transaction Sync',
+    description:
+        'Ongoing Plaid transaction pulls (webhook + on-demand syncs) that keep '
+        'a company\'s books current. Metered per sync.',
+    billingType: 'metered',
+    interval: 'month',
+    provider: 'Plaid',
+    hardwired: true,
+    usageKey: 'plaid',
+    usageMetric: 'syncCount',
+    unitPriceCents: 0,
+    unitLabel: 'sync',
+  ),
+  PlatformProductDef(
+    key: 'ach_payment',
+    group: 'Accounting Services',
+    label: 'ACH Payment',
+    description:
+        'Plaid-verified ACH bank payment setup / transfers. Metered per '
+        'transfer.',
+    billingType: 'metered',
+    interval: 'month',
+    provider: 'Plaid',
+    hardwired: true,
+    usageKey: 'plaid',
+    usageMetric: 'achCount',
+    unitPriceCents: 0,
+    unitLabel: 'transfer',
   ),
 ];
 
@@ -346,7 +510,10 @@ String resolveProductGroup(Map<String, dynamic> data) {
   // Legacy fallback: bucket by what we can infer from the doc.
   final usageKey = (data['usageKey'] as String?)?.trim() ?? '';
   if (usageKey == 'ai') return 'AI';
-  if (usageKey == 'voice' || usageKey == 'video') return 'Telephony';
+  if (usageKey == 'voice' || usageKey == 'video' || usageKey == 'pstn') {
+    return 'Telephony';
+  }
+  if (usageKey == 'plaid') return 'Accounting Services';
   return 'Other';
 }
 
